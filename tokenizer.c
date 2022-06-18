@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 typedef enum {
   TK_RESERVED,
@@ -58,6 +59,10 @@ Token *tokenize() {
 
 }
 
+bool at_eof() {
+  return token->kind == TK_EOF;
+}
+
 int main(int argc, char **argv) {
   if (argc < 2) {
     fprintf(stderr, "no args\n");
@@ -74,7 +79,7 @@ int main(int argc, char **argv) {
   printf("  mov rax %d\n", token->val);
   token = token->next;
 
-  while(token->kind != TK_EOF) {
+  while(!at_eof()) {
 
     if (token->kind == TK_RESERVED && token->str[0] == '+') {
       token = token->next;
