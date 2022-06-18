@@ -63,6 +63,14 @@ bool at_eof() {
   return token->kind == TK_EOF;
 }
 
+int expect_num() {
+  if (token->kind != TK_NUM) {
+    fprintf(stderr, "no num\n");
+    exit(1);
+  }
+  return token->val;
+}
+
 int main(int argc, char **argv) {
   if (argc < 2) {
     fprintf(stderr, "no args\n");
@@ -76,20 +84,20 @@ int main(int argc, char **argv) {
   printf(".global main\n");
   printf("main:\n");
 
-  printf("  mov rax %d\n", token->val);
+  printf("  mov rax %d\n", expect_num());
   token = token->next;
 
   while(!at_eof()) {
 
     if (token->kind == TK_RESERVED && token->str[0] == '+') {
       token = token->next;
-      printf("  add rax %d\n", token->val);
+      printf("  add rax %d\n", expect_num());
       token = token->next;
     }
 
     if (token->kind == TK_RESERVED && token->str[0] == '-') {
       token = token->next;
-      printf("  sub rax %d\n", token->val);
+      printf("  sub rax %d\n", expect_num());
       token = token->next;
     }
 
