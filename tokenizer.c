@@ -71,6 +71,20 @@ int expect_num() {
   return token->val;
 }
 
+bool consume(char op) {
+  if (token->kind != TK_RESERVED) {
+    fprintf(stderr, "no op\n");
+    exit(1);
+  }
+
+  if (token->str[0] == op) {
+    token = token->next;
+    return true;
+  }
+
+  return false;
+}
+
 int main(int argc, char **argv) {
   if (argc < 2) {
     fprintf(stderr, "no args\n");
@@ -88,24 +102,14 @@ int main(int argc, char **argv) {
   token = token->next;
 
   while(!at_eof()) {
-
-    if (token->kind == TK_RESERVED && token->str[0] == '+') {
-      token = token->next;
+    if (consume('+')) {
       printf("  add rax %d\n", expect_num());
-      token = token->next;
-    }
-
-    if (token->kind == TK_RESERVED && token->str[0] == '-') {
-      token = token->next;
+    } else if (consume('-')) {
       printf("  sub rax %d\n", expect_num());
-      token = token->next;
     }
-
+    token = token->next;
   }
-
   printf("  ret\n");
 
-
   return 0;
-
 }
