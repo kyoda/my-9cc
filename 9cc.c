@@ -59,12 +59,7 @@ Token *new_token(TokenKind kind, Token *cur, char *str) {
 }
 
 bool consume(char op) {
-  if (token->kind != TK_RESERVED) {
-    fprintf(stderr, "no op\n");
-    exit(1);
-  }
-
-  if (token->str[0] == op) {
+  if (token->kind == TK_RESERVED && token->str[0] == op) {
     token = token->next;
     return true;
   }
@@ -132,8 +127,9 @@ Node *mul() {
 Node *primary() {
   Node *n;
 
-  if (expect_num()) {
-    n = new_node_num(expect_num());
+  if (token->kind == TK_NUM) {
+    n = new_node_num(token->val);
+    token = token->next;
   } else if (expect_op('(')) {
     n = expr();
   } else {
@@ -180,17 +176,38 @@ bool at_eof() {
   return token->kind == TK_EOF;
 }
 
-void gen() {
+void gen(Node *n) {
 
-  printf("  mov rax, %d\n", expect_num());
+  //fprintf(stderr, "n->kind: %d\n", n->kind);
 
-  while(!at_eof()) {
-    if (consume('+')) {
-      printf("  add rax, %d\n", expect_num());
-    } else if (consume('-')) {
-      printf("  sub rax, %d\n", expect_num());
-    }
+  if (n->kind == ND_NUM) {
+    printf("  push %d\n", n->val);    
+    return;
   }
+
+  gen(n->lhs);
+  gen(n->rhs);
+
+  printf("  pop rdi\n");    
+  printf("  pop rax\n");    
+
+  switch(n->kind) {
+  case ND_ADD:
+     printf("  add rax, rdi\n");    
+     break;
+  case ND_SUB:
+     printf("  sub rax, rdi\n");    
+     break;
+  case ND_MUL:
+     printf("  imul rax, rdi\n");    
+     break;
+  case ND_DIV:
+     printf("  cqo\n");    
+     printf("  idiv rdi\n");    
+     break;
+  }
+
+  printf("  push rax\n");    
 
 }
 
@@ -202,15 +219,16 @@ int main(int argc, char **argv) {
 
   user_input = argv[1];
   token = tokenize();
+
   Node *n = expr();
 
   printf(".intel_syntax noprefix\n");
   printf(".global main\n");
   printf("main:\n");
 
-  gen();
+  gen(n);
 
-  //printf("  pop rax\n");
+  printf("  pop rax\n");
   printf("  ret\n");
 
   return 0;
