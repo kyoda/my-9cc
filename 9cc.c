@@ -67,6 +67,15 @@ bool consume(char op) {
   return false;
 }
 
+bool expect(char op) {
+  if (token->kind == TK_RESERVED && token->str[0] == op) {
+    token = token->next;
+  } else {
+    fprintf(stderr, "no )\n");
+    exit(1);
+  }
+}
+
 int expect_num() {
   if (token->kind != TK_NUM) {
     fprintf(stderr, "no num\n");
@@ -125,18 +134,13 @@ Node *mul() {
 }
 
 Node *primary() {
-  Node *n;
-
-  if (token->kind == TK_NUM) {
-    n = new_node_num(token->val);
-    token = token->next;
-  } else if (expect_op('(')) {
-    n = expr();
-  } else {
-    fprintf(stderr, "fail tokenize\n");
+  if (consume('(')) {
+    Node *n = expr();
+    expect(')');
+    return n;
   }
 
-  return n;
+  return new_node_num(expect_num());
 }
 
 Token *tokenize() {
