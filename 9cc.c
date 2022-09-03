@@ -99,6 +99,7 @@ bool expect_op(char op) {
 
 Node *expr();
 Node *mul();
+Node *unary();
 Node *primary();
 
 Node *expr() {
@@ -118,19 +119,31 @@ Node *expr() {
 }
 
 Node *mul() {
-  Node *n = primary();
+  Node *n = unary();
 
   for (;;) {
     if (consume('*')) {
-      n = new_node(ND_MUL, n, primary());
+      n = new_node(ND_MUL, n, unary());
     } else if (consume('/')) {
-      n = new_node(ND_DIV, n, primary());
+      n = new_node(ND_DIV, n, unary());
     } else {
       return n;
     }
   }
 
   return n;
+}
+
+Node *unary() {
+  if (consume('+')) {
+    return primary();
+  }
+
+  if (consume('-')) {
+    return new_node(ND_SUB, new_node_num(0), primary());
+  }
+
+  return primary();
 }
 
 Node *primary() {
@@ -237,3 +250,4 @@ int main(int argc, char **argv) {
 
   return 0;
 }
+
