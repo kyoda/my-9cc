@@ -15,6 +15,7 @@ typedef struct Token {
   struct Token *next;
   int val;
   char *str;
+  int len;
 } Token;
 
 typedef enum {
@@ -50,16 +51,19 @@ Node *new_node_num(int val) {
 char *user_input;
 Token *token;
 
-Token *new_token(TokenKind kind, Token *cur, char *str) {
+Token *new_token(TokenKind kind, Token *cur, char *str, int len) {
   Token *t = calloc(1, sizeof(Token));
   t->kind = kind;
   t->str = str;
+  t->len = len;
   cur->next = t;
   return t;
 }
 
-bool consume(char op) {
-  if (token->kind == TK_RESERVED && token->str[0] == op) {
+bool consume(char *op) {
+  if (token->kind == TK_RESERVED && 
+      token->len == strlen(op) &&
+      ! strncmp(token->str, op, token->len)) {
     token = token->next;
     return true;
   }
@@ -67,8 +71,10 @@ bool consume(char op) {
   return false;
 }
 
-bool expect(char op) {
-  if (token->kind == TK_RESERVED && token->str[0] == op) {
+bool expect(char *op) {
+  if (token->kind == TK_RESERVED && 
+      token->len == strlen(op) &&
+      ! strncmp(token->str, op, token->len)) {
     token = token->next;
   } else {
     fprintf(stderr, "no )\n");
@@ -106,9 +112,9 @@ Node *expr() {
   Node *n = mul();
 
   for (;;) {
-    if (consume('+')) {
+    if (consume("+")) {
       n = new_node(ND_ADD, n, mul());
-    } else if (consume('-')) {
+    } else if (consume("-")) {
       n = new_node(ND_SUB, n, mul());
     } else {
       return n;
@@ -122,9 +128,9 @@ Node *mul() {
   Node *n = unary();
 
   for (;;) {
-    if (consume('*')) {
+    if (consume("*")) {
       n = new_node(ND_MUL, n, unary());
-    } else if (consume('/')) {
+    } else if (consume("/")) {
       n = new_node(ND_DIV, n, unary());
     } else {
       return n;
@@ -135,11 +141,11 @@ Node *mul() {
 }
 
 Node *unary() {
-  if (consume('+')) {
+  if (consume("+")) {
     return primary();
   }
 
-  if (consume('-')) {
+  if (consume("-")) {
     return new_node(ND_SUB, new_node_num(0), primary());
   }
 
@@ -147,9 +153,9 @@ Node *unary() {
 }
 
 Node *primary() {
-  if (consume('(')) {
+  if (consume("(")) {
     Node *n = expr();
-    expect(')');
+    expect(")");
     return n;
   }
 
@@ -169,13 +175,13 @@ Token *tokenize() {
     }
 
     if (strchr("+-*/()", *p)) {
-      cur = new_token(TK_RESERVED, cur, p);
+      cur = new_token(TK_RESERVED, cur, p, 1);
       p++;
       continue;
     }
     
     if (isdigit(*p)) {
-      cur = new_token(TK_NUM, cur, p);
+      cur = new_token(TK_NUM, cur, p, 0);
       cur->val = strtol(p, &p, 10);
       continue;
     }
@@ -184,7 +190,7 @@ Token *tokenize() {
     exit(1);
   }
 
-  new_token(TK_EOF, cur, NULL);
+  new_token(TK_EOF, cur, NULL, 0);
   return head.next;
 
 }

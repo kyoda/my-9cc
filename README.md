@@ -13,9 +13,28 @@ EBNF (Extended BNF)
 文脈自由文法 (context free grammer)
 具象構文木 (concrete syntax tree)
 再帰下降構文解析
+演算子（Operator)
+被演算子（Operand)
+
+
+# 優先順位
+
+
+1. == !=
+2. < <= > >=
+3. + =
+4. * /
+5. 単項+ 単項-
+6. ()
+
+
+# 生成文法
 
 ```
-expr = mul ("+" mul | "-" mul)*
+expr = equality
+equality = relational ("==" relational | "!=" relational)*
+relational = add ("<" add | "<=" add | ">" add | ">=" add)*
+add = mul ("+" mul | "-" mul)*
 mul = unary ("*" unary | "/" unary)*
 unary = ("+" | "-")? primary
 primary = num | "(" expr ")"
