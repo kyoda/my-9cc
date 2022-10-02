@@ -23,6 +23,10 @@ typedef enum {
   ND_SUB,
   ND_MUL,
   ND_DIV,
+  ND_EQ,
+  ND_NEQ,
+  ND_LT,
+  ND_LE,
   ND_NUM,
 } NodeKind;
 
@@ -104,11 +108,55 @@ bool expect_op(char op) {
 }
 
 Node *expr();
+Node *equality();
+Node *relational();
+Node *add();
 Node *mul();
 Node *unary();
 Node *primary();
 
 Node *expr() {
+  Node *n = equality();
+  return n;
+}
+
+Node *equality() {
+  Node *n = relational();
+
+  for (;;) {
+    if (consume("==")) {
+      n = new_node(ND_EQ, n, relational());
+    } else if (consume("!=")) {
+      n = new_node(ND_NEQ, n, relational());
+    } else {
+      return n;
+    }
+  }
+
+  return n;
+}
+
+Node *relational() {
+  Node *n = add();
+
+  for (;;) {
+    if (consume("<")) {
+      n = new_node(ND_LT, n, add());
+    } else if (consume(">")) {
+      n = new_node(ND_LT, add(), n);
+    } else if (consume("<=")) {
+      n = new_node(ND_LE, n, add());
+    } else if (consume(">=")) {
+      n = new_node(ND_LE, add(), n);
+    } else {
+      return n;
+    }
+  }
+
+  return n;
+}
+
+Node *add() {
   Node *n = mul();
 
   for (;;) {
@@ -174,7 +222,18 @@ Token *tokenize() {
       continue;
     }
 
-    if (strchr("+-*/()", *p)) {
+    if (
+        !strncmp("==", p, 2) || 
+        !strncmp("!=", p, 2) || 
+        !strncmp("<=", p, 2) ||
+        !strncmp(">=", p, 2)
+    ) {
+      cur = new_token(TK_RESERVED, cur, p, 2);
+      p += 2;
+      continue;
+    }
+
+    if (strchr("+-*/()<>", *p)) {
       cur = new_token(TK_RESERVED, cur, p, 1);
       p++;
       continue;
@@ -227,6 +286,26 @@ void gen(Node *n) {
   case ND_DIV:
      printf("  cqo\n");    
      printf("  idiv rdi\n");    
+     break;
+  case ND_EQ:
+     printf("  cmp rax, rdi\n");    
+     printf("  sete al\n");    
+     printf("  movzb eax, al\n");    
+     break;
+  case ND_NEQ:
+     printf("  cmp rax, rdi\n");    
+     printf("  setne al\n");    
+     printf("  movzb eax, al\n");    
+     break;
+  case ND_LT:
+     printf("  cmp rax, rdi\n");    
+     printf("  setl al\n");    
+     printf("  movzb eax, al\n");    
+     break;
+  case ND_LE:
+     printf("  cmp rax, rdi\n");    
+     printf("  setle al\n");    
+     printf("  movzb eax, al\n");    
      break;
   }
 
