@@ -1,41 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdbool.h>
-#include <ctype.h>
-#include <string.h>
-
-typedef enum {
-  TK_RESERVED,
-  TK_NUM,
-  TK_EOF,
-} TokenKind;
-
-typedef struct Token {
-  TokenKind kind;
-  struct Token *next;
-  int val;
-  char *str;
-  int len;
-} Token;
-
-typedef enum {
-  ND_ADD,
-  ND_SUB,
-  ND_MUL,
-  ND_DIV,
-  ND_EQ,
-  ND_NEQ,
-  ND_LT,
-  ND_LE,
-  ND_NUM,
-} NodeKind;
-
-typedef struct Node {
-  NodeKind kind;
-  struct Node *lhs;
-  struct Node *rhs;
-  int val;
-} Node;
+#include "9cc.h"
 
 Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
   Node *n = calloc(1, sizeof(Node));
@@ -51,9 +14,6 @@ Node *new_node_num(int val) {
   n->val = val;
   return n;
 }
-
-char *user_input;
-Token *token;
 
 Token *new_token(TokenKind kind, Token *cur, char *str, int len) {
   Token *t = calloc(1, sizeof(Token));
@@ -106,14 +66,6 @@ bool expect_op(char op) {
 
   return false;
 }
-
-Node *expr();
-Node *equality();
-Node *relational();
-Node *add();
-Node *mul();
-Node *unary();
-Node *primary();
 
 Node *expr() {
   Node *n = equality();
@@ -257,82 +209,3 @@ Token *tokenize() {
 bool at_eof() {
   return token->kind == TK_EOF;
 }
-
-void gen(Node *n) {
-
-  //fprintf(stderr, "n->kind: %d\n", n->kind);
-
-  if (n->kind == ND_NUM) {
-    printf("  push %d\n", n->val);    
-    return;
-  }
-
-  gen(n->lhs);
-  gen(n->rhs);
-
-  printf("  pop rdi\n");    
-  printf("  pop rax\n");    
-
-  switch(n->kind) {
-  case ND_ADD:
-     printf("  add rax, rdi\n");    
-     break;
-  case ND_SUB:
-     printf("  sub rax, rdi\n");    
-     break;
-  case ND_MUL:
-     printf("  imul rax, rdi\n");    
-     break;
-  case ND_DIV:
-     printf("  cqo\n");    
-     printf("  idiv rdi\n");    
-     break;
-  case ND_EQ:
-     printf("  cmp rax, rdi\n");    
-     printf("  sete al\n");    
-     printf("  movzb rax, al\n");    
-     break;
-  case ND_NEQ:
-     printf("  cmp rax, rdi\n");    
-     printf("  setne al\n");    
-     printf("  movzb rax, al\n");    
-     break;
-  case ND_LT:
-     printf("  cmp rax, rdi\n");    
-     printf("  setl al\n");    
-     printf("  movzb rax, al\n");    
-     break;
-  case ND_LE:
-     printf("  cmp rax, rdi\n");    
-     printf("  setle al\n");    
-     printf("  movzb rax, al\n");    
-     break;
-  }
-
-  printf("  push rax\n");    
-
-}
-
-int main(int argc, char **argv) {
-  if (argc < 2) {
-    fprintf(stderr, "no args\n");
-    exit(1);
-  }
-
-  user_input = argv[1];
-  token = tokenize();
-
-  Node *n = expr();
-
-  printf(".intel_syntax noprefix\n");
-  printf(".global main\n");
-  printf("main:\n");
-
-  gen(n);
-
-  printf("  pop rax\n");
-  printf("  ret\n");
-
-  return 0;
-}
-

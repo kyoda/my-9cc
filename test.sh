@@ -34,5 +34,6 @@ assert 1 "3 > 2"
 assert 1 "3 >= 3"
 assert 0 "3 < 2"
 assert 1 "3 <= 3"
+assert 0 "2 + 3 * 2 / 2 <= 3 == 0 < 1"
 
 echo OK
