@@ -35,6 +35,14 @@ bool consume(char *op) {
   return false;
 }
 
+bool consume_num() {
+  if (token->kind == TK_NUM) {
+    return true;
+  }
+
+  return false;
+}
+
 bool expect(char *op) {
   if (token->kind == TK_RESERVED && 
       token->len == strlen(op) &&
@@ -67,8 +75,36 @@ bool expect_op(char op) {
   return false;
 }
 
+bool at_eof() {
+  return token->kind == TK_EOF;
+}
+
+void program() {
+  int i = 0;
+  while (!at_eof()) {
+    code[i] = stmt();
+    i++;
+  }
+  code[i] = NULL;
+}
+
+Node *stmt() {
+  Node *n = expr();
+  expect(";");
+
+  return n;
+}
+
 Node *expr() {
+  return assign();
+}
+
+Node *assign() {
   Node *n = equality();
+  if (consume("=")) {
+    n = new_node(ND_ASSIGN, n, assign());
+  }
+
   return n;
 }
 
@@ -153,13 +189,29 @@ Node *unary() {
 }
 
 Node *primary() {
+
   if (consume("(")) {
     Node *n = expr();
     expect(")");
     return n;
   }
 
-  return new_node_num(expect_num());
+  if (token->kind == TK_NUM) {
+    int v = token->val;
+    token = token->next;
+    return new_node_num(v);
+  } else if (token->kind == TK_IDENT) {
+    Node *n = calloc(1, sizeof(Node));
+    n->kind = ND_LVAR;
+    n->offset = (token->str[0] - 'a' + 1) * 8;
+    token = token->next;
+
+    return n;
+  } else {
+    fprintf(stderr, "no num or no ident \n");
+    exit(1);
+  }
+
 }
 
 Token *tokenize() {
@@ -170,6 +222,12 @@ Token *tokenize() {
 
   while (*p) {
     if (isspace(*p)) {
+      p++;
+      continue;
+    }
+
+    if ('a' <= *p && *p <= 'z') {
+      cur = new_token(TK_IDENT, cur, p, 1);
       p++;
       continue;
     }
@@ -185,7 +243,7 @@ Token *tokenize() {
       continue;
     }
 
-    if (strchr("+-*/()<>", *p)) {
+    if (strchr("+-*/()<>=;", *p)) {
       cur = new_token(TK_RESERVED, cur, p, 1);
       p++;
       continue;
@@ -206,6 +264,3 @@ Token *tokenize() {
 
 }
 
-bool at_eof() {
-  return token->kind == TK_EOF;
-}
