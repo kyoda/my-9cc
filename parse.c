@@ -49,7 +49,7 @@ bool expect(char *op) {
       ! strncmp(token->str, op, token->len)) {
     token = token->next;
   } else {
-    fprintf(stderr, "no )\n");
+    fprintf(stderr, "no %s\n", op);
     exit(1);
   }
 }
@@ -226,12 +226,6 @@ Token *tokenize() {
       continue;
     }
 
-    if ('a' <= *p && *p <= 'z') {
-      cur = new_token(TK_IDENT, cur, p, 1);
-      p++;
-      continue;
-    }
-
     if (
         !strncmp("==", p, 2) || 
         !strncmp("!=", p, 2) || 
@@ -249,6 +243,12 @@ Token *tokenize() {
       continue;
     }
     
+    if ('a' <= *p && *p <= 'z') {
+      cur = new_token(TK_IDENT, cur, p, 1);
+      p++;
+      continue;
+    }
+
     if (isdigit(*p)) {
       cur = new_token(TK_NUM, cur, p, 0);
       cur->val = strtol(p, &p, 10);
