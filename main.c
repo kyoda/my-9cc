@@ -8,6 +8,12 @@ int main(int argc, char **argv) {
 
   user_input = argv[1];
   token = tokenize();
+  locals = calloc(1, sizeof(LVar));
+  locals->next = NULL;
+  locals->name = NULL;
+  locals->len = 0;
+  locals->offset = 0;
+
   program();
 
   printf(".intel_syntax noprefix\n");

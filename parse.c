@@ -24,6 +24,15 @@ Token *new_token(TokenKind kind, Token *cur, char *str, int len) {
   return t;
 }
 
+LVar *find_lvar(Token *t) {
+  for (LVar *var = locals; var; var = var->next) {
+    if (var->len == t->len && !strncmp(t->str, var->name, var->len)) {
+      return var;
+    }
+  }
+  return NULL;
+}
+
 bool consume(char *op) {
   if (token->kind == TK_RESERVED && 
       token->len == strlen(op) &&
@@ -199,11 +208,25 @@ Node *primary() {
   if (token->kind == TK_NUM) {
     int v = token->val;
     token = token->next;
+
     return new_node_num(v);
   } else if (token->kind == TK_IDENT) {
     Node *n = calloc(1, sizeof(Node));
     n->kind = ND_LVAR;
-    n->offset = (token->str[0] - 'a' + 1) * 8;
+
+    LVar *lvar = find_lvar(token);
+    if (lvar) {
+      n->offset = lvar->offset;
+    } else {
+      lvar = calloc(1, sizeof(LVar));
+      lvar->next = locals;
+      lvar->name = token->str;
+      lvar->len = token->len;
+      lvar->offset = locals->offset + 8;
+      n->offset = lvar->offset;
+      locals = lvar;
+    }
+
     token = token->next;
 
     return n;
@@ -219,6 +242,8 @@ Token *tokenize() {
   Token head;
   head.next = NULL;
   Token *cur = &head;
+
+  char *start;
 
   while (*p) {
     if (isspace(*p)) {
@@ -243,9 +268,24 @@ Token *tokenize() {
       continue;
     }
     
-    if ('a' <= *p && *p <= 'z') {
-      cur = new_token(TK_IDENT, cur, p, 1);
+    if (
+      ('a' <= *p && *p <= 'z') || 
+      ('A' <= *p && *p <= 'Z') || 
+      '_' == *p
+    ) {
+      start = p;
       p++;
+
+      while (
+        ('a' <= *p && *p <= 'z') || 
+        ('A' <= *p && *p <= 'Z') || 
+        '_' == *p ||
+        ('0' <= *p && *p <= '9')
+      ) {
+        p++;
+      }
+
+      cur = new_token(TK_IDENT, cur, start, p - start);
       continue;
     }
 

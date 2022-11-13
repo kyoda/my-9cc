@@ -41,10 +41,19 @@ typedef struct Node {
   int offset;
 } Node;
 
+typedef struct LVar {
+  struct LVar *next;
+  char *name;
+  int len;
+  int offset;
+} LVar;
+
+LVar *locals;
 char *user_input;
 Token *token;
 Node *code[100];
 
+LVar *find_lvar(Token *t);
 void program();
 Node *stmt();
 Node *expr();
