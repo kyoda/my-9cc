@@ -8,34 +8,10 @@ int main(int argc, char **argv) {
 
   user_input = argv[1];
   token = tokenize();
-  locals = calloc(1, sizeof(LVar));
-  locals->next = NULL;
-  locals->name = NULL;
-  locals->len = 0;
-  locals->offset = 0;
+  locals = new_locals(locals);
 
   program();
-
-  printf(".intel_syntax noprefix\n");
-  printf(".global main\n");
-  printf("main:\n");
-
-  //prologue
-  printf("  push rbp\n");
-  printf("  mov rbp, rsp\n");
-  printf("  sub rsp, 208\n");
-
-  int i = 0;
-  while (code[i] != NULL) {
-    gen(code[i]);
-    i++;
-    printf("  pop rax\n");
-  }
-
-  //epilogue
-  printf("  mov rsp, rbp\n");
-  printf("  pop rbp\n");
-  printf("  ret\n");
+  gen_main();
 
   return 0;
 }

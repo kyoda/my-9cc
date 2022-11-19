@@ -53,6 +53,7 @@ char *user_input;
 Token *token;
 Node *code[100];
 
+LVar *new_locals(LVar *l);
 LVar *find_lvar(Token *t);
 void program();
 Node *stmt();
@@ -65,6 +66,7 @@ Node *mul();
 Node *unary();
 Node *primary();
 
+void gen_main();
 void gen(Node *n);
 Token *tokenize();
 

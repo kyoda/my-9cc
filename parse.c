@@ -15,13 +15,20 @@ Node *new_node_num(int val) {
   return n;
 }
 
-Token *new_token(TokenKind kind, Token *cur, char *str, int len) {
-  Token *t = calloc(1, sizeof(Token));
-  t->kind = kind;
-  t->str = str;
-  t->len = len;
-  cur->next = t;
-  return t;
+LVar *new_locals(LVar *l) {
+  LVar *lvar;
+  lvar = calloc(1, sizeof(LVar));
+  if (l) {
+    lvar->next = l;
+    lvar->offset = l->offset + 8;
+  } else {
+    lvar->next = NULL;
+    lvar->name = NULL;
+    lvar->len = 0;
+    lvar->offset = 0;
+  }
+
+  return lvar;
 }
 
 LVar *find_lvar(Token *t) {
@@ -218,11 +225,9 @@ Node *primary() {
     if (lvar) {
       n->offset = lvar->offset;
     } else {
-      lvar = calloc(1, sizeof(LVar));
-      lvar->next = locals;
+      lvar = new_locals(locals);
       lvar->name = token->str;
       lvar->len = token->len;
-      lvar->offset = locals->offset + 8;
       n->offset = lvar->offset;
       locals = lvar;
     }
@@ -234,73 +239,6 @@ Node *primary() {
     fprintf(stderr, "no num or no ident \n");
     exit(1);
   }
-
-}
-
-Token *tokenize() {
-  char *p = user_input;
-  Token head;
-  head.next = NULL;
-  Token *cur = &head;
-
-  char *start;
-
-  while (*p) {
-    if (isspace(*p)) {
-      p++;
-      continue;
-    }
-
-    if (
-        !strncmp("==", p, 2) || 
-        !strncmp("!=", p, 2) || 
-        !strncmp("<=", p, 2) ||
-        !strncmp(">=", p, 2)
-    ) {
-      cur = new_token(TK_RESERVED, cur, p, 2);
-      p += 2;
-      continue;
-    }
-
-    if (strchr("+-*/()<>=;", *p)) {
-      cur = new_token(TK_RESERVED, cur, p, 1);
-      p++;
-      continue;
-    }
-    
-    if (
-      ('a' <= *p && *p <= 'z') || 
-      ('A' <= *p && *p <= 'Z') || 
-      '_' == *p
-    ) {
-      start = p;
-      p++;
-
-      while (
-        ('a' <= *p && *p <= 'z') || 
-        ('A' <= *p && *p <= 'Z') || 
-        '_' == *p ||
-        ('0' <= *p && *p <= '9')
-      ) {
-        p++;
-      }
-
-      cur = new_token(TK_IDENT, cur, start, p - start);
-      continue;
-    }
-
-    if (isdigit(*p)) {
-      cur = new_token(TK_NUM, cur, p, 0);
-      cur->val = strtol(p, &p, 10);
-      continue;
-    }
-
-    fprintf(stderr, "can't tokenize\n");
-    exit(1);
-  }
-
-  new_token(TK_EOF, cur, NULL, 0);
-  return head.next;
 
 }
 

@@ -11,6 +11,29 @@ void gen_lval(Node *n) {
   printf("  push rax\n");
 }
 
+void gen_main() {
+  printf(".intel_syntax noprefix\n");
+  printf(".global main\n");
+  printf("main:\n");
+
+  //prologue
+  printf("  push rbp\n");
+  printf("  mov rbp, rsp\n");
+  printf("  sub rsp, 208\n");
+
+  int i = 0;
+  while (code[i] != NULL) {
+    gen(code[i]);
+    i++;
+    printf("  pop rax\n");
+  }
+
+  //epilogue
+  printf("  mov rsp, rbp\n");
+  printf("  pop rbp\n");
+  printf("  ret\n");
+}
+
 void gen(Node *n) {
 
   //fprintf(stderr, "n->kind: %d\n", n->kind);
