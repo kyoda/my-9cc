@@ -39,6 +39,14 @@ void gen(Node *n) {
   //fprintf(stderr, "n->kind: %d\n", n->kind);
 
   switch (n->kind) {
+  case ND_RETURN:
+    gen(n->lhs);
+    printf("  pop rax\n");    
+    printf("  mov rsp, rbp\n");    
+    printf("  pop rbp\n");    
+    printf("  ret\n");    
+
+    return;
   case ND_NUM:
     printf("  push %d\n", n->val);    
 

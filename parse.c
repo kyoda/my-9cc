@@ -33,7 +33,7 @@ LVar *new_locals(LVar *l) {
 
 LVar *find_lvar(Token *t) {
   for (LVar *var = locals; var; var = var->next) {
-    if (var->len == t->len && !strncmp(t->str, var->name, var->len)) {
+    if (var->len == t->len && strncmp(t->str, var->name, var->len) == 0) {
       return var;
     }
   }
@@ -43,16 +43,8 @@ LVar *find_lvar(Token *t) {
 bool consume(char *op) {
   if (token->kind == TK_RESERVED && 
       token->len == strlen(op) &&
-      ! strncmp(token->str, op, token->len)) {
+      strncmp(token->str, op, token->len) == 0) {
     token = token->next;
-    return true;
-  }
-
-  return false;
-}
-
-bool consume_num() {
-  if (token->kind == TK_NUM) {
     return true;
   }
 
@@ -62,7 +54,7 @@ bool consume_num() {
 bool expect(char *op) {
   if (token->kind == TK_RESERVED && 
       token->len == strlen(op) &&
-      ! strncmp(token->str, op, token->len)) {
+      strncmp(token->str, op, token->len) == 0) {
     token = token->next;
   } else {
     fprintf(stderr, "no %s\n", op);
@@ -105,7 +97,17 @@ void program() {
 }
 
 Node *stmt() {
-  Node *n = expr();
+  Node *n;
+
+  if (token->kind == TK_RETURN) {
+    n = calloc(1, sizeof(Node));
+    n->kind = ND_RETURN;
+    token = token->next;
+    n->lhs = expr();
+  } else {
+    n = expr();
+  }
+
   expect(";");
 
   return n;

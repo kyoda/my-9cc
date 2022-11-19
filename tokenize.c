@@ -10,23 +10,15 @@ Token *new_token(TokenKind kind, Token *cur, char *str, int len) {
 }
 
 int punct1(char p) {
-  if (
+  return (
     ('a' <= p && p <= 'z') || 
     ('A' <= p && p <= 'Z') || 
     '_' == p
-  ) {
-    return true;
-  }
-  
-  return false;
+  );
 }
 
 int punct2(char p) {
-  if (punct1(p) || ('0' <= p && p <= '9')) {
-    return true;
-  }
-  
-  return false;
+  return (punct1(p) || ('0' <= p && p <= '9'));
 }
 
 Token *tokenize() {
@@ -43,11 +35,17 @@ Token *tokenize() {
       continue;
     }
 
+    if (strncmp("return", p, 6) == 0 && ! punct2(p[6])) {
+      cur = new_token(TK_RETURN, cur, p, 6);
+      p += 6;
+      continue;
+    }
+
     if (
-        !strncmp("==", p, 2) || 
-        !strncmp("!=", p, 2) || 
-        !strncmp("<=", p, 2) ||
-        !strncmp(">=", p, 2)
+        strncmp("==", p, 2) == 0 || 
+        strncmp("!=", p, 2) == 0 || 
+        strncmp("<=", p, 2) == 0 ||
+        strncmp(">=", p, 2) == 0
     ) {
       cur = new_token(TK_RESERVED, cur, p, 2);
       p += 2;

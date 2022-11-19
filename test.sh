@@ -40,5 +40,6 @@ assert 10 "a = 1; b = 4 * 3; b / a - 2;"
 assert 25 "c=d=5;c*d;"
 assert 2 "a=b=c=d=2;"
 assert 30 "_foo1=5;_bar2=6;_foo1*_bar2;"
+assert 2 "a=1; b=2;return  a*b; a=3*8; return 5;";
 
 echo OK
