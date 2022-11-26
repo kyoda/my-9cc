@@ -41,6 +41,30 @@ Token *tokenize() {
       continue;
     }
 
+    if (strncmp("if", p, 2) == 0 && ! punct2(p[2])) {
+      cur = new_token(TK_IF, cur, p, 2);
+      p += 2;
+      continue;
+    }
+
+    if (strncmp("else", p, 4) == 0 && ! punct2(p[4])) {
+      cur = new_token(TK_ELSE, cur, p, 4);
+      p += 4;
+      continue;
+    }
+
+    if (strncmp("for", p, 3) == 0 && ! punct2(p[3])) {
+      cur = new_token(TK_RETURN, cur, p, 3);
+      p += 3;
+      continue;
+    }
+
+    if (strncmp("while", p, 5) == 0 && ! punct2(p[5])) {
+      cur = new_token(TK_RETURN, cur, p, 5);
+      p += 5;
+      continue;
+    }
+
     if (
         strncmp("==", p, 2) == 0 || 
         strncmp("!=", p, 2) == 0 || 

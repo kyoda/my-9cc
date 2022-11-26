@@ -22,7 +22,9 @@ EBNF (Extended BNF)
 
 ```
 program = stmt*
-stmt = expr ";" | "return" expr ";"
+stmt = expr ";" |
+       "if" "(" expr ")" stmt ("else" stmt)? |
+       "return" expr ";"
 expr = assign
 assign = equality ("=" assign)?
 equality = relational ("==" relational | "!=" relational)*

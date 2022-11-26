@@ -1,5 +1,10 @@
 #include "9cc.h"
 
+static int count() {
+  static int i = 1;
+  return i++;
+}
+
 void gen_lval(Node *n) {
   if (n->kind != ND_LVAR) {
     fprintf(stderr, "no ND_LVAR \n");
@@ -36,6 +41,7 @@ void gen_main() {
 
 void gen(Node *n) {
 
+  int c;
   //fprintf(stderr, "n->kind: %d\n", n->kind);
 
   switch (n->kind) {
@@ -46,6 +52,22 @@ void gen(Node *n) {
     printf("  pop rbp\n");    
     printf("  ret\n");    
 
+    return;
+  case ND_IF:
+    c = count();
+
+    gen(n->cond);
+    printf("  pop rax\n");    
+    printf("  cmp rax, 0\n");    
+    printf("  je .Lelse%03d\n", c);    
+    gen(n->then);
+    printf("  jmp .Lend%03d\n", c);    
+
+    printf(".Lelse%03d:\n", c);
+    if (n->els) {
+      gen(n->els);
+    }
+    printf(".Lend%03d:\n", c);
     return;
   case ND_NUM:
     printf("  push %d\n", n->val);    
