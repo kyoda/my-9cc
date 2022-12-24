@@ -55,7 +55,7 @@ LVar *find_lvar(Token *t) {
 }
 
 bool consume(char *op) {
-  if (token->kind == TK_RESERVED && 
+  if (token->kind == TK_PUNCT && 
       token->len == strlen(op) &&
       strncmp(token->loc, op, token->len) == 0) {
     token = token->next;
@@ -66,7 +66,7 @@ bool consume(char *op) {
 }
 
 bool expect(char *op) {
-  if (token->kind == TK_RESERVED && 
+  if (token->kind == TK_PUNCT && 
       token->len == strlen(op) &&
       strncmp(token->loc, op, token->len) == 0) {
     token = token->next;

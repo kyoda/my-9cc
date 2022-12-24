@@ -71,13 +71,13 @@ Token *tokenize() {
         strncmp("<=", p, 2) == 0 ||
         strncmp(">=", p, 2) == 0
     ) {
-      cur = new_token(TK_RESERVED, cur, p, 2);
+      cur = new_token(TK_PUNCT, cur, p, 2);
       p += 2;
       continue;
     }
 
     if (strchr("+-*/()<>=;", *p)) {
-      cur = new_token(TK_RESERVED, cur, p, 1);
+      cur = new_token(TK_PUNCT, cur, p, 1);
       p++;
       continue;
     }

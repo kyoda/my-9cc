@@ -6,8 +6,8 @@
 #include <stdarg.h>
 
 typedef enum {
-  TK_RESERVED,
-  TK_IDENT,
+  TK_IDENT, // Identifiers
+  TK_PUNCT, // Punctuators
   TK_NUM,
   TK_RETURN,
   TK_IF,
