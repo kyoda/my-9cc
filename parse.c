@@ -139,6 +139,18 @@ Node *stmt() {
     return n;
   }
 
+  if (equal(token, "while")) {
+    n = calloc(1, sizeof(Node));
+    n->kind = ND_WHILE;
+    token = token->next;
+    expect("(");
+    n->cond = expr();
+    expect(")");
+    n->then = stmt();
+
+    return n;
+  }
+
   n = expr();
   expect(";");
   return n;
