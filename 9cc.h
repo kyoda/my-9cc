@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <ctype.h>
 #include <string.h>
+#include <stdarg.h>
 
 typedef enum {
   TK_RESERVED,
@@ -42,6 +43,24 @@ typedef enum {
   ND_FOR
 } NodeKind;
 
+static const char *node_kind_enum_map[] = {
+  "ND_ADD",
+  "ND_SUB",
+  "ND_MUL",
+  "ND_DIV",
+  "ND_ASSIGN",
+  "ND_EQ",
+  "ND_NEQ",
+  "ND_LT",
+  "ND_LE",
+  "ND_LVAR",
+  "ND_NUM",
+  "ND_RETURN",
+  "ND_IF",
+  "ND_WHILE",
+  "ND_FOR"
+};
+
 typedef struct Node {
   NodeKind kind;
   struct Node *lhs;
@@ -66,6 +85,7 @@ char *user_input;
 Token *token;
 Node *code[100];
 
+static void error_at(char *loc, char *fmt, ...);
 LVar *new_locals(LVar *l);
 LVar *find_lvar(Token *t);
 void program();

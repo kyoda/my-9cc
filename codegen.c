@@ -42,7 +42,6 @@ void gen_main() {
 void gen(Node *n) {
 
   int c;
-  //fprintf(stderr, "n->kind: %d\n", n->kind);
 
   switch (n->kind) {
   case ND_RETURN:

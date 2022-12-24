@@ -1,10 +1,23 @@
 #include "9cc.h"
 
+static void error_at(char *loc, char *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  int pos = loc - user_input;
+  fprintf(stderr, "%s\n", user_input);
+  fprintf(stderr, "%*s\n", pos, " ");
+  fprintf(stderr, "^ ");
+  fprintf(stderr, fmt, ap);
+  fprintf(stderr, "\n");
+  exit(1);
+}
+
 Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
   Node *n = calloc(1, sizeof(Node));
   n->kind = kind;
   n->lhs = lhs;
   n->rhs = rhs;
+  //fprintf(stderr, "node kind: %s\n", node_kind_enum_map[kind]);
   return n;
 }
 
@@ -12,6 +25,7 @@ Node *new_node_num(int val) {
   Node *n = calloc(1, sizeof(Node));
   n->kind = ND_NUM;
   n->val = val;
+  //fprintf(stderr, "node kind: %s\n", node_kind_enum_map[ND_NUM]);
   return n;
 }
 
@@ -57,7 +71,7 @@ bool expect(char *op) {
       strncmp(token->str, op, token->len) == 0) {
     token = token->next;
   } else {
-    fprintf(stderr, "no %s\n", op);
+    error_at(token->str, "no op");
     exit(1);
   }
 }
@@ -105,9 +119,6 @@ Node *stmt() {
     n->kind = ND_RETURN;
     token = token->next;
     n->lhs = expr();
-
-    expect(";");
-
     break;
   case TK_IF:
     n = calloc(1, sizeof(Node));
@@ -123,16 +134,19 @@ Node *stmt() {
       n->els = stmt();
     }
 
-    break;
+    return n;
   case TK_FOR:
+    n = expr();
     break;
   case TK_WHILE:
+    n = expr();
     break;
   default:
     n = expr();
-    expect(";");
+    break;
   }
 
+  expect(";");
   return n;
 }
 

@@ -10,6 +10,13 @@ int main(int argc, char **argv) {
   token = tokenize();
   locals = new_locals(locals);
 
+  //Token *t = token;
+  //while(t->kind != TK_EOF) {
+  //  fprintf(stderr, "str: %s\n", t->str);
+  //  fprintf(stderr, "kind: %d\n", t->kind);
+  //  t = t->next;
+  //}
+
   program();
   gen_main();
 

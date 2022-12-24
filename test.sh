@@ -41,7 +41,7 @@ assert 25 "c=d=5;c*d;"
 assert 2 "a=b=c=d=2;"
 assert 30 "_foo1=5;_bar2=6;_foo1*_bar2;"
 assert 2 "a=1; b=2;return  a*b; a=3*8; return 5;"
-assert 1 "if (5) a =0; a+1;"
-assert 16 "if (0) a =0; a+1; else b = 4; b*4;"
+assert 0 "if (5) a =0;"
+assert 4 "if (0) a =0; else b = 4;"
 
 echo OK
