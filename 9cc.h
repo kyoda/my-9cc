@@ -8,12 +8,8 @@
 typedef enum {
   TK_IDENT, // Identifiers
   TK_PUNCT, // Punctuators
+  TK_KEYWORD, // if, while, etc..
   TK_NUM,
-  TK_RETURN,
-  TK_IF,
-  TK_ELSE,
-  TK_WHILE,
-  TK_FOR,
   TK_EOF,
 } TokenKind;
 
@@ -84,6 +80,8 @@ LVar *locals;
 char *user_input;
 Token *token;
 Node *code[100];
+
+int equal(Token *t, char *key);
 
 static void error_at(char *loc, char *fmt, ...);
 LVar *new_locals(LVar *l);

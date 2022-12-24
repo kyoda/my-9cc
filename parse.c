@@ -113,14 +113,16 @@ void program() {
 Node *stmt() {
   Node *n;
 
-  switch (token->kind) {
-  case TK_RETURN:
+  if (equal(token, "return")) {
     n = calloc(1, sizeof(Node));
     n->kind = ND_RETURN;
     token = token->next;
     n->lhs = expr();
-    break;
-  case TK_IF:
+    expect(";");
+    return n;
+  }
+
+  if (equal(token, "if")) {
     n = calloc(1, sizeof(Node));
     n->kind = ND_IF;
     token = token->next;
@@ -129,23 +131,15 @@ Node *stmt() {
     expect(")");
     n->then = stmt();
 
-    if (token->kind == TK_ELSE) {
+    if (equal(token, "else")) {
       token = token->next;
       n->els = stmt();
     }
 
     return n;
-  case TK_FOR:
-    n = expr();
-    break;
-  case TK_WHILE:
-    n = expr();
-    break;
-  default:
-    n = expr();
-    break;
   }
 
+  n = expr();
   expect(";");
   return n;
 }

@@ -21,6 +21,10 @@ int is_ident2(char p) {
   return (is_ident1(p) || ('0' <= p && p <= '9'));
 }
 
+int equal(Token *t, char *key) {
+  return strncmp(t->loc, key, t->len) == 0 && key[t->len] == '\0';
+}
+
 Token *tokenize() {
   char *p = user_input;
   Token head;
@@ -36,31 +40,31 @@ Token *tokenize() {
     }
 
     if (strncmp("return", p, 6) == 0 && ! is_ident2(p[6])) {
-      cur = new_token(TK_RETURN, cur, p, 6);
+      cur = new_token(TK_KEYWORD, cur, p, 6);
       p += 6;
       continue;
     }
 
     if (strncmp("if", p, 2) == 0 && ! is_ident2(p[2])) {
-      cur = new_token(TK_IF, cur, p, 2);
+      cur = new_token(TK_KEYWORD, cur, p, 2);
       p += 2;
       continue;
     }
 
     if (strncmp("else", p, 4) == 0 && ! is_ident2(p[4])) {
-      cur = new_token(TK_ELSE, cur, p, 4);
+      cur = new_token(TK_KEYWORD, cur, p, 4);
       p += 4;
       continue;
     }
 
     if (strncmp("for", p, 3) == 0 && ! is_ident2(p[3])) {
-      cur = new_token(TK_RETURN, cur, p, 3);
+      cur = new_token(TK_KEYWORD, cur, p, 3);
       p += 3;
       continue;
     }
 
     if (strncmp("while", p, 5) == 0 && ! is_ident2(p[5])) {
-      cur = new_token(TK_RETURN, cur, p, 5);
+      cur = new_token(TK_KEYWORD, cur, p, 5);
       p += 5;
       continue;
     }
