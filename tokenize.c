@@ -25,6 +25,18 @@ int equal(Token *t, char *key) {
   return strncmp(t->loc, key, t->len) == 0 && key[t->len] == '\0';
 }
 
+int keyword_len(char *p) {
+  char *key[] = {"return", "if", "else", "for", "while"};
+  int key_len;
+  for (int i = 0; i < sizeof(key) / sizeof(*key); i++) {
+    key_len = strlen(key[i]);
+    if (strncmp(key[i], p, key_len) == 0 && ! is_ident2(p[key_len])) {
+      return key_len;
+    }
+  }
+  return 0;
+}
+
 Token *tokenize() {
   char *p = user_input;
   Token head;
@@ -39,36 +51,15 @@ Token *tokenize() {
       continue;
     }
 
-    if (strncmp("return", p, 6) == 0 && ! is_ident2(p[6])) {
-      cur = new_token(TK_KEYWORD, cur, p, 6);
-      p += 6;
+    //KEYWORDS
+    int kl = keyword_len(p);
+    if (kl) {
+      cur = new_token(TK_KEYWORD, cur, p, kl);
+      p += kl;
       continue;
     }
 
-    if (strncmp("if", p, 2) == 0 && ! is_ident2(p[2])) {
-      cur = new_token(TK_KEYWORD, cur, p, 2);
-      p += 2;
-      continue;
-    }
-
-    if (strncmp("else", p, 4) == 0 && ! is_ident2(p[4])) {
-      cur = new_token(TK_KEYWORD, cur, p, 4);
-      p += 4;
-      continue;
-    }
-
-    if (strncmp("for", p, 3) == 0 && ! is_ident2(p[3])) {
-      cur = new_token(TK_KEYWORD, cur, p, 3);
-      p += 3;
-      continue;
-    }
-
-    if (strncmp("while", p, 5) == 0 && ! is_ident2(p[5])) {
-      cur = new_token(TK_KEYWORD, cur, p, 5);
-      p += 5;
-      continue;
-    }
-
+    //PUNCTUATORS
     if (
         strncmp("==", p, 2) == 0 || 
         strncmp("!=", p, 2) == 0 || 
