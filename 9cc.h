@@ -21,7 +21,7 @@ typedef struct Token {
   TokenKind kind;
   struct Token *next;
   int val;
-  char *str;
+  char *loc;
   int len;
 } Token;
 

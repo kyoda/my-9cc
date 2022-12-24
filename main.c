@@ -12,7 +12,7 @@ int main(int argc, char **argv) {
 
   //Token *t = token;
   //while(t->kind != TK_EOF) {
-  //  fprintf(stderr, "str: %s\n", t->str);
+  //  fprintf(stderr, "loc: %s\n", t->loc);
   //  fprintf(stderr, "kind: %d\n", t->kind);
   //  t = t->next;
   //}

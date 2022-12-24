@@ -1,15 +1,15 @@
 #include "9cc.h"
 
-Token *new_token(TokenKind kind, Token *cur, char *str, int len) {
+Token *new_token(TokenKind kind, Token *cur, char *loc , int len) {
   Token *t = calloc(1, sizeof(Token));
   t->kind = kind;
-  t->str = str;
+  t->loc = loc;
   t->len = len;
   cur->next = t;
   return t;
 }
 
-int punct1(char p) {
+int is_ident1(char p) {
   return (
     ('a' <= p && p <= 'z') || 
     ('A' <= p && p <= 'Z') || 
@@ -17,8 +17,8 @@ int punct1(char p) {
   );
 }
 
-int punct2(char p) {
-  return (punct1(p) || ('0' <= p && p <= '9'));
+int is_ident2(char p) {
+  return (is_ident1(p) || ('0' <= p && p <= '9'));
 }
 
 Token *tokenize() {
@@ -35,31 +35,31 @@ Token *tokenize() {
       continue;
     }
 
-    if (strncmp("return", p, 6) == 0 && ! punct2(p[6])) {
+    if (strncmp("return", p, 6) == 0 && ! is_ident2(p[6])) {
       cur = new_token(TK_RETURN, cur, p, 6);
       p += 6;
       continue;
     }
 
-    if (strncmp("if", p, 2) == 0 && ! punct2(p[2])) {
+    if (strncmp("if", p, 2) == 0 && ! is_ident2(p[2])) {
       cur = new_token(TK_IF, cur, p, 2);
       p += 2;
       continue;
     }
 
-    if (strncmp("else", p, 4) == 0 && ! punct2(p[4])) {
+    if (strncmp("else", p, 4) == 0 && ! is_ident2(p[4])) {
       cur = new_token(TK_ELSE, cur, p, 4);
       p += 4;
       continue;
     }
 
-    if (strncmp("for", p, 3) == 0 && ! punct2(p[3])) {
+    if (strncmp("for", p, 3) == 0 && ! is_ident2(p[3])) {
       cur = new_token(TK_RETURN, cur, p, 3);
       p += 3;
       continue;
     }
 
-    if (strncmp("while", p, 5) == 0 && ! punct2(p[5])) {
+    if (strncmp("while", p, 5) == 0 && ! is_ident2(p[5])) {
       cur = new_token(TK_RETURN, cur, p, 5);
       p += 5;
       continue;
@@ -82,11 +82,11 @@ Token *tokenize() {
       continue;
     }
     
-    if (punct1(*p)) {
+    if (is_ident1(*p)) {
       start = p;
       p++;
 
-      while (punct2(*p)) {
+      while (is_ident2(*p)) {
         p++;
       }
 

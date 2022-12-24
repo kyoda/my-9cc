@@ -47,7 +47,7 @@ LVar *new_locals(LVar *l) {
 
 LVar *find_lvar(Token *t) {
   for (LVar *var = locals; var; var = var->next) {
-    if (var->len == t->len && strncmp(t->str, var->name, var->len) == 0) {
+    if (var->len == t->len && strncmp(t->loc, var->name, var->len) == 0) {
       return var;
     }
   }
@@ -57,7 +57,7 @@ LVar *find_lvar(Token *t) {
 bool consume(char *op) {
   if (token->kind == TK_RESERVED && 
       token->len == strlen(op) &&
-      strncmp(token->str, op, token->len) == 0) {
+      strncmp(token->loc, op, token->len) == 0) {
     token = token->next;
     return true;
   }
@@ -68,10 +68,10 @@ bool consume(char *op) {
 bool expect(char *op) {
   if (token->kind == TK_RESERVED && 
       token->len == strlen(op) &&
-      strncmp(token->str, op, token->len) == 0) {
+      strncmp(token->loc, op, token->len) == 0) {
     token = token->next;
   } else {
-    error_at(token->str, "no op");
+    error_at(token->loc, "no op");
     exit(1);
   }
 }
@@ -265,7 +265,7 @@ Node *primary() {
       n->offset = lvar->offset;
     } else {
       lvar = new_locals(locals);
-      lvar->name = token->str;
+      lvar->name = token->loc;
       lvar->len = token->len;
       n->offset = lvar->offset;
       locals = lvar;
