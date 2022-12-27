@@ -45,6 +45,8 @@ assert 0 "if (5) a =0;"
 assert 4 "flag = 0; if (flag) a =0; else b = 4;"
 assert 0 "flag = 9; if (flag) a =0; else b = 4;"
 assert 0 "i=8; while (i<3) i = i + 1;"
-assert 3 "i=0; while (i<3) i = i + 1;"
+#assert 3 "i=0; while (i<3) i = i + 1;"
+assert 3 "a = 0; for (i=0; i<3; i = i + 1;) a = i;"
+
 
 echo OK

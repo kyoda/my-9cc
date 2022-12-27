@@ -67,6 +67,7 @@ void gen(Node *n) {
       gen(n->els);
     }
     printf(".Lend%03d:\n", c);
+
     return;
   case ND_WHILE:
     c = count();
@@ -80,6 +81,29 @@ void gen(Node *n) {
     printf("  jmp .Lbegin%03d\n", c);    
     printf(".Lend%03d:\n", c);
     printf("  push rax\n");    
+
+    return;
+  case ND_FOR:
+    c = count();
+
+    if (n->init) {
+      gen(n->init);
+    }
+    printf(".Lbegin%03d:\n", c);
+    if (n->cond) {
+      gen(n->cond);
+    }
+    printf("  pop rax\n");    
+    printf("  cmp rax, 0\n");    
+    printf("  je .Lend%03d\n", c);    
+    gen(n->then);
+    if (n->inc) {
+      gen(n->inc);
+    }
+    printf("  jmp .Lbegin%03d\n", c);    
+    printf(".Lend%03d:\n", c);
+    printf("  push rax\n");    
+
     return;
   case ND_NUM:
     printf("  push %d\n", n->val);    

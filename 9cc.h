@@ -61,8 +61,10 @@ typedef struct Node {
   NodeKind kind;
   struct Node *lhs;
   struct Node *rhs;
-  //if
+  //if or for or while
   struct Node *cond;
+  struct Node *init;
+  struct Node *inc;
   struct Node *then;
   struct Node *els;
   int val;

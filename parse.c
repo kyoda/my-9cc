@@ -151,6 +151,33 @@ Node *stmt() {
     return n;
   }
 
+  if (equal(token, "for")) {
+    n = calloc(1, sizeof(Node));
+    n->kind = ND_FOR;
+    token = token->next;
+    expect("(");
+
+    if(!equal(token, ";")) {
+      n->init = expr(); 
+    }
+    token = token->next;
+
+    if(!equal(token, ";")) {
+      n->cond = expr(); 
+    }
+    token = token->next;
+
+    if(!equal(token, ";")) {
+      n->inc = expr(); 
+    }
+    token = token->next;
+
+    expect(")");
+    n->then = stmt();
+
+    return n;
+  }
+
   n = expr();
   expect(";");
   return n;
