@@ -36,7 +36,8 @@ typedef enum {
   ND_RETURN,
   ND_IF,
   ND_WHILE,
-  ND_FOR
+  ND_FOR,
+  ND_BLOCK
 } NodeKind;
 
 static const char *node_kind_enum_map[] = {
@@ -61,12 +62,18 @@ typedef struct Node {
   NodeKind kind;
   struct Node *lhs;
   struct Node *rhs;
+
   //if or for or while
   struct Node *cond;
   struct Node *init;
   struct Node *inc;
   struct Node *then;
   struct Node *els;
+
+  //block
+  struct Node *body; 
+  struct Node *next;
+
   int val;
   int offset;
 } Node;

@@ -44,6 +44,12 @@ void gen(Node *n) {
   int c;
 
   switch (n->kind) {
+  case ND_BLOCK:
+    for (Node *nb = n->body; nb; nb = nb->next) {
+      gen(nb);
+    }
+
+    return;
   case ND_RETURN:
     gen(n->lhs);
     printf("  pop rax\n");    

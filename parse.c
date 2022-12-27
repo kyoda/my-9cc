@@ -76,27 +76,6 @@ bool expect(char *op) {
   }
 }
 
-int expect_num() {
-  if (token->kind != TK_NUM) {
-    fprintf(stderr, "no num\n");
-    exit(1);
-  }
-
-  int v = token->val;
-  token = token->next;
-
-  return v;
-}
-
-bool expect_op(char op) {
-  if (strchr("+-*/()", op)) {
-    token = token->next;
-    return true;
-  }
-
-  return false;
-}
-
 bool at_eof() {
   return token->kind == TK_EOF;
 }
@@ -112,6 +91,25 @@ void program() {
 
 Node *stmt() {
   Node *n;
+
+  if (equal(token, "{")) {
+    n = calloc(1, sizeof(Node));
+    n->kind = ND_BLOCK;
+    expect("{");
+
+    Node head = {};
+    Node *cur = &head;
+    while (!equal(token, "}")) {
+      cur->next = stmt();
+      cur = cur->next;
+      token = token->next;
+    }
+
+    expect("}");
+    n->body = head.next;
+
+    return n;
+  }
 
   if (equal(token, "return")) {
     n = calloc(1, sizeof(Node));
@@ -160,18 +158,14 @@ Node *stmt() {
     if(!equal(token, ";")) {
       n->init = expr(); 
     }
-    token = token->next;
+    expect(";");
 
     if(!equal(token, ";")) {
       n->cond = expr(); 
     }
-    token = token->next;
+    expect(";");
 
-    if(!equal(token, ";")) {
-      n->inc = expr(); 
-    }
-    token = token->next;
-
+    n->inc = expr(); 
     expect(")");
     n->then = stmt();
 
