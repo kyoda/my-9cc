@@ -10,10 +10,11 @@ int main(int argc, char **argv) {
   token = tokenize();
   locals = new_locals(locals);
 
+  //debug
   //Token *t = token;
   //while(t->kind != TK_EOF) {
-  //  fprintf(stderr, "loc: %s\n", t->loc);
-  //  fprintf(stderr, "kind: %d\n", t->kind);
+  //  fprintf(stderr, "token->loc: %s\n", t->loc);
+  //  fprintf(stderr, "token->kind: %d\n", t->kind);
   //  t = t->next;
   //}
 

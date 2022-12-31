@@ -102,7 +102,6 @@ Node *stmt() {
     while (!equal(token, "}")) {
       cur->next = stmt();
       cur = cur->next;
-      token = token->next;
     }
 
     expect("}");
