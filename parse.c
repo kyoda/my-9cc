@@ -34,7 +34,7 @@ LVar *new_locals(LVar *l) {
   lvar = calloc(1, sizeof(LVar));
   if (l) {
     lvar->next = l;
-    lvar->offset = l->offset + 8;
+    lvar->offset = l->offset + 8; //8Bytes
   } else {
     lvar->next = NULL;
     lvar->name = NULL;
@@ -71,7 +71,7 @@ bool expect(char *op) {
       strncmp(token->loc, op, token->len) == 0) {
     token = token->next;
   } else {
-    error_at(token->loc, "no op");
+    error_at(token->loc, "no op: %s", op);
     exit(1);
   }
 }
@@ -284,24 +284,46 @@ Node *primary() {
     return new_node_num(v);
   } else if (token->kind == TK_IDENT) {
     Node *n = calloc(1, sizeof(Node));
-    n->kind = ND_LVAR;
 
-    LVar *lvar = find_lvar(token);
-    if (lvar) {
-      n->offset = lvar->offset;
+    if (equal(token->next, "(")) {
+      n->kind = ND_FUNC;
+
+      LVar *lvar = find_lvar(token);
+      if (lvar) {
+        n->offset = lvar->offset;
+        n->funcname = strndup(lvar->name, lvar->len);
+      } else {
+        lvar = new_locals(locals);
+        lvar->name = token->loc;
+        lvar->len = token->len;
+        n->offset = lvar->offset;
+        n->funcname = strndup(lvar->name, lvar->len);
+        locals = lvar;
+      }
+      token = token->next;
+
+      expect("(");
+      expect(")");
     } else {
-      lvar = new_locals(locals);
-      lvar->name = token->loc;
-      lvar->len = token->len;
-      n->offset = lvar->offset;
-      locals = lvar;
-    }
+      n->kind = ND_LVAR;
 
-    token = token->next;
+      LVar *lvar = find_lvar(token);
+      if (lvar) {
+        n->offset = lvar->offset;
+      } else {
+        lvar = new_locals(locals);
+        lvar->name = token->loc;
+        lvar->len = token->len;
+        n->offset = lvar->offset;
+        locals = lvar;
+      }
+
+      token = token->next;
+    }
 
     return n;
   } else {
-    fprintf(stderr, "no num or no ident \n");
+    fprintf(stderr, "no num, no ident, no func \n");
     exit(1);
   }
 

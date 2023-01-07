@@ -31,6 +31,7 @@ typedef enum {
   ND_NEQ,
   ND_LT,
   ND_LE,
+  ND_FUNC,
   ND_LVAR,
   ND_NUM,
   ND_RETURN,
@@ -73,6 +74,9 @@ typedef struct Node {
   //block
   struct Node *body; 
   struct Node *next;
+
+  //function
+  char *funcname;
 
   int val;
   int offset;

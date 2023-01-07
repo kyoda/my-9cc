@@ -16,6 +16,17 @@ void gen_lval(Node *n) {
   printf("  push rax\n");
 }
 
+void gen_func(Node *n) {
+  if (n->kind != ND_FUNC) {
+    fprintf(stderr, "no ND_FUNC \n");
+    exit(1);
+  }
+
+  printf("  mov rax, rbp\n");
+  printf("  sub rax, %d\n", n->offset);
+  printf("  push rax\n");
+}
+
 void gen_main() {
   printf(".intel_syntax noprefix\n");
   printf(".global main\n");
@@ -121,6 +132,13 @@ void gen(Node *n) {
     printf("  pop rax\n");
     printf("  mov rax, [rax]\n");
     printf("  push rax\n");
+
+    return;
+  case ND_FUNC:
+    gen_func(n);
+
+    printf("  mov rax, 0\n");
+    printf("  call %s\n", n->funcname);
 
     return;
   case ND_ASSIGN:
