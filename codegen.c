@@ -45,6 +45,7 @@ void gen_main() {
   }
 
   //epilogue
+  printf(".Lreturn:\n");
   printf("  mov rsp, rbp\n");
   printf("  pop rbp\n");
   printf("  ret\n");
@@ -64,9 +65,7 @@ void gen(Node *n) {
   case ND_RETURN:
     gen(n->lhs);
     printf("  pop rax\n");    
-    printf("  mov rsp, rbp\n");    
-    printf("  pop rbp\n");    
-    printf("  ret\n");    
+    printf("  jmp .Lreturn\n");    
 
     return;
   case ND_IF:
@@ -135,10 +134,9 @@ void gen(Node *n) {
 
     return;
   case ND_FUNC:
-    gen_func(n);
-
     printf("  mov rax, 0\n");
     printf("  call %s\n", n->funcname);
+    printf("  push rax\n");
 
     return;
   case ND_ASSIGN:

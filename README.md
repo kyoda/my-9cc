@@ -40,3 +40,34 @@ primary = num |
           "(" expr ")"
 ```
 
+# stack
+
+
+```
+pop rax
+
+mov rax, [rsp]
+add rsp, 8
+```
+
+
+```
+push rax
+
+sub rsp, 8
+mov [rsp], rax
+```
+
+```
+call
+
+callの次の命令のアドレスをスタックにプッシュ
+callの引数として与えられたアドレスにジャンプ
+```
+
+```
+ret
+スタックからアドレスを１つポップ
+そのアドレスにジャンプ
+```
+
