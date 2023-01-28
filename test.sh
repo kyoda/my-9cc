@@ -44,6 +44,8 @@ assert 4 "{ flag = 0; if (flag) a =0; else a = 4; return a; }"
 assert 0 "{ flag = 9; if (flag) a =0; else a = 4; return a;}"
 assert 3 "{ i=0; while (i<3) {i = i + 1;} return i; }"
 assert 3 "{ a = 0; for (i=0; i<3; i=i+1) {a = a + i;} return a; }"
+assert 0 "{ a = 0; for (;;) {return a;} }"
 assert 3 "{ return ret3(); }"
+assert 3 "{ return ret3(1, 2); }"
 
 echo OK

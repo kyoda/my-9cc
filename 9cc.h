@@ -51,6 +51,7 @@ static const char *node_kind_enum_map[] = {
   "ND_NEQ",
   "ND_LT",
   "ND_LE",
+  "ND_FUNC",
   "ND_LVAR",
   "ND_NUM",
   "ND_RETURN",
@@ -82,6 +83,7 @@ typedef struct Node {
   int offset;
 } Node;
 
+// Local Variable
 typedef struct LVar {
   struct LVar *next;
   char *name;
@@ -89,28 +91,27 @@ typedef struct LVar {
   int offset;
 } LVar;
 
-LVar *locals;
-char *user_input;
+// Function
+typedef struct Function {
+  struct Function *next;
+  char *name;
+  LVar *params;
+  Node *body;
+  LVar *locals;
+  int stack_size;
+} Function;
+
 Token *token;
 Node *code[100];
 
 int equal(Token *t, char *key);
-
-static void error_at(char *loc, char *fmt, ...);
-LVar *new_locals(LVar *l);
-LVar *find_lvar(Token *t);
-void program();
-Node *stmt();
-Node *expr();
-Node *assign();
-Node *equality();
-Node *relational();
-Node *add();
-Node *mul();
-Node *unary();
-Node *primary();
-
+Token *skip(Token *t, char *op);
+void print_token(Token *t);
+void error(char *fmt, ...);
+void error_at(char *loc, char *fmt, ...);
+void codegen(Function *prog);
 void gen_main();
 void gen(Node *n);
 Token *tokenize();
+Function *parse(Token *token);
 

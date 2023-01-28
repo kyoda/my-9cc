@@ -27,7 +27,7 @@ void gen_func(Node *n) {
   printf("  push rax\n");
 }
 
-void gen_main() {
+void codegen(Function *prog) {
   printf(".intel_syntax noprefix\n");
   printf(".global main\n");
   printf("main:\n");
@@ -37,10 +37,8 @@ void gen_main() {
   printf("  mov rbp, rsp\n");
   printf("  sub rsp, 208\n");
 
-  int i = 0;
-  while (code[i] != NULL) {
-    gen(code[i]);
-    i++;
+  for (Function *fn = prog; fn; fn = prog->next) {
+    gen(fn->body);
     printf("  pop rax\n");
   }
 
@@ -50,6 +48,7 @@ void gen_main() {
   printf("  pop rbp\n");
   printf("  ret\n");
 }
+
 
 void gen(Node *n) {
 

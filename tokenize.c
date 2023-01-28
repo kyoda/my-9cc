@@ -1,4 +1,33 @@
 #include "9cc.h"
+char *user_input;
+
+void print_token(Token *t) {
+  while(t->kind != TK_EOF) {
+    fprintf(stderr, "token->loc: %s\n", t->loc);
+    fprintf(stderr, "token->kind: %d\n", t->kind);
+    t = t->next;
+  }
+}
+
+void error(char *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  vfprintf(stderr, fmt, ap);
+  fprintf(stderr, "\n");
+  exit(1);
+}
+
+void error_at(char *loc, char *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  int pos = loc - user_input;
+  fprintf(stderr, "%s\n", user_input);
+  fprintf(stderr, "%*s\n", pos, " ");
+  fprintf(stderr, "^ ");
+  fprintf(stderr, fmt, ap);
+  fprintf(stderr, "\n");
+  exit(1);
+}
 
 Token *new_token(TokenKind kind, Token *cur, char *loc , int len) {
   Token *t = calloc(1, sizeof(Token));
@@ -25,6 +54,12 @@ int equal(Token *t, char *key) {
   return strncmp(t->loc, key, t->len) == 0 && key[t->len] == '\0';
 }
 
+Token *skip(Token *t, char *op) {
+  if (!equal(t, op))
+    error("expected %s", op);
+  return t->next;
+}
+
 int keyword_len(char *p) {
   char *key[] = {"return", "if", "else", "for", "while"};
   int key_len;
@@ -37,8 +72,8 @@ int keyword_len(char *p) {
   return 0;
 }
 
-Token *tokenize() {
-  char *p = user_input;
+Token *tokenize(char* p) {
+  user_input = p;
   Token head;
   head.next = NULL;
   Token *cur = &head;
@@ -71,7 +106,7 @@ Token *tokenize() {
       continue;
     }
 
-    if (strchr("+-*/()<>=;{}", *p)) {
+    if (strchr("+-*/()<>=;{},", *p)) {
       cur = new_token(TK_PUNCT, cur, p, 1);
       p++;
       continue;

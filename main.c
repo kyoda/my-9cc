@@ -1,25 +1,15 @@
 #include "9cc.h"
 
 int main(int argc, char **argv) {
-  if (argc < 2) {
-    fprintf(stderr, "no args\n");
-    exit(1);
-  }
+  if (argc != 2)
+    error("%s: invalid number of arguments", argv[0]);
 
-  user_input = argv[1];
-  token = tokenize();
-  locals = new_locals(locals);
+  Token *token = tokenize(argv[1]);
+  Function *prog = parse(token);
+  codegen(prog);
 
   //debug
-  //Token *t = token;
-  //while(t->kind != TK_EOF) {
-  //  fprintf(stderr, "token->loc: %s\n", t->loc);
-  //  fprintf(stderr, "token->kind: %d\n", t->kind);
-  //  t = t->next;
-  //}
-
-  program();
-  gen_main();
+  //print_token(token);
 
   return 0;
 }
