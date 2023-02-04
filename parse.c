@@ -289,6 +289,32 @@ Node *unary(Token **rest, Token *token) {
   return n;
 }
 
+Node *funcall(Token **rest, Token *token) {
+
+  Token *start = token;
+
+  Node head = {};
+  Node *cur = &head;
+  
+  // funtionname (arg, ...)
+  token = token->next;
+  expect(&token, token, "(");
+
+  while (!equal(token, ")")) {
+    cur = cur->next = assign(&token, token);
+    expect(&token, token, ",");
+  }
+
+  expect(&token, token, ")");
+  expect(&token, token, ";");
+
+  Node *n = calloc(1, sizeof(Node));
+  n->kind = ND_FUNC;
+  n->funcname = strndup(start->loc, start->len);
+
+  return n;
+}
+
 Node *primary(Token **rest, Token *token) {
 
   if (consume(&token, token, "(")) {
@@ -305,65 +331,27 @@ Node *primary(Token **rest, Token *token) {
     *rest = token;
     return new_node_num(v);
   } else if (token->kind == TK_IDENT) {
+
+    //funcall
+    if (equal(token->next, "("))
+      return funcall(&token, token);
+
+    // lvar
     Node *n = calloc(1, sizeof(Node));
+    n->kind = ND_LVAR;
 
-    if (equal(token->next, "(")) {
-      n->kind = ND_FUNC;
-
-      LVar *lvar = find_lvar(token);
-      if (lvar) {
-        n->offset = lvar->offset;
-        n->funcname = strndup(lvar->name, lvar->len);
-      } else {
-        lvar = new_locals(locals);
-        lvar->name = token->loc;
-        lvar->len = token->len;
-        n->offset = lvar->offset;
-        n->funcname = strndup(lvar->name, lvar->len);
-        locals = lvar;
-      }
-      token = token->next;
-
-      expect(&token, token, "(");
-      while(!equal(token, ")")) {
-        lvar = find_lvar(token);
-        if (lvar) {
-          n->offset = lvar->offset;
-        } else {
-          lvar = new_locals(locals);
-          lvar->name = token->loc;
-          lvar->len = token->len;
-          n->offset = lvar->offset;
-          locals = lvar;
-        }
-        token = token->next;
-
-        if (equal(token, ")")) {
-          break;
-        } else if (equal(token, ",")) {
-          token = token->next;
-        } else {
-          fprintf(stderr, "args error\n");
-          exit(1);
-        }
-      }
-      expect(&token, token, ")");
+    LVar *lvar = find_lvar(token);
+    if (lvar) {
+      n->offset = lvar->offset;
     } else {
-      n->kind = ND_LVAR;
-
-      LVar *lvar = find_lvar(token);
-      if (lvar) {
-        n->offset = lvar->offset;
-      } else {
-        lvar = new_locals(locals);
-        lvar->name = token->loc;
-        lvar->len = token->len;
-        n->offset = lvar->offset;
-        locals = lvar;
-      }
-
-      token = token->next;
+      lvar = new_locals(locals);
+      lvar->name = token->loc;
+      lvar->len = token->len;
+      n->offset = lvar->offset;
+      locals = lvar;
     }
+
+    token = token->next;
 
     *rest = token;
     return n;
@@ -378,12 +366,15 @@ Function *function (Token **rest, Token *token) {
   locals = NULL;
   //locals = new_locals(locals);
   Function *fn = calloc(1, sizeof(Function));
-  //fn->name = strndup(token->loc, token->len);
-  //skip(token, "{");
+  fn->name = strndup(token->loc, token->len);
+  token = token->next;
+  expect(&token, token, "(");
+  expect(&token, token, ")");
 
   fn->body = stmt(&token, token);
-  *rest = token;
   fn->locals = locals;
+
+  *rest = token;
   return fn;
 }
 

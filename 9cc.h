@@ -78,6 +78,7 @@ typedef struct Node {
 
   //function
   char *funcname;
+  struct Node *args;
 
   int val;
   int offset;
