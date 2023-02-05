@@ -296,7 +296,7 @@ Node *funcall(Token **rest, Token *token) {
   Node head = {};
   Node *cur = &head;
   
-  // funtionname (arg, ...)
+  // funtionname (arg, ...);
   token = token->next;
   expect(&token, token, "(");
 
@@ -364,14 +364,37 @@ Node *primary(Token **rest, Token *token) {
 
 }
 
+void create_params(Token **rest, Token *token) {
+  while (!equal(token, ")")) {
+    if (locals == NULL) {
+      locals = new_locals(locals);
+      locals->name = strndup(token->loc, token->len);
+      locals->len = token->len;
+      locals->offset = 8;
+    } else {
+      expect(&token, token, ",");
+      locals = new_locals(locals);
+      locals->name = strndup(token->loc, token->len);
+      locals->len = token->len;
+    }
+    token = token->next;
+  }
+
+  *rest = token;
+}
+
 Function *function (Token **rest, Token *token) {
   locals = NULL;
-  //locals = new_locals(locals);
+
   Function *fn = calloc(1, sizeof(Function));
   fn->name = strndup(token->loc, token->len);
   token = token->next;
+
   expect(&token, token, "(");
+  create_params(&token, token);
   expect(&token, token, ")");
+
+  fn->params = locals;
 
   fn->body = stmt(&token, token);
   fn->locals = locals;

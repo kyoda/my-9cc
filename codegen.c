@@ -1,5 +1,6 @@
 #include "9cc.h"
 
+static Function *current_fn;
 static void gen_stmt(Node *n);
 static void gen_expr(Node *n);
 
@@ -19,29 +20,6 @@ void gen_lval(Node *n) {
   printf("  mov rax, rbp\n");
   printf("  sub rax, %d\n", n->offset);
   printf("  push rax\n");
-}
-
-
-void codegen(Function *prog) {
-  printf(".intel_syntax noprefix\n");
-  printf(".global main\n");
-  printf("main:\n");
-
-  //prologue
-  printf("  push rbp\n");
-  printf("  mov rbp, rsp\n");
-  printf("  sub rsp, 208\n");
-
-  for (Function *fn = prog; fn; fn = prog->next) {
-    gen_stmt(fn->body);
-    printf("  pop rax\n");
-  }
-
-  //epilogue
-  printf(".Lreturn:\n");
-  printf("  mov rsp, rbp\n");
-  printf("  pop rbp\n");
-  printf("  ret\n");
 }
 
 
@@ -151,7 +129,7 @@ static void gen_stmt(Node *n) {
   case ND_RETURN:
     gen_expr(n->lhs);
     printf("  pop rax\n");    
-    printf("  jmp .Lreturn\n");    
+    printf("  jmp .Lreturn.%s\n", current_fn->name);    
 
     return;
   case ND_IF:
@@ -210,5 +188,43 @@ static void gen_stmt(Node *n) {
   }
 
   gen_expr(n);
+}
+
+void align_stack_size(Function *prog) {
+  for (Function *fn = prog; fn; fn = prog->next) {
+    int offset = 0;
+    for (LVar *var = fn->locals; var; var = var->next) {
+      offset += 8;
+    }
+
+    fn->stack_size = offset;
+  }
+}
+
+void codegen(Function *prog) {
+  align_stack_size(prog);
+
+  printf(".intel_syntax noprefix\n");
+
+  for (Function *fn = prog; fn; fn = prog->next) {
+    current_fn = fn;
+    printf(".global %s\n", fn->name);
+    printf("%s:\n", fn->name);
+
+    //prologue
+    printf("  push rbp\n");
+    printf("  mov rbp, rsp\n");
+    printf("  sub rsp, %d\n", fn->stack_size);
+
+    gen_stmt(fn->body);
+    printf("  pop rax\n");
+
+    //epilogue
+    printf(".Lreturn.%s:\n", fn->name);
+    printf("  mov rsp, rbp\n");
+    printf("  pop rbp\n");
+    printf("  ret\n");
+  }
+
 }
 
