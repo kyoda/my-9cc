@@ -11,7 +11,9 @@
             "program": "${workspaceFolder}/9cc",
             "args": [
                 //"main() { return 0; }"
-                "main() { return ret3(); }"
+                //"main() { a = 0; for (;;) {return a;} }"
+                //"main() { return ret3(); }"
+                "main() { return add(1, 2); }"
             ],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",

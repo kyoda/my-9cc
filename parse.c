@@ -301,17 +301,19 @@ Node *funcall(Token **rest, Token *token) {
   expect(&token, token, "(");
 
   while (!equal(token, ")")) {
+    if (cur != &head)
+      expect(&token, token, ",");
     cur = cur->next = assign(&token, token);
-    expect(&token, token, ",");
   }
 
   expect(&token, token, ")");
-  expect(&token, token, ";");
 
   Node *n = calloc(1, sizeof(Node));
   n->kind = ND_FUNC;
   n->funcname = strndup(start->loc, start->len);
+  n->args = head.next;
 
+  *rest = token;
   return n;
 }
 
@@ -334,7 +336,7 @@ Node *primary(Token **rest, Token *token) {
 
     //funcall
     if (equal(token->next, "("))
-      return funcall(&token, token);
+      return funcall(rest, token);
 
     // lvar
     Node *n = calloc(1, sizeof(Node));

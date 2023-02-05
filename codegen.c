@@ -70,7 +70,7 @@ void gen_expr(Node *n) {
       nargs++;
     }
 
-    for (int i = nargs - 1; n >= 0; n--) {
+    for (int i = nargs - 1; i >= 0; i--) {
       printf("  pop %s\n", argreg[i]);
     }
 

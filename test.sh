@@ -47,6 +47,6 @@ assert 3 "main() { i=0; while (i<3) {i = i + 1;} return i; }"
 assert 3 "main() { a = 0; for (i=0; i<3; i=i+1) {a = a + i;} return a; }"
 assert 0 "main() { a = 0; for (;;) {return a;} }"
 assert 3 "main() { return ret3(); }"
-#assert 3 "main() { return add(1, 2); }"
+assert 3 "main() { return add(1, 2); }"
 
 echo OK
