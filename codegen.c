@@ -191,7 +191,7 @@ static void gen_stmt(Node *n) {
 }
 
 void align_stack_size(Function *prog) {
-  for (Function *fn = prog; fn; fn = prog->next) {
+  for (Function *fn = prog; fn; fn = fn->next) {
     int offset = 0;
     for (LVar *var = fn->locals; var; var = var->next) {
       offset += 8;
@@ -206,7 +206,7 @@ void codegen(Function *prog) {
 
   printf(".intel_syntax noprefix\n");
 
-  for (Function *fn = prog; fn; fn = prog->next) {
+  for (Function *fn = prog; fn; fn = fn->next) {
     current_fn = fn;
     printf(".global %s\n", fn->name);
     printf("%s:\n", fn->name);
@@ -216,6 +216,11 @@ void codegen(Function *prog) {
     printf("  mov rbp, rsp\n");
     printf("  sub rsp, %d\n", fn->stack_size);
 
+    int i = 0;
+    for (LVar *var = fn->params; var; var = var->next) {
+      printf("  mov [rbp - %d], %s\n", var->offset, argreg[i++]);
+    }
+    
     gen_stmt(fn->body);
     printf("  pop rax\n");
 

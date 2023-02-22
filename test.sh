@@ -53,5 +53,6 @@ assert 2 "main() { return sub2(5, 3); }"
 assert 8 "main() { return add2(5, 3); }"
 assert 66 "main() { return add6(1, 2, add6(3, 4, 5, 6, 7, 11), 8, 9, 10); }"
 assert 10 "main() { return add3(5, 3, 2); } add3(a, b, c) { return a + b + c; }"
+assert 30 "main() { return mul3(5, 3, 2); } mul3(a, b, c) { return a * b * c; }"
 
 echo OK
