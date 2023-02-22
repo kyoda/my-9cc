@@ -41,25 +41,6 @@ typedef enum {
   ND_BLOCK
 } NodeKind;
 
-static const char *node_kind_enum_map[] = {
-  "ND_ADD",
-  "ND_SUB",
-  "ND_MUL",
-  "ND_DIV",
-  "ND_ASSIGN",
-  "ND_EQ",
-  "ND_NEQ",
-  "ND_LT",
-  "ND_LE",
-  "ND_FUNC",
-  "ND_LVAR",
-  "ND_NUM",
-  "ND_RETURN",
-  "ND_IF",
-  "ND_WHILE",
-  "ND_FOR"
-};
-
 typedef struct Node {
   NodeKind kind;
   struct Node *lhs;

@@ -3,7 +3,6 @@
 static Function *current_fn;
 static void gen_stmt(Node *n);
 static void gen_expr(Node *n);
-
 static char *argreg[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 
 static int count() {
@@ -24,8 +23,6 @@ void gen_lval(Node *n) {
 
 
 void gen_expr(Node *n) {
-
-  int c;
 
   switch (n->kind) {
   case ND_NUM:
@@ -67,6 +64,8 @@ void gen_expr(Node *n) {
     printf("  mov [rax], rdi\n");
     printf("  push rdi\n");
     return;
+  default:
+    break;
   }
 
   gen_expr(n->lhs);
@@ -109,6 +108,8 @@ void gen_expr(Node *n) {
      printf("  setle al\n");    
      printf("  movzb rax, al\n");    
      break;
+  default:
+    break;
   }
 
   printf("  push rax\n");    
@@ -185,6 +186,8 @@ static void gen_stmt(Node *n) {
     printf("  push rax\n");    
 
     return;
+  default:
+    break;
   }
 
   gen_expr(n);
