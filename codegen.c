@@ -18,7 +18,6 @@ void gen_lval(Node *n) {
 
   printf("  mov rax, rbp\n");
   printf("  sub rax, %d\n", n->offset);
-  printf("  push rax\n");
 }
 
 
@@ -26,15 +25,13 @@ void gen_expr(Node *n) {
 
   switch (n->kind) {
   case ND_NUM:
-    printf("  push %d\n", n->val);    
+    printf("  mov rax, %d\n", n->val);    
 
     return;
   case ND_LVAR:
     gen_lval(n);
 
-    printf("  pop rax\n");
     printf("  mov rax, [rax]\n");
-    printf("  push rax\n");
 
     return;
   case ND_FUNC: {
@@ -42,6 +39,7 @@ void gen_expr(Node *n) {
 
     for (Node *arg = n->args; arg; arg = arg->next) {
       gen_expr(arg);
+      printf("  push rax\n");
       nargs++;
     }
 
@@ -51,25 +49,25 @@ void gen_expr(Node *n) {
 
     printf("  mov rax, 0\n");
     printf("  call %s\n", n->funcname);
-    printf("  push rax\n");
 
     return;
   }
   case ND_ASSIGN:
     gen_lval(n->lhs);
+    printf("  push rax\n");
     gen_expr(n->rhs);
+    printf("  push rax\n");
 
     printf("  pop rdi\n");
     printf("  pop rax\n");
     printf("  mov [rax], rdi\n");
-    printf("  push rdi\n");
+    printf("  mov rax, rdi\n");
+
     return;
   case ND_DEREF:
     gen_expr(n->lhs);
 
-    printf("  pop rax\n");
     printf("  mov rax, [rax]\n");
-    printf("  push rax\n");
 
     return;
   case ND_ADDR:
@@ -81,7 +79,9 @@ void gen_expr(Node *n) {
   }
 
   gen_expr(n->lhs);
+  printf("  push rax\n");    
   gen_expr(n->rhs);
+  printf("  push rax\n");    
 
   printf("  pop rdi\n");    
   printf("  pop rax\n");    
@@ -124,8 +124,6 @@ void gen_expr(Node *n) {
     break;
   }
 
-  printf("  push rax\n");    
-
 }
 
 
@@ -141,7 +139,6 @@ static void gen_stmt(Node *n) {
     return;
   case ND_RETURN:
     gen_expr(n->lhs);
-    printf("  pop rax\n");    
     printf("  jmp .Lreturn.%s\n", current_fn->name);    
 
     return;
@@ -149,7 +146,6 @@ static void gen_stmt(Node *n) {
     c = count();
 
     gen_expr(n->cond);
-    printf("  pop rax\n");    
     printf("  cmp rax, 0\n");    
     printf("  je .Lelse%03d\n", c);    
     gen_stmt(n->then);
@@ -167,13 +163,11 @@ static void gen_stmt(Node *n) {
 
     printf(".Lbegin%03d:\n", c);
     gen_expr(n->cond);
-    printf("  pop rax\n");    
     printf("  cmp rax, 0\n");    
     printf("  je .Lend%03d\n", c);    
     gen_stmt(n->then);
     printf("  jmp .Lbegin%03d\n", c);    
     printf(".Lend%03d:\n", c);
-    printf("  push rax\n");    
 
     return;
   case ND_FOR:
@@ -186,7 +180,6 @@ static void gen_stmt(Node *n) {
     if (n->cond) {
       gen_expr(n->cond);
     }
-    printf("  pop rax\n");    
     printf("  cmp rax, 0\n");    
     printf("  je .Lend%03d\n", c);    
     gen_stmt(n->then);
@@ -195,7 +188,6 @@ static void gen_stmt(Node *n) {
     }
     printf("  jmp .Lbegin%03d\n", c);    
     printf(".Lend%03d:\n", c);
-    printf("  push rax\n");    
 
     return;
   default:
@@ -236,7 +228,6 @@ void codegen(Function *prog) {
     }
     
     gen_stmt(fn->body);
-    printf("  pop rax\n");
 
     //epilogue
     printf(".Lreturn.%s:\n", fn->name);
