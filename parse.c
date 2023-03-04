@@ -284,6 +284,24 @@ Node *unary(Token **rest, Token *token) {
     return n;
   }
 
+  if (consume(&token, token, "*")) {
+    n = calloc(1, sizeof(Node));
+    n->kind = ND_DEREF;
+    n->lhs = unary(&token, token);
+
+    *rest = token;
+    return n;
+  }
+
+  if (consume(&token, token, "&")) {
+    n = calloc(1, sizeof(Node));
+    n->kind = ND_ADDR;
+    n->lhs = unary(&token, token);
+
+    *rest = token;
+    return n;
+  }
+
   n = primary(&token, token);
   *rest = token;
   return n;

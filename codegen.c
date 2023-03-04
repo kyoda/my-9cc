@@ -64,6 +64,18 @@ void gen_expr(Node *n) {
     printf("  mov [rax], rdi\n");
     printf("  push rdi\n");
     return;
+  case ND_DEREF:
+    gen_expr(n->lhs);
+
+    printf("  pop rax\n");
+    printf("  mov rax, [rax]\n");
+    printf("  push rax\n");
+
+    return;
+  case ND_ADDR:
+    gen_lval(n->lhs);
+
+    return;
   default:
     break;
   }
@@ -219,9 +231,8 @@ void codegen(Function *prog) {
     printf("  mov rbp, rsp\n");
     printf("  sub rsp, %d\n", fn->stack_size);
 
-    int i = 0;
     for (LVar *var = fn->params; var; var = var->next) {
-      printf("  mov [rbp - %d], %s\n", var->offset, argreg[i++]);
+      printf("  mov [rbp - %d], %s\n", var->offset, argreg[var->offset / 8 - 1]);
     }
     
     gen_stmt(fn->body);

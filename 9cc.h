@@ -27,6 +27,8 @@ typedef enum {
   ND_MUL,
   ND_DIV,
   ND_ASSIGN,
+  ND_ADDR,
+  ND_DEREF,
   ND_EQ,
   ND_NEQ,
   ND_LT,
