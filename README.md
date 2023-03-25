@@ -21,13 +21,14 @@ EBNF (Extended BNF)
 
 
 ```
-program = stmt*
+program = (declspec) stmt*
 stmt = expr ";" |
        "{" stmt* "}" |
        "if" "(" expr ")" stmt ("else" stmt)? |
        "while" "(" expr ")" stmt |
        "for" "(" expr? ";" expr? ";" expr? ";"  ")" stmt |
-       "return" expr ";"
+       "return" expr ";" |
+        declspec ("=" assign)? ";"
 expr = assign
 assign = equality ("=" assign)?
 equality = relational ("==" relational | "!=" relational)*
@@ -40,6 +41,21 @@ unary = ("+" | "-")? primary |
 primary = num | 
           ident ( "(" assign "," ")" )? | 
           "(" expr ")"
+```
+
+```
+num -> 数字
+ident -> 変数, 関数名
+declspec -> 型
+```
+
+```
+declaration = declspec ident ";"
+
+compound-stmt = (declaration | stmt)* "}"
+declspec = "int"
+declarator = "*"* ident
+declaration = declspec (declarator ("=" expr)? ("," declarator ("=" expr)?)*)? ";"
 ```
 
 # stack

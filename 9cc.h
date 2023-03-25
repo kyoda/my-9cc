@@ -67,12 +67,25 @@ typedef struct Node {
   int offset;
 } Node;
 
+typedef enum {
+  TY_INT,
+  TY_PTR,
+  TY_FUNC
+} TypeKind;
+
+typedef struct Type {
+  struct Type *base;
+  struct Type *next;
+  TypeKind *kind;
+} Type;
+
 // Local Variable
 typedef struct LVar {
   struct LVar *next;
   char *name;
   int len;
   int offset;
+  Type *ty;
 } LVar;
 
 // Function

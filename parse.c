@@ -2,7 +2,6 @@
 
 LVar *locals;
 
-LVar *new_locals(LVar *l);
 LVar *find_lvar(Token *t);
 Node *stmt(Token **rest, Token *token);
 Node *expr(Token **rest, Token *token);
@@ -31,18 +30,19 @@ Node *new_node_num(int val) {
   return n;
 }
 
-LVar *new_locals(LVar *l) {
+LVar *new_lvar(char *name) {
   LVar *lvar;
   lvar = calloc(1, sizeof(LVar));
-  if (l) {
-    lvar->next = l;
-    lvar->offset = l->offset + 8; //8Bytes
+  lvar->name = name;
+  lvar->len = strlen(name);
+  lvar->next = locals;
+  if (locals) {
+    lvar->offset = locals->offset + 8; //8Bytes
   } else {
-    lvar->next = NULL;
-    lvar->name = NULL;
-    lvar->len = 0;
-    lvar->offset = 0;
+    lvar->offset = 8;
   }
+  //lvar->len = 0;
+  locals = lvar;
 
   return lvar;
 }
@@ -54,6 +54,15 @@ LVar *find_lvar(Token *t) {
     }
   }
   return NULL;
+}
+
+char *get_ident_name(Token *t) {
+  if (t->kind != TK_IDENT) {
+    fprintf(stderr, "expected an identifier\n");
+    exit(1);
+  }
+    
+  return strndup(t->loc, t->len);
 }
 
 bool consume(Token **rest, Token *token, char *op) {
@@ -98,6 +107,31 @@ Node *stmt(Token **rest, Token *token) {
 
     expect(&token, token, "}");
     n->body = head.next;
+
+    *rest = token;
+    return n;
+  }
+
+  if (equal(token, "int")) {
+    token = token->next;
+
+    LVar *lvar = find_lvar(token);
+    if (lvar) {
+      fprintf(stderr, "definded variable\n");
+      exit(1);
+    }
+
+    lvar = new_lvar(get_ident_name(token));
+    token = token->next;
+
+    n = calloc(1, sizeof(Node));
+    n->kind = ND_LVAR;
+
+    if (consume(&token, token, "=")) {
+      return new_node(ND_ASSIGN, n, assign(&token, token));
+    }
+
+    expect(&token, token, ";");
 
     *rest = token;
     return n;
@@ -364,11 +398,8 @@ Node *primary(Token **rest, Token *token) {
     if (lvar) {
       n->offset = lvar->offset;
     } else {
-      lvar = new_locals(locals);
-      lvar->name = token->loc;
-      lvar->len = token->len;
-      n->offset = lvar->offset;
-      locals = lvar;
+      fprintf(stderr, "variable not definded\n");
+      exit(1);
     }
 
     token = token->next;
@@ -383,17 +414,24 @@ Node *primary(Token **rest, Token *token) {
 }
 
 void create_params(Token **rest, Token *token) {
+  LVar *lvar;
+
   while (!equal(token, ")")) {
     if (locals == NULL) {
-      locals = new_locals(locals);
+      locals->next = NULL;
       locals->name = strndup(token->loc, token->len);
       locals->len = token->len;
       locals->offset = 8;
     } else {
       expect(&token, token, ",");
-      locals = new_locals(locals);
-      locals->name = strndup(token->loc, token->len);
-      locals->len = token->len;
+
+      lvar = calloc(1, sizeof(LVar));
+      lvar->offset = locals->offset + 8;
+      lvar->len = token->len;
+      lvar->name = strndup(token->loc, token->len);
+      lvar->next = locals;
+
+      locals = lvar;
     }
     token = token->next;
   }
@@ -405,6 +443,15 @@ Function *function (Token **rest, Token *token) {
   locals = NULL;
 
   Function *fn = calloc(1, sizeof(Function));
+
+
+  if (equal(token, "int")) {
+    token = token->next;
+  } else {
+    fprintf(stderr, "func not definded\n");
+    exit(1);
+  }
+
   fn->name = strndup(token->loc, token->len);
   token = token->next;
 
