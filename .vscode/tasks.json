@@ -4,6 +4,13 @@
     "version": "2.0.0",
     "tasks": [
         {
+            "label": "build_9cc",
+            "type": "shell",
+            "command": "make",
+            "args": [
+            ]
+        },
+        {
             "label": "build and test",
             "type": "shell",
             "command": "make",

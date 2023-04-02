@@ -17,7 +17,7 @@ void gen_lval(Node *n) {
   }
 
   printf("  mov rax, rbp\n");
-  printf("  sub rax, %d\n", n->offset);
+  printf("  sub rax, %d\n", n->var->offset);
 }
 
 
@@ -198,10 +198,12 @@ static void gen_stmt(Node *n) {
 }
 
 void align_stack_size(Function *prog) {
+  int offset;
   for (Function *fn = prog; fn; fn = fn->next) {
-    int offset = 0;
+    offset = 0;
     for (LVar *var = fn->locals; var; var = var->next) {
       offset += 8;
+      var->offset = offset;
     }
 
     fn->stack_size = offset;

@@ -36,12 +36,6 @@ LVar *new_lvar(char *name) {
   lvar->name = name;
   lvar->len = strlen(name);
   lvar->next = locals;
-  if (locals) {
-    lvar->offset = locals->offset + 8; //8Bytes
-  } else {
-    lvar->offset = 8;
-  }
-  //lvar->len = 0;
   locals = lvar;
 
   return lvar;
@@ -126,6 +120,7 @@ Node *stmt(Token **rest, Token *token) {
 
     n = calloc(1, sizeof(Node));
     n->kind = ND_LVAR;
+    n->var = lvar;
 
     if (consume(&token, token, "=")) {
       return new_node(ND_ASSIGN, n, assign(&token, token));
@@ -396,7 +391,7 @@ Node *primary(Token **rest, Token *token) {
 
     LVar *lvar = find_lvar(token);
     if (lvar) {
-      n->offset = lvar->offset;
+      n->var = lvar;
     } else {
       fprintf(stderr, "variable not definded\n");
       exit(1);
@@ -414,25 +409,18 @@ Node *primary(Token **rest, Token *token) {
 }
 
 void create_params(Token **rest, Token *token) {
-  LVar *lvar;
-
   while (!equal(token, ")")) {
-    if (locals == NULL) {
-      locals->next = NULL;
-      locals->name = strndup(token->loc, token->len);
-      locals->len = token->len;
-      locals->offset = 8;
-    } else {
+    if (locals != NULL)
       expect(&token, token, ",");
 
-      lvar = calloc(1, sizeof(LVar));
-      lvar->offset = locals->offset + 8;
-      lvar->len = token->len;
-      lvar->name = strndup(token->loc, token->len);
-      lvar->next = locals;
-
-      locals = lvar;
+    if (equal(token, "int")) {
+      token = token->next;
+    } else {
+      fprintf(stderr, "param type not definded\n");
+      exit(1);
     }
+
+    locals = new_lvar(strndup(token->loc, token->len));
     token = token->next;
   }
 

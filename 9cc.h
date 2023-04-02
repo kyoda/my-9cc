@@ -21,6 +21,14 @@ typedef struct Token {
   int len;
 } Token;
 
+// Local Variable
+typedef struct LVar {
+  struct LVar *next;
+  char *name;
+  int len;
+  int offset;
+} LVar;
+
 typedef enum {
   ND_ADD,
   ND_SUB,
@@ -64,7 +72,7 @@ typedef struct Node {
   struct Node *args;
 
   int val;
-  int offset;
+  LVar *var; // ND_LVAR
 } Node;
 
 typedef enum {
@@ -78,15 +86,6 @@ typedef struct Type {
   struct Type *next;
   TypeKind *kind;
 } Type;
-
-// Local Variable
-typedef struct LVar {
-  struct LVar *next;
-  char *name;
-  int len;
-  int offset;
-  Type *ty;
-} LVar;
 
 // Function
 typedef struct Function {

@@ -13,8 +13,8 @@ EBNF (Extended BNF)
 文脈自由文法 (context free grammer)  
 具象構文木 (concrete syntax tree)  
 再帰下降構文解析  
-演算子（Operator)  
-被演算子（Operand)  
+演算子 (Operator)  
+被演算子 (Operand)  
 
 
 # 生成文法
@@ -28,7 +28,7 @@ stmt = expr ";" |
        "while" "(" expr ")" stmt |
        "for" "(" expr? ";" expr? ";" expr? ";"  ")" stmt |
        "return" expr ";" |
-        declspec ("=" assign)? ";"
+        declspec ident ("=" assign)? ";"
 expr = assign
 assign = equality ("=" assign)?
 equality = relational ("==" relational | "!=" relational)*
