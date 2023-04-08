@@ -203,10 +203,15 @@ void align_stack_size(Function *prog) {
     offset = 0;
     for (LVar *var = fn->locals; var; var = var->next) {
       offset += 8;
-      var->offset = offset;
     }
 
     fn->stack_size = offset;
+
+    for (LVar *var = fn->locals; var; var = var->next) {
+      var->offset = offset;
+      offset -= 8;
+    }
+
   }
 }
 
