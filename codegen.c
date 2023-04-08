@@ -16,8 +16,7 @@ void gen_lval(Node *n) {
     exit(1);
   }
 
-  printf("  mov rax, rbp\n");
-  printf("  sub rax, %d\n", n->var->offset);
+  printf("  lea rax, [rbp - %d]\n", n->var->offset);
 }
 
 
