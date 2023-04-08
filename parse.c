@@ -123,7 +123,7 @@ Node *stmt(Token **rest, Token *token) {
     n->var = lvar;
 
     if (consume(&token, token, "=")) {
-      return new_node(ND_ASSIGN, n, assign(&token, token));
+      n = new_node(ND_ASSIGN, n, assign(&token, token));
     }
 
     expect(&token, token, ";");

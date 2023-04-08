@@ -15,6 +15,7 @@ EBNF (Extended BNF)
 再帰下降構文解析  
 演算子 (Operator)  
 被演算子 (Operand)  
+デリファレンス演算子（dereference operator）
 
 
 # 生成文法
@@ -28,7 +29,7 @@ stmt = expr ";" |
        "while" "(" expr ")" stmt |
        "for" "(" expr? ";" expr? ";" expr? ";"  ")" stmt |
        "return" expr ";" |
-        declspec ident ("=" assign)? ";"
+        declspec "*"* ident ("=" assign)? ";"
 expr = assign
 assign = equality ("=" assign)?
 equality = relational ("==" relational | "!=" relational)*
