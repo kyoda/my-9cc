@@ -30,11 +30,12 @@ Node *new_node_num(int val) {
   return n;
 }
 
-LVar *new_lvar(char *name) {
+LVar *new_lvar(char *name, Type *ty) {
   LVar *lvar;
   lvar = calloc(1, sizeof(LVar));
   lvar->name = name;
   lvar->len = strlen(name);
+  lvar->ty = ty;
   lvar->next = locals;
   locals = lvar;
 
@@ -85,8 +86,23 @@ bool at_eof(Token *token) {
   return token->kind == TK_EOF;
 }
 
+Type *pointer_to(Type *base) {
+  Type *ty = calloc(1, sizeof(Type));
+  ty->kind = TY_PTR;
+  ty->next = base;
+
+  return ty;
+}
+
 Node *stmt(Token **rest, Token *token) {
   Node *n;
+
+  if (consume(&token, token, ";")) {
+    n = calloc(1, sizeof(Node));
+    n->kind = ND_BLOCK;
+    *rest = token;
+    return n;
+  }
 
   if (equal(token, "{")) {
     n = calloc(1, sizeof(Node));
@@ -109,13 +125,21 @@ Node *stmt(Token **rest, Token *token) {
   if (equal(token, "int")) {
     token = token->next;
 
+    Type *ty;
+    ty = calloc(1, sizeof(Type));
+    ty->kind = TY_INT;
+    
+    while (consume(&token, token, "*")) {
+      ty = pointer_to(ty);
+    }
+
     LVar *lvar = find_lvar(token);
     if (lvar) {
       fprintf(stderr, "definded variable\n");
       exit(1);
     }
 
-    lvar = new_lvar(get_ident_name(token));
+    lvar = new_lvar(get_ident_name(token), ty);
     token = token->next;
 
     n = calloc(1, sizeof(Node));
@@ -302,13 +326,13 @@ Node *mul(Token **rest, Token *token) {
 Node *unary(Token **rest, Token *token) {
   Node *n;
   if (consume(&token, token, "+")) {
-    n = primary(&token, token);
+    n = unary(&token, token);
     *rest = token;
     return n;
   }
 
   if (consume(&token, token, "-")) {
-    n = new_node(ND_SUB, new_node_num(0), primary(&token, token));
+    n = new_node(ND_NEG, unary(&token, token), NULL);
     *rest = token;
     return n;
   }
@@ -413,14 +437,20 @@ void create_params(Token **rest, Token *token) {
     if (locals != NULL)
       expect(&token, token, ",");
 
+    Type *ty = calloc(1, sizeof(Type));
     if (equal(token, "int")) {
       token = token->next;
+      ty->kind = TY_INT;
     } else {
       fprintf(stderr, "param type not definded\n");
       exit(1);
     }
 
-    locals = new_lvar(strndup(token->loc, token->len));
+    while(consume(&token, token, "*")) {
+      ty = pointer_to(ty);
+    }
+
+    locals = new_lvar(strndup(token->loc, token->len), ty);
     token = token->next;
   }
 

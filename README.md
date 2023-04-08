@@ -23,7 +23,7 @@ EBNF (Extended BNF)
 
 ```
 program = (declspec) stmt*
-stmt = expr ";" |
+stmt = expr? ";" |
        "{" stmt* "}" |
        "if" "(" expr ")" stmt ("else" stmt)? |
        "while" "(" expr ")" stmt |
