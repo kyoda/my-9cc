@@ -43,6 +43,7 @@ assert 0 "int main() { return 2 + 3 * 2 / 2 <= 3 == 0 < 1; }"
 assert 2 "int main() { 1; 2; return 2; }"
 assert 2 "int main() { ;; ; return 2; }"
 assert 2 "int main() { {{};; ; return 2; }{}}"
+
 assert 2 "int main() { int a; return a = 2; }"
 assert 2 "int main() { int a = 2; return a; }"
 assert 10 "int main() { int a = 1; int b = 4*3; return b / a - 2; }"
@@ -56,6 +57,7 @@ assert 0 "int main() { int flag = 9; int a; if (flag) a =0; else a = 4; return a
 assert 3 "int main() { int i; i=0; while (i<3) {i = i + 1;} return i; }"
 assert 3 "int main() { int a = 0; int i; for (i=0; i<3; i=i+1) {a = a + i;} return a; }"
 assert 0 "int main() { int a=0; for (;;) {return a;} }"
+
 assert 3 "int main() { return ret3(); }"
 assert 2 "int main() { return sub2(5, 3); }"
 assert 8 "int main() { return add2(5, 3); }"
@@ -64,10 +66,14 @@ assert 10 "int main() { return add3(5, 3, 2); } int add3(int a, int b, int c) { 
 assert 30 "int main() { return mul3(5, 3, 2); } int mul3(int a, int b, int c) { return a * b * c; }"
 assert 2 "int main() { return cal(5, 3, 1); } int cal(int a, int b, int c) { return a - b * c; }"
 assert 8 "int main() { return cal(5, 3, 2, 8, 9, 20); } int cal(int a, int b, int c, int d, int e, int f) { return f + e / b - c - a - d; }"
+
 assert 25 "int main() { int i = 20;int *j; j = &i; return *j + 5;}"
 assert 5 "int main() { int i;int *p; p = &i; i = 5; return *p;}"
-assert 5 "int main() { int i = 7;int *p; p = &i; *p = 5; return *p;}"
-assert 5 "int main() { int i = 7;int *p; p = &i; *p = 5; return *p;}"
+assert 5 "int main() { int i = 7;int *p = &i; *p = 5; return *p;}"
+assert 5 "int main() { int x=5; return *&x; }"
+assert 5 "int main() { int x=5; int *y=&x; int **z=&y; return **z; }"
+assert 5 "{ int x=1; int y=5; return *(&x+1); }"
+assert 5 "int main() { int x=1; int y=5; int *p = &x+1; return *p; }"
 
 
 echo OK

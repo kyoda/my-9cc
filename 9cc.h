@@ -85,6 +85,8 @@ typedef struct Node {
 
   int val;
   LVar *var; // ND_LVAR
+
+  Type *ty; // int or pointer
 } Node;
 
 

@@ -18,7 +18,6 @@ Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
   n->kind = kind;
   n->lhs = lhs;
   n->rhs = rhs;
-  //fprintf(stderr, "node kind: %s\n", node_kind_enum_map[kind]);
   return n;
 }
 
@@ -26,7 +25,6 @@ Node *new_node_num(int val) {
   Node *n = calloc(1, sizeof(Node));
   n->kind = ND_NUM;
   n->val = val;
-  //fprintf(stderr, "node kind: %s\n", node_kind_enum_map[ND_NUM]);
   return n;
 }
 
@@ -94,6 +92,55 @@ Type *pointer_to(Type *base) {
   return ty;
 }
 
+void add_type(Node *n) {
+  if (!n || n->ty) {
+    return;
+  }
+
+  add_type(n->lhs);
+  add_type(n->rhs);
+
+  for (Node *node = n->body; node; node = node->next) {
+    add_type(node);
+  }
+
+  switch(n->kind) {
+  case ND_ADD:
+    n->ty = n->lhs->ty;
+    return;
+  case ND_EQ:
+  case ND_NEQ:
+  case ND_LT:
+  case ND_LE:
+  case ND_FUNC:
+  case ND_NUM:
+    n->ty = TY_INT;
+    return;
+  case ND_LVAR:
+    n->ty = n->var->ty;
+    return;
+  case ND_ADDR:
+    n->ty = pointer_to(n->lhs->ty);
+    return;
+  case ND_DEREF:
+    if (n->lhs->ty->kind != TY_PTR) {
+      fprintf(stderr, "invalid deref\n");
+      exit(1);
+    }
+
+    n->ty = n->lhs->ty->next;
+    return;
+  }
+
+}
+
+// stmt = expr? ";" |
+//        "{" stmt* "}" |
+//        "if" "(" expr ")" stmt ("else" stmt)? |
+//        "while" "(" expr ")" stmt |
+//        "for" "(" expr? ";" expr? ";" expr? ";"  ")" stmt |
+//        "return" expr ";" |
+//         declspec "*"* ident ("=" assign)? ";"
 Node *stmt(Token **rest, Token *token) {
   Node *n;
 
@@ -231,12 +278,14 @@ Node *stmt(Token **rest, Token *token) {
   return n;
 }
 
+// expr = assign
 Node *expr(Token **rest, Token *token) {
   Node *n = assign(&token, token);
   *rest = token;
   return n;
 }
 
+// assign = equality ("=" assign)?
 Node *assign(Token **rest, Token *token) {
   Node *n = equality(&token, token);
   if (consume(&token, token, "=")) {
@@ -247,6 +296,7 @@ Node *assign(Token **rest, Token *token) {
   return n;
 }
 
+// equality = relational ("==" relational | "!=" relational)*
 Node *equality(Token **rest, Token *token) {
   Node *n = relational(&token, token);
 
@@ -265,6 +315,7 @@ Node *equality(Token **rest, Token *token) {
   return n;
 }
 
+// relational = add ("<" add | "<=" add | ">" add | ">=" add)*
 Node *relational(Token **rest, Token *token) {
   Node *n = add(&token, token);
 
@@ -287,12 +338,45 @@ Node *relational(Token **rest, Token *token) {
   return n;
 }
 
+Node *new_add(Node *lhs, Node *rhs, Token *token) {
+  add_type(lhs);
+  add_type(rhs);
+
+  Node *n;
+
+  // num + num
+  if (lhs->ty == TY_INT && rhs->ty == TY_INT) {
+    n = new_node(ND_ADD, lhs, rhs);
+    return n;
+  }
+
+  // pointer + pointer
+  if (lhs->ty->next && rhs->ty->next) {
+    fprintf(stderr, "invalid operand\n");
+    exit(1);
+  }
+
+  // num + pointer to pointer + num
+  if (!lhs->ty->next && rhs->ty->next) {
+    Node *tmp = lhs;
+    lhs = rhs;
+    rhs = tmp;
+  }
+  
+  // pointer + num * 8
+  n = new_node(ND_ADD, lhs, new_node(ND_MUL, rhs, new_node_num(8)));
+
+  return n;
+}
+
+// add = mul ("+" mul | "-" mul)*
 Node *add(Token **rest, Token *token) {
   Node *n = mul(&token, token);
 
   for (;;) {
     if (consume(&token, token, "+")) {
-      n = new_node(ND_ADD, n, mul(&token, token));
+      //n = new_node(ND_ADD, n, mul(&token, token));
+      n = new_add(n, mul(&token, token), token);
     } else if (consume(&token, token, "-")) {
       n = new_node(ND_SUB, n, mul(&token, token));
     } else {
@@ -305,6 +389,7 @@ Node *add(Token **rest, Token *token) {
   return n;
 }
 
+// mul = unary ("*" unary | "/" unary)*
 Node *mul(Token **rest, Token *token) {
   Node *n = unary(&token, token);
 
@@ -323,6 +408,9 @@ Node *mul(Token **rest, Token *token) {
   return n;
 }
 
+// unary = ("+" | "-")? primary |
+//         "*" unary |
+//         "&" unary
 Node *unary(Token **rest, Token *token) {
   Node *n;
   if (consume(&token, token, "+")) {
@@ -388,6 +476,9 @@ Node *funcall(Token **rest, Token *token) {
   return n;
 }
 
+// primary = num | 
+//           ident ( "(" assign "," ")" )? | 
+//           "(" expr ")"
 Node *primary(Token **rest, Token *token) {
 
   if (consume(&token, token, "(")) {
@@ -457,6 +548,7 @@ void create_params(Token **rest, Token *token) {
   *rest = token;
 }
 
+// program = (declspec) stmt*
 Function *function (Token **rest, Token *token) {
   locals = NULL;
 
