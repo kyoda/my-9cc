@@ -10,15 +10,19 @@ static int count() {
   return i++;
 }
 
-void gen_lval(Node *n) {
-  if (n->kind != ND_LVAR) {
-    fprintf(stderr, "no ND_LVAR \n");
-    exit(1);
+void gen_addr(Node *n) {
+  switch(n->kind) {
+  case ND_LVAR:
+    printf("  lea rax, [rbp - %d]\n", n->var->offset);
+    return;
+  case ND_DEREF:
+    gen_expr(n->lhs);
+    return;
   }
 
-  printf("  lea rax, [rbp - %d]\n", n->var->offset);
+  fprintf(stderr, "invalid addr\n");
+  exit(1);
 }
-
 
 void gen_expr(Node *n) {
 
@@ -33,7 +37,7 @@ void gen_expr(Node *n) {
 
     return;
   case ND_LVAR:
-    gen_lval(n);
+    gen_addr(n);
 
     printf("  mov rax, [rax]\n");
 
@@ -57,7 +61,7 @@ void gen_expr(Node *n) {
     return;
   }
   case ND_ASSIGN:
-    gen_lval(n->lhs);
+    gen_addr(n->lhs);
     printf("  push rax\n");
     gen_expr(n->rhs);
     printf("  push rax\n");
@@ -75,7 +79,7 @@ void gen_expr(Node *n) {
 
     return;
   case ND_ADDR:
-    gen_lval(n->lhs);
+    gen_addr(n->lhs);
 
     return;
   default:
