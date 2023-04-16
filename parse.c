@@ -13,17 +13,21 @@ Node *mul(Token **rest, Token *token);
 Node *unary(Token **rest, Token *token);
 Node *primary(Token **rest, Token *token);
 
-Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
+Node *new_node(NodeKind kind) {
   Node *n = calloc(1, sizeof(Node));
   n->kind = kind;
+  return n;
+}
+
+Node *new_binary(NodeKind kind, Node *lhs, Node *rhs) {
+  Node *n = new_node(kind);
   n->lhs = lhs;
   n->rhs = rhs;
   return n;
 }
 
 Node *new_node_num(int val) {
-  Node *n = calloc(1, sizeof(Node));
-  n->kind = ND_NUM;
+  Node *n = new_node(ND_NUM);
   n->val = val;
   return n;
 }
@@ -84,6 +88,12 @@ bool at_eof(Token *token) {
   return token->kind == TK_EOF;
 }
 
+Type *ty_int() {
+  Type *ty = calloc(1, sizeof(Type));
+  ty->kind = TY_INT;
+  return ty;
+}
+
 Type *pointer_to(Type *base) {
   Type *ty = calloc(1, sizeof(Type));
   ty->kind = TY_PTR;
@@ -106,6 +116,11 @@ void add_type(Node *n) {
 
   switch(n->kind) {
   case ND_ADD:
+  case ND_SUB:
+  case ND_MUL:
+  case ND_DIV:
+  case ND_NEG:
+  case ND_ASSIGN:
     n->ty = n->lhs->ty;
     return;
   case ND_EQ:
@@ -114,7 +129,7 @@ void add_type(Node *n) {
   case ND_LE:
   case ND_FUNC:
   case ND_NUM:
-    n->ty = TY_INT;
+    n->ty = ty_int();
     return;
   case ND_LVAR:
     n->ty = n->var->ty;
@@ -172,10 +187,7 @@ Node *stmt(Token **rest, Token *token) {
   if (equal(token, "int")) {
     token = token->next;
 
-    Type *ty;
-    ty = calloc(1, sizeof(Type));
-    ty->kind = TY_INT;
-    
+    Type *ty = ty_int();
     while (consume(&token, token, "*")) {
       ty = pointer_to(ty);
     }
@@ -194,7 +206,7 @@ Node *stmt(Token **rest, Token *token) {
     n->var = lvar;
 
     if (consume(&token, token, "=")) {
-      n = new_node(ND_ASSIGN, n, assign(&token, token));
+      n = new_binary(ND_ASSIGN, n, assign(&token, token));
     }
 
     expect(&token, token, ";");
@@ -289,7 +301,7 @@ Node *expr(Token **rest, Token *token) {
 Node *assign(Token **rest, Token *token) {
   Node *n = equality(&token, token);
   if (consume(&token, token, "=")) {
-    n = new_node(ND_ASSIGN, n, assign(&token, token));
+    n = new_binary(ND_ASSIGN, n, assign(&token, token));
   }
 
   *rest = token;
@@ -302,9 +314,9 @@ Node *equality(Token **rest, Token *token) {
 
   for (;;) {
     if (consume(&token, token, "==")) {
-      n = new_node(ND_EQ, n, relational(&token, token));
+      n = new_binary(ND_EQ, n, relational(&token, token));
     } else if (consume(&token, token, "!=")) {
-      n = new_node(ND_NEQ, n, relational(&token, token));
+      n = new_binary(ND_NEQ, n, relational(&token, token));
     } else {
       *rest = token;
       return n;
@@ -321,13 +333,13 @@ Node *relational(Token **rest, Token *token) {
 
   for (;;) {
     if (consume(&token, token, "<")) {
-      n = new_node(ND_LT, n, add(&token, token));
+      n = new_binary(ND_LT, n, add(&token, token));
     } else if (consume(&token, token, ">")) {
-      n = new_node(ND_LT, add(&token, token), n);
+      n = new_binary(ND_LT, add(&token, token), n);
     } else if (consume(&token, token, "<=")) {
-      n = new_node(ND_LE, n, add(&token, token));
+      n = new_binary(ND_LE, n, add(&token, token));
     } else if (consume(&token, token, ">=")) {
-      n = new_node(ND_LE, add(&token, token), n);
+      n = new_binary(ND_LE, add(&token, token), n);
     } else {
       *rest = token;
       return n;
@@ -345,26 +357,26 @@ Node *new_add(Node *lhs, Node *rhs, Token *token) {
   Node *n;
 
   // num + num
-  if (lhs->ty == TY_INT && rhs->ty == TY_INT) {
-    n = new_node(ND_ADD, lhs, rhs);
+  if (lhs->ty->kind == TY_INT && rhs->ty->kind == TY_INT) {
+    n = new_binary(ND_ADD, lhs, rhs);
     return n;
   }
 
   // pointer + pointer
-  if (lhs->ty->next && rhs->ty->next) {
+  if (lhs->ty->kind == TY_PTR && rhs->ty->kind == TY_PTR) {
     fprintf(stderr, "invalid operand\n");
     exit(1);
   }
 
   // num + pointer to pointer + num
-  if (!lhs->ty->next && rhs->ty->next) {
+  if (!lhs->ty->kind == TY_PTR && rhs->ty->kind == TY_INT) {
     Node *tmp = lhs;
     lhs = rhs;
     rhs = tmp;
   }
   
   // pointer + num * 8
-  n = new_node(ND_ADD, lhs, new_node(ND_MUL, rhs, new_node_num(8)));
+  n = new_binary(ND_ADD, lhs, new_binary(ND_MUL, rhs, new_node_num(8)));
 
   return n;
 }
@@ -375,10 +387,10 @@ Node *add(Token **rest, Token *token) {
 
   for (;;) {
     if (consume(&token, token, "+")) {
-      //n = new_node(ND_ADD, n, mul(&token, token));
+      //n = new_binary(ND_ADD, n, mul(&token, token));
       n = new_add(n, mul(&token, token), token);
     } else if (consume(&token, token, "-")) {
-      n = new_node(ND_SUB, n, mul(&token, token));
+      n = new_binary(ND_SUB, n, mul(&token, token));
     } else {
       *rest = token;
       return n;
@@ -395,9 +407,9 @@ Node *mul(Token **rest, Token *token) {
 
   for (;;) {
     if (consume(&token, token, "*")) {
-      n = new_node(ND_MUL, n, unary(&token, token));
+      n = new_binary(ND_MUL, n, unary(&token, token));
     } else if (consume(&token, token, "/")) {
-      n = new_node(ND_DIV, n, unary(&token, token));
+      n = new_binary(ND_DIV, n, unary(&token, token));
     } else {
       *rest = token;
       return n;
@@ -420,7 +432,7 @@ Node *unary(Token **rest, Token *token) {
   }
 
   if (consume(&token, token, "-")) {
-    n = new_node(ND_NEG, unary(&token, token), NULL);
+    n = new_binary(ND_NEG, unary(&token, token), NULL);
     *rest = token;
     return n;
   }
