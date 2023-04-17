@@ -375,8 +375,9 @@ Node *new_add(Node *lhs, Node *rhs, Token *token) {
     rhs = tmp;
   }
   
-  // pointer + num * 8
-  n = new_binary(ND_ADD, lhs, new_binary(ND_MUL, rhs, new_node_num(8)));
+  // pointer + num * 4
+  // int -> 4byte
+  n = new_binary(ND_ADD, lhs, new_binary(ND_MUL, rhs, new_node_num(4)));
 
   return n;
 }
