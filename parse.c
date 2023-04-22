@@ -109,6 +109,11 @@ void add_type(Node *n) {
 
   add_type(n->lhs);
   add_type(n->rhs);
+  add_type(n->init);
+  add_type(n->cond);
+  add_type(n->inc);
+  add_type(n->then);
+  add_type(n->els);
 
   for (Node *node = n->body; node; node = node->next) {
     add_type(node);
@@ -369,7 +374,7 @@ Node *new_add(Node *lhs, Node *rhs, Token *token) {
   }
 
   // num + pointer to pointer + num
-  if (!lhs->ty->kind == TY_PTR && rhs->ty->kind == TY_INT) {
+  if (lhs->ty->kind == TY_INT && rhs->ty->kind == TY_PTR) {
     Node *tmp = lhs;
     lhs = rhs;
     rhs = tmp;
@@ -382,16 +387,44 @@ Node *new_add(Node *lhs, Node *rhs, Token *token) {
   return n;
 }
 
+Node *new_sub(Node *lhs, Node *rhs, Token *token) {
+  add_type(lhs);
+  add_type(rhs);
+
+  Node *n;
+
+  // num - num
+  if (lhs->ty->kind == TY_INT && rhs->ty->kind == TY_INT) {
+    n = new_binary(ND_SUB, lhs, rhs);
+    return n;
+  }
+
+  // pointer - num * 4
+  // int -> 4byte
+  if (lhs->ty->kind == TY_PTR && rhs->ty->kind == TY_INT) {
+    n = new_binary(ND_SUB, lhs, new_binary(ND_MUL, rhs, new_node_num(4)));
+    return n;
+  }
+
+  // pointer - pointer, return int elements between pointer and pointer
+  if (lhs->ty->kind == TY_PTR && rhs->ty->kind == TY_PTR) {
+    n = new_binary(ND_DIV, new_binary(ND_SUB, lhs, rhs), new_node_num(4));
+    return n;
+  }
+
+  fprintf(stderr, "invalid operand\n");
+  exit(1);
+}
+
 // add = mul ("+" mul | "-" mul)*
 Node *add(Token **rest, Token *token) {
   Node *n = mul(&token, token);
 
   for (;;) {
     if (consume(&token, token, "+")) {
-      //n = new_binary(ND_ADD, n, mul(&token, token));
       n = new_add(n, mul(&token, token), token);
     } else if (consume(&token, token, "-")) {
-      n = new_binary(ND_SUB, n, mul(&token, token));
+      n = new_sub(n, mul(&token, token), token);
     } else {
       *rest = token;
       return n;

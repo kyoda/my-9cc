@@ -6,7 +6,8 @@ int ret3() { return 3; }
 int add2(int a, int b) { return a + b; }
 int sub2(int a, int b) { return a - b; }
 int add6(int a, int b, int c, int d, int e, int f) { return a + b + c + d + e + f; }
-void alloc2(int **p, int a, int b) { int *i = malloc(sizeof(int) * 2); i[0] = a, i[1] = b; *p = i; };
+void alloc3(int **p, int a, int b, int c) { int *i = malloc(sizeof(int) * 3); i[0] = a, i[1] = b; i[2] = c; *p = i; };
+void alloc3add2(int **p, int a, int b, int c) { int *i = malloc(sizeof(int) * 3); i[0] = a, i[1] = b; i[2] = c; *p = i + 2; };
 EOF
 
 assert() {
@@ -74,8 +75,11 @@ assert 5 "int main() { int i;int *p; p = &i; i = 5; return *p;}"
 assert 5 "int main() { int i = 7;int *p = &i; *p = 5; return *p;}"
 assert 5 "int main() { int x=5; return *&x; }"
 assert 5 "int main() { int x=5; int *y=&x; int **z=&y; return **z; }"
-assert 7 "int main() { int *p; alloc2(&p, 7, 11); return *p;}"
-assert 11 "int main() { int *p; alloc2(&p, 7, 11); return *(p+1);}"
+assert 7 "int main() { int *p; alloc3(&p, 7, 11, 3); return *p;}"
+assert 11 "int main() { int *p; alloc3(&p, 7, 11, 3); return *(1+p);}"
+assert 3 "int main() { int *p; alloc3(&p, 7, 11, 3); return *(p+2);}"
+assert 11 "int main() { int *p; alloc3add2(&p, 7, 11, 3); return *(p-1);}"
+assert 2 "int main() { int *p; alloc3(&p, 7, 11, 3); return (p+2)-p;}"
 
 
 echo OK
