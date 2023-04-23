@@ -91,12 +91,14 @@ bool at_eof(Token *token) {
 Type *ty_int() {
   Type *ty = calloc(1, sizeof(Type));
   ty->kind = TY_INT;
+  ty->size = 4;
   return ty;
 }
 
 Type *pointer_to(Type *base) {
   Type *ty = calloc(1, sizeof(Type));
   ty->kind = TY_PTR;
+  ty->size = 8;
   ty->next = base;
 
   return ty;
@@ -465,13 +467,9 @@ Node *unary(Token **rest, Token *token) {
     token = token->next;
     n = unary(&token, token);
     add_type(n);
-    if (n->ty->kind == TY_INT) {
-      n = new_node_num(4);
-    } else if(n->ty->kind == TY_PTR) {
-      n = new_node_num(8);
-    }
+
     *rest = token;
-    return n;
+    return new_node_num(n->ty->size);
   }
 
   if (consume(&token, token, "+")) {

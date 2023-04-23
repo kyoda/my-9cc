@@ -51,6 +51,7 @@ typedef enum {
 
 typedef struct Type {
   TypeKind *kind;
+  int size; //sizeof
   struct Type *next; // Pointer
 } Type;
 
