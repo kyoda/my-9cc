@@ -454,11 +454,26 @@ Node *mul(Token **rest, Token *token) {
   return n;
 }
 
-// unary = ("+" | "-")? primary |
+// unary = "sizeof" unary |
+//         ("+" | "-")? primary |
 //         "*" unary |
 //         "&" unary
 Node *unary(Token **rest, Token *token) {
   Node *n;
+
+  if (equal(token, "sizeof")) {
+    token = token->next;
+    n = unary(&token, token);
+    add_type(n);
+    if (n->ty->kind == TY_INT) {
+      n = new_node_num(4);
+    } else if(n->ty->kind == TY_PTR) {
+      n = new_node_num(8);
+    }
+    *rest = token;
+    return n;
+  }
+
   if (consume(&token, token, "+")) {
     n = unary(&token, token);
     *rest = token;

@@ -61,7 +61,7 @@ Token *skip(Token *t, char *op) {
 }
 
 int keyword_len(char *p) {
-  char *key[] = {"return", "if", "else", "for", "while", "int"};
+  char *key[] = {"return", "if", "else", "for", "while", "int", "sizeof"};
   int key_len;
   for (int i = 0; i < sizeof(key) / sizeof(*key); i++) {
     key_len = strlen(key[i]);

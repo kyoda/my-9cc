@@ -80,6 +80,10 @@ assert 11 "int main() { int *p; alloc3(&p, 7, 11, 3); return *(1+p);}"
 assert 3 "int main() { int *p; alloc3(&p, 7, 11, 3); return *(p+2);}"
 assert 11 "int main() { int *p; alloc3add2(&p, 7, 11, 3); return *(p-1);}"
 assert 2 "int main() { int *p; alloc3(&p, 7, 11, 3); return (p+2)-p;}"
+assert 4 "int main() { return sizeof 8;}"
+assert 8 "int main() { int *p; return sizeof p;}"
+assert 4 "int main() { int *p; return sizeof *p;}"
+assert 6 "int main() { return sizeof sizeof sizeof (8+3-2) + 2;}"
 
 
 echo OK

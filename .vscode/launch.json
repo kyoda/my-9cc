@@ -10,7 +10,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/9cc",
             "args": [
-                "int main() { int i; i=0; while (i<3) {i = i + 1;} return i; }"
+                "int main() { return sizeof(0);}"
             ],
             "preLaunchTask": "build_9cc",
             "stopAtEntry": false,
