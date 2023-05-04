@@ -46,13 +46,15 @@ typedef enum {
 
 typedef enum {
   TY_INT,
-  TY_PTR
+  TY_PTR,
+  TY_ARRAY
 } TypeKind;
 
 typedef struct Type {
   TypeKind *kind;
   int size; //sizeof
   struct Type *next; // Pointer
+  int array_size; // Array
 } Type;
 
 // Local Variable

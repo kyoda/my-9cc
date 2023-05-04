@@ -1,8 +1,12 @@
 #include "9cc.h"
 
 LVar *locals;
-
 LVar *find_lvar(Token *t);
+
+Type *declspec(Token **rest, Token *token);
+Node *declaration(Token **rest, Token *token);
+Node *declarator(Token **rest, Token *token, Type *ty);
+Node *typesuffix(Token **rest, Token *token);
 Node *stmt(Token **rest, Token *token);
 Node *expr(Token **rest, Token *token);
 Node *assign(Token **rest, Token *token);
@@ -55,8 +59,7 @@ LVar *find_lvar(Token *t) {
 
 char *get_ident_name(Token *t) {
   if (t->kind != TK_IDENT) {
-    fprintf(stderr, "expected an identifier\n");
-    exit(1);
+    error("%s", "expected an identifier");
   }
     
   return strndup(t->loc, t->len);
@@ -81,6 +84,14 @@ bool expect(Token **rest, Token *token, char *op) {
   } else {
     error_at(token->loc, "no op: %s", op);
     exit(1);
+  }
+}
+
+bool expect_ident(Token **rest, Token *token) {
+  if (token->kind == TK_IDENT) {
+    *rest = token->next;
+  } else {
+    error("%s", "expect TK_IDENT");
   }
 }
 
@@ -146,14 +157,67 @@ void add_type(Node *n) {
     return;
   case ND_DEREF:
     if (n->lhs->ty->kind != TY_PTR) {
-      fprintf(stderr, "invalid deref\n");
-      exit(1);
+      error("%s", "invalid deref");
     }
 
     n->ty = n->lhs->ty->next;
     return;
   }
 
+}
+
+typedef enum {
+  FUNCTION_DEF,
+  DEC 
+} NEXT_FUNCTION_DEF_OR_DEC;
+
+static NEXT_FUNCTION_DEF_OR_DEC next_function_def_or_dec(Token *token) {
+  return FUNCTION_DEF;
+}
+
+// function_def_or_dec ::= declspec ident "(" function_params? ")" ( stmt? | ";")
+// declspec ::= "int"
+
+// declaration ::= declspec declarator ";"
+Node *declaration(Token **rest, Token *token) {
+    Type *ty = declspec(&token, token);
+    Node *n = declarator(&token, token, ty);
+    expect(&token, token, ";");
+    *rest = token;
+    return n;
+}
+
+// declarator = "*"* ident type-suffix
+Node *declarator(Token **rest, Token *token, Type *ty) {
+    while (consume(&token, token, "*")) {
+      ty = pointer_to(ty);
+    }
+
+    LVar *lvar = find_lvar(token);
+    if (lvar) {
+      error("%s", "definded variable");
+    }
+
+    lvar = new_lvar(get_ident_name(token), ty);
+    token = token->next;
+    Node *n = typesuffix(&token, token);
+    *rest = token;
+    return n;
+}
+
+// type-suffix ::= ("[" expr? "]" type_suffix)?
+Node *typesuffix(Token **rest, Token *token) {
+  if (equal(token, "[")) {
+    token = token->next;
+    Node *l = expr(&token, token);
+    expect(&token, token, "]");
+    Node *r = typesuffix(&token, token);
+
+    *rest = token;
+    return new_binary(ND_ADDR, l, r);
+  }
+
+  return NULL;
 }
 
 // stmt = expr? ";" |
@@ -201,8 +265,7 @@ Node *stmt(Token **rest, Token *token) {
 
     LVar *lvar = find_lvar(token);
     if (lvar) {
-      fprintf(stderr, "definded variable\n");
-      exit(1);
+      error("%s", "definded variable");
     }
 
     lvar = new_lvar(get_ident_name(token), ty);
@@ -371,8 +434,7 @@ Node *new_add(Node *lhs, Node *rhs, Token *token) {
 
   // pointer + pointer
   if (lhs->ty->kind == TY_PTR && rhs->ty->kind == TY_PTR) {
-    fprintf(stderr, "invalid operand\n");
-    exit(1);
+    error("%s", "invalid operand");
   }
 
   // num + pointer to pointer + num
@@ -414,8 +476,7 @@ Node *new_sub(Node *lhs, Node *rhs, Token *token) {
     return n;
   }
 
-  fprintf(stderr, "invalid operand\n");
-  exit(1);
+  error("%s", "invalid operand");
 }
 
 // add = mul ("+" mul | "-" mul)*
@@ -567,8 +628,7 @@ Node *primary(Token **rest, Token *token) {
     if (lvar) {
       n->var = lvar;
     } else {
-      fprintf(stderr, "variable not definded\n");
-      exit(1);
+      error("%s", "variable not definded");
     }
 
     token = token->next;
@@ -576,10 +636,19 @@ Node *primary(Token **rest, Token *token) {
     *rest = token;
     return n;
   } else {
-    fprintf(stderr, "no num, no ident, no func \n");
-    exit(1);
+    error("%s", "no num, no ident, no func");
   }
 
+}
+
+Type *declspec(Token **rest, Token *token) {
+  if (equal(token, "int")) {
+    Type *ty = ty_int();
+    *rest = token->next;
+    return ty;
+  }
+
+  error("%s", "no int type");
 }
 
 void create_params(Token **rest, Token *token) {
@@ -587,14 +656,8 @@ void create_params(Token **rest, Token *token) {
     if (locals != NULL)
       expect(&token, token, ",");
 
-    Type *ty = calloc(1, sizeof(Type));
-    if (equal(token, "int")) {
-      token = token->next;
-      ty->kind = TY_INT;
-    } else {
-      fprintf(stderr, "param type not definded\n");
-      exit(1);
-    }
+
+    Type *ty = declspec(&token, token);
 
     while(consume(&token, token, "*")) {
       ty = pointer_to(ty);
@@ -607,22 +670,22 @@ void create_params(Token **rest, Token *token) {
   *rest = token;
 }
 
-// program = (declspec) stmt*
+// function_def_or_dec ::= declspec ident "(" function_params? ")" ( stmt? | ";")
 Function *function (Token **rest, Token *token) {
   locals = NULL;
 
   Function *fn = calloc(1, sizeof(Function));
 
 
-  if (equal(token, "int")) {
+  Type *ty = declspec(&token, token);
+
+  if (token->kind == TK_IDENT) {
+    fn->name = strndup(token->loc, token->len);
     token = token->next;
   } else {
-    fprintf(stderr, "func not definded\n");
-    exit(1);
+    error("%s", "expect ident");
   }
 
-  fn->name = strndup(token->loc, token->len);
-  token = token->next;
 
   expect(&token, token, "(");
   create_params(&token, token);
@@ -637,12 +700,20 @@ Function *function (Token **rest, Token *token) {
   return fn;
 }
 
+// program ::= (declaration | function_def_or_dec)*
 Function *parse(Token *token) {
   Function head = {};
   Function *cur = &head;
-  while (token->kind != TK_EOF)
-    cur = cur->next = function(&token, token);
+
+  while (token->kind != TK_EOF) {
+    switch (next_function_def_or_dec(token)) {
+    case FUNCTION_DEF:
+      cur = cur->next = function(&token, token);
+      break;
+    case DEC:
+      break;
+    }
+  }
 
   return head.next;
 }
-

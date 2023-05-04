@@ -22,25 +22,30 @@ EBNF (Extended BNF)
 
 
 ```
-program = (declspec) stmt*
-stmt = expr? ";" |
+program ::= (declaration | function_def_or_dec)*
+function_def_or_dec ::= declspec ident "(" function_params? ")" ( stmt? | ";")
+declaration ::= declspec declarator ";"
+declspec ::= "int"
+declarator = "*"* ident type-suffix
+type-suffix ::= ("[" expr? "]" type_suffix)?
+stmt ::= expr? ";" |
        "{" stmt* "}" |
        "if" "(" expr ")" stmt ("else" stmt)? |
        "while" "(" expr ")" stmt |
        "for" "(" expr? ";" expr? ";" expr? ";"  ")" stmt |
        "return" expr ";" |
         declspec "*"* ident ("=" assign)? ";"
-expr = assign
-assign = equality ("=" assign)?
-equality = relational ("==" relational | "!=" relational)*
-relational = add ("<" add | "<=" add | ">" add | ">=" add)*
-add = mul ("+" mul | "-" mul)*
-mul = unary ("*" unary | "/" unary)*
-unary = "sizeof" unary |
+expr ::= assign
+assign ::= equality ("=" assign)?
+equality ::= relational ("==" relational | "!=" relational)*
+relational ::= add ("<" add | "<=" add | ">" add | ">=" add)*
+add ::= mul ("+" mul | "-" mul)*
+mul ::= unary ("*" unary | "/" unary)*
+unary ::= "sizeof" unary |
         ("+" | "-")? primary |
         "*" unary |
         "&" unary
-primary = num | 
+primary ::= num | 
           ident ( "(" assign "," ")" )? | 
           "(" expr ")"
 ```
@@ -52,13 +57,25 @@ declspec -> 型
 ```
 
 ```
-declaration = declspec ident ";"
-
 compound-stmt = (declaration | stmt)* "}"
-declspec = "int"
-declarator = "*"* ident
+stmt = "return" expr ";"
+     | "if" "(" expr ")" stmt ("else" stmt)?
+     | "for" "(" expr-stmt expr? ";" expr? ")" stmt
+     | "while" "(" expr ")" stmt
+     | "{" compound-stmt
+     | expr-stmt
 declaration = declspec (declarator ("=" expr)? ("," declarator ("=" expr)?)*)? ";"
+declspec = "int"
+declarator = "*"* ident type-suffix
+type-suffix = "(" func-params
+            | "[" num "]"
+            | ε
+func-params = (param ("," param)*)? ")"
+param       = declspec declarator
 ```
+
+declarator = * test ( int * test2())
+int *test (int *test2());
 
 # stack
 

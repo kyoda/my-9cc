@@ -20,8 +20,7 @@ void gen_addr(Node *n) {
     return;
   }
 
-  fprintf(stderr, "invalid addr\n");
-  exit(1);
+  error("%s", "invalid addr");
 }
 
 void gen_expr(Node *n) {
