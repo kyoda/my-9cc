@@ -5,8 +5,8 @@ LVar *find_lvar(Token *t);
 
 Type *declspec(Token **rest, Token *token);
 Node *declaration(Token **rest, Token *token);
-Node *declarator(Token **rest, Token *token, Type *ty);
-Node *typesuffix(Token **rest, Token *token);
+Type *declarator(Token **rest, Token *token, Type *ty);
+Type *type_suffix(Token **rest, Token *token, Type *ty);
 Node *stmt(Token **rest, Token *token);
 Node *expr(Token **rest, Token *token);
 Node *assign(Token **rest, Token *token);
@@ -82,7 +82,8 @@ bool expect(Token **rest, Token *token, char *op) {
       strncmp(token->loc, op, token->len) == 0) {
     *rest = token->next;
   } else {
-    error_at(token->loc, "no op: %s", op);
+    //error_at(token->loc, "no op: %s", op);
+    error("no op: %s", op);
     exit(1);
   }
 }
@@ -99,73 +100,6 @@ bool at_eof(Token *token) {
   return token->kind == TK_EOF;
 }
 
-Type *ty_int() {
-  Type *ty = calloc(1, sizeof(Type));
-  ty->kind = TY_INT;
-  ty->size = 4;
-  return ty;
-}
-
-Type *pointer_to(Type *base) {
-  Type *ty = calloc(1, sizeof(Type));
-  ty->kind = TY_PTR;
-  ty->size = 8;
-  ty->next = base;
-
-  return ty;
-}
-
-void add_type(Node *n) {
-  if (!n || n->ty) {
-    return;
-  }
-
-  add_type(n->lhs);
-  add_type(n->rhs);
-  add_type(n->init);
-  add_type(n->cond);
-  add_type(n->inc);
-  add_type(n->then);
-  add_type(n->els);
-
-  for (Node *node = n->body; node; node = node->next) {
-    add_type(node);
-  }
-
-  switch(n->kind) {
-  case ND_ADD:
-  case ND_SUB:
-  case ND_MUL:
-  case ND_DIV:
-  case ND_NEG:
-  case ND_ASSIGN:
-    n->ty = n->lhs->ty;
-    return;
-  case ND_EQ:
-  case ND_NEQ:
-  case ND_LT:
-  case ND_LE:
-  case ND_FUNC:
-  case ND_NUM:
-    n->ty = ty_int();
-    return;
-  case ND_LVAR:
-    n->ty = n->var->ty;
-    return;
-  case ND_ADDR:
-    n->ty = pointer_to(n->lhs->ty);
-    return;
-  case ND_DEREF:
-    if (n->lhs->ty->kind != TY_PTR) {
-      error("%s", "invalid deref");
-    }
-
-    n->ty = n->lhs->ty->next;
-    return;
-  }
-
-}
-
 typedef enum {
   FUNCTION_DEF,
   DEC 
@@ -175,49 +109,142 @@ static NEXT_FUNCTION_DEF_OR_DEC next_function_def_or_dec(Token *token) {
   return FUNCTION_DEF;
 }
 
-// function_def_or_dec ::= declspec ident "(" function_params? ")" ( stmt? | ";")
-// declspec ::= "int"
+void create_params(Token **rest, Token *token) {
+  while (!equal(token, ")")) {
+    if (locals != NULL)
+      expect(&token, token, ",");
 
-// declaration ::= declspec declarator ";"
-Node *declaration(Token **rest, Token *token) {
+
     Type *ty = declspec(&token, token);
-    Node *n = declarator(&token, token, ty);
+
+    while(consume(&token, token, "*")) {
+      ty = pointer_to(ty);
+    }
+
+    locals = new_lvar(strndup(token->loc, token->len), ty);
+    token = token->next;
+  }
+
+  *rest = token;
+}
+
+// function_def_or_dec ::= declspec ident "(" function_params? ")" ( stmt? | ";")
+Function *function (Token **rest, Token *token) {
+  locals = NULL;
+
+  Function *fn = calloc(1, sizeof(Function));
+
+
+  Type *ty = declspec(&token, token);
+
+  if (token->kind == TK_IDENT) {
+    fn->name = strndup(token->loc, token->len);
+    token = token->next;
+  } else {
+    error("%s", "expect ident");
+  }
+
+
+  expect(&token, token, "(");
+  create_params(&token, token);
+  expect(&token, token, ")");
+
+  fn->params = locals;
+
+  fn->body = stmt(&token, token);
+  fn->locals = locals;
+
+  *rest = token;
+  return fn;
+}
+
+// program ::= (declaration | function_def_or_dec)*
+Function *parse(Token *token) {
+  Function head = {};
+  Function *cur = &head;
+
+  while (token->kind != TK_EOF) {
+    switch (next_function_def_or_dec(token)) {
+    case FUNCTION_DEF:
+      cur = cur->next = function(&token, token);
+      break;
+    case DEC:
+      break;
+    }
+  }
+
+  return head.next;
+}
+
+// declspec ::= "int"
+Type *declspec(Token **rest, Token *token) {
+  if (equal(token, "int")) {
+    Type *ty = ty_int();
+    *rest = token->next;
+    return ty;
+  }
+
+  error("%s", "no int type");
+}
+
+// declaration ::= declspec declarator ("=" assign)? ";"
+Node *declaration(Token **rest, Token *token) {
+    Type *basety = declspec(&token, token);
+    Type *ty = declarator(&token, token, basety);
+
+    LVar *lvar = find_lvar(ty->token);
+    if (lvar) {
+      error("%s", "defined variable");
+    }
+
+    lvar = new_lvar(get_ident_name(ty->token), ty);
+
+    Node *n = new_node(ND_LVAR);
+    n->var = lvar;
+
+    if (consume(&token, token, "=")) {
+      n = new_binary(ND_ASSIGN, n, assign(&token, token));
+    }
+
     expect(&token, token, ";");
     *rest = token;
+
     return n;
 }
 
-// declarator = "*"* ident type-suffix
-Node *declarator(Token **rest, Token *token, Type *ty) {
+// declarator ::= "*"* ident type-suffix
+Type *declarator(Token **rest, Token *token, Type *ty) {
     while (consume(&token, token, "*")) {
       ty = pointer_to(ty);
     }
 
-    LVar *lvar = find_lvar(token);
-    if (lvar) {
-      error("%s", "definded variable");
+    if (token->kind != TK_IDENT) {
+      error("%s", "expect TK_IDENT");
     }
 
-    lvar = new_lvar(get_ident_name(token), ty);
-    token = token->next;
-    Node *n = typesuffix(&token, token);
-    *rest = token;
-    return n;
+    ty = type_suffix(rest, token->next, ty);
+    //ident
+    ty->token = token;
+
+    return ty;
 }
 
-// type-suffix ::= ("[" expr? "]" type_suffix)?
-Node *typesuffix(Token **rest, Token *token) {
-  if (equal(token, "[")) {
+// type-suffix ::= ("[" num "]")*
+Type *type_suffix(Token **rest, Token *token, Type *ty) {
+  while (equal(token, "[")) {
     token = token->next;
-    Node *l = expr(&token, token);
-    expect(&token, token, "]");
-    Node *r = typesuffix(&token, token);
 
-    *rest = token;
-    return new_binary(ND_ADDR, l, r);
+    if (token->kind != TK_NUM) {
+      error("%s", "expect TK_NUM");
+    }
+
+    ty = ty_array(ty, token->val);
+    token = token->next;
+    expect(&token, token, "]");
   }
 
-  return NULL;
+  *rest = token;
+  return ty;
 }
 
 // stmt = expr? ";" |
@@ -226,7 +253,7 @@ Node *typesuffix(Token **rest, Token *token) {
 //        "while" "(" expr ")" stmt |
 //        "for" "(" expr? ";" expr? ";" expr? ";"  ")" stmt |
 //        "return" expr ";" |
-//         declspec "*"* ident ("=" assign)? ";"
+//         declaration
 Node *stmt(Token **rest, Token *token) {
   Node *n;
 
@@ -256,31 +283,7 @@ Node *stmt(Token **rest, Token *token) {
   }
 
   if (equal(token, "int")) {
-    token = token->next;
-
-    Type *ty = ty_int();
-    while (consume(&token, token, "*")) {
-      ty = pointer_to(ty);
-    }
-
-    LVar *lvar = find_lvar(token);
-    if (lvar) {
-      error("%s", "definded variable");
-    }
-
-    lvar = new_lvar(get_ident_name(token), ty);
-    token = token->next;
-
-    n = calloc(1, sizeof(Node));
-    n->kind = ND_LVAR;
-    n->var = lvar;
-
-    if (consume(&token, token, "=")) {
-      n = new_binary(ND_ASSIGN, n, assign(&token, token));
-    }
-
-    expect(&token, token, ";");
-
+    n = declaration(&token, token);
     *rest = token;
     return n;
   }
@@ -621,9 +624,7 @@ Node *primary(Token **rest, Token *token) {
       return funcall(rest, token);
 
     // lvar
-    Node *n = calloc(1, sizeof(Node));
-    n->kind = ND_LVAR;
-
+    Node *n = new_node(ND_LVAR);
     LVar *lvar = find_lvar(token);
     if (lvar) {
       n->var = lvar;
@@ -639,81 +640,4 @@ Node *primary(Token **rest, Token *token) {
     error("%s", "no num, no ident, no func");
   }
 
-}
-
-Type *declspec(Token **rest, Token *token) {
-  if (equal(token, "int")) {
-    Type *ty = ty_int();
-    *rest = token->next;
-    return ty;
-  }
-
-  error("%s", "no int type");
-}
-
-void create_params(Token **rest, Token *token) {
-  while (!equal(token, ")")) {
-    if (locals != NULL)
-      expect(&token, token, ",");
-
-
-    Type *ty = declspec(&token, token);
-
-    while(consume(&token, token, "*")) {
-      ty = pointer_to(ty);
-    }
-
-    locals = new_lvar(strndup(token->loc, token->len), ty);
-    token = token->next;
-  }
-
-  *rest = token;
-}
-
-// function_def_or_dec ::= declspec ident "(" function_params? ")" ( stmt? | ";")
-Function *function (Token **rest, Token *token) {
-  locals = NULL;
-
-  Function *fn = calloc(1, sizeof(Function));
-
-
-  Type *ty = declspec(&token, token);
-
-  if (token->kind == TK_IDENT) {
-    fn->name = strndup(token->loc, token->len);
-    token = token->next;
-  } else {
-    error("%s", "expect ident");
-  }
-
-
-  expect(&token, token, "(");
-  create_params(&token, token);
-  expect(&token, token, ")");
-
-  fn->params = locals;
-
-  fn->body = stmt(&token, token);
-  fn->locals = locals;
-
-  *rest = token;
-  return fn;
-}
-
-// program ::= (declaration | function_def_or_dec)*
-Function *parse(Token *token) {
-  Function head = {};
-  Function *cur = &head;
-
-  while (token->kind != TK_EOF) {
-    switch (next_function_def_or_dec(token)) {
-    case FUNCTION_DEF:
-      cur = cur->next = function(&token, token);
-      break;
-    case DEC:
-      break;
-    }
-  }
-
-  return head.next;
 }

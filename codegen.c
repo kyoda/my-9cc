@@ -204,19 +204,23 @@ static void gen_stmt(Node *n) {
   gen_expr(n);
 }
 
+int align_to(int n, int align) {
+  return (n / align + 1) * align;
+}
+
 void align_stack_size(Function *prog) {
   int offset;
   for (Function *fn = prog; fn; fn = fn->next) {
     offset = 0;
     for (LVar *var = fn->locals; var; var = var->next) {
-      offset += 8;
+      offset += align_to(var->ty->size, 8);
     }
 
     fn->stack_size = offset;
 
     for (LVar *var = fn->locals; var; var = var->next) {
       var->offset = offset;
-      offset -= 8;
+      offset -= align_to(var->ty->size, 8);
     }
 
   }

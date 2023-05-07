@@ -24,17 +24,17 @@ EBNF (Extended BNF)
 ```
 program ::= (declaration | function_def_or_dec)*
 function_def_or_dec ::= declspec ident "(" function_params? ")" ( stmt? | ";")
-declaration ::= declspec declarator ";"
+declaration ::= declspec declarator ("=" assign)? ";"
 declspec ::= "int"
 declarator = "*"* ident type-suffix
-type-suffix ::= ("[" expr? "]" type_suffix)?
+type-suffix ::= ("[" expr "]")*
 stmt ::= expr? ";" |
        "{" stmt* "}" |
        "if" "(" expr ")" stmt ("else" stmt)? |
        "while" "(" expr ")" stmt |
        "for" "(" expr? ";" expr? ";" expr? ";"  ")" stmt |
        "return" expr ";" |
-        declspec "*"* ident ("=" assign)? ";"
+       declaration
 expr ::= assign
 assign ::= equality ("=" assign)?
 equality ::= relational ("==" relational | "!=" relational)*

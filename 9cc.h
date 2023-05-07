@@ -54,7 +54,8 @@ typedef struct Type {
   TypeKind *kind;
   int size; //sizeof
   struct Type *next; // Pointer
-  int array_size; // Array
+  int array_len; // Array Length
+  Token *token; // declaration
 } Type;
 
 // Local Variable
@@ -103,9 +104,6 @@ typedef struct Function {
   int stack_size;
 } Function;
 
-Token *token;
-Node *code[100];
-
 int equal(Token *t, char *key);
 Token *skip(Token *t, char *op);
 void print_token(Token *t);
@@ -116,4 +114,4 @@ void gen_main();
 void gen(Node *n);
 Token *tokenize();
 Function *parse(Token *token);
-
+int align_to(int n, int align);
