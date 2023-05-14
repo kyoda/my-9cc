@@ -53,6 +53,7 @@ typedef enum {
 typedef struct Type {
   TypeKind *kind;
   int size; //sizeof
+  int align; //stacksize
   struct Type *next; // Pointer
   int array_len; // Array Length
   Token *token; // declaration

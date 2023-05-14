@@ -85,6 +85,8 @@ assert 8 "int main() { int *p; return sizeof p;}"
 assert 4 "int main() { int *p; return sizeof *p;}"
 assert 6 "int main() { return sizeof sizeof sizeof (8+3-2) + 2;}"
 assert 0 "int main() { int a[3]; return 0;}"
+assert 3 'int main() { int x[2]; int *y=&x; *y=3; return *x; }'
+assert 5 "int main() { int a[3]; *(a+1) = 5; return *(a+1);}"
 
 
 echo OK

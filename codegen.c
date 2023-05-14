@@ -38,7 +38,9 @@ void gen_expr(Node *n) {
   case ND_LVAR:
     gen_addr(n);
 
-    printf("  mov rax, [rax]\n");
+    if (n->var->ty->kind != TY_ARRAY) {
+      printf("  mov rax, [rax]\n");
+    }
 
     return;
   case ND_FUNC: {
@@ -213,14 +215,14 @@ void align_stack_size(Function *prog) {
   for (Function *fn = prog; fn; fn = fn->next) {
     offset = 0;
     for (LVar *var = fn->locals; var; var = var->next) {
-      offset += align_to(var->ty->size, 8);
+      offset += var->ty->align;
     }
 
-    fn->stack_size = offset;
+    fn->stack_size = align_to(offset, 16);
 
     for (LVar *var = fn->locals; var; var = var->next) {
       var->offset = offset;
-      offset -= align_to(var->ty->size, 8);
+      offset -= var->ty->align;
     }
 
   }

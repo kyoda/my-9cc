@@ -4,6 +4,7 @@ Type *ty_int() {
   Type *ty = calloc(1, sizeof(Type));
   ty->kind = TY_INT;
   ty->size = 4;
+  ty->align = 8;
   return ty;
 }
 
@@ -11,6 +12,7 @@ Type *pointer_to(Type *base) {
   Type *ty = calloc(1, sizeof(Type));
   ty->kind = TY_PTR;
   ty->size = 8;
+  ty->align = 8;
   ty->next = base;
 
   return ty;
@@ -19,7 +21,8 @@ Type *pointer_to(Type *base) {
 Type *ty_array(Type *base, int len) {
   Type *ty = calloc(1, sizeof(Type));
   ty->kind = TY_ARRAY;
-  ty->size = align_to(base->size, 8) * len;
+  ty->size = base->align * len;
+  ty->align = 8;
   ty->next = base;
   ty->array_len = len;
 
