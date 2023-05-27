@@ -200,11 +200,12 @@ Node *declaration(Token **rest, Token *token) {
 
     lvar = new_lvar(get_ident_name(ty->token), ty);
 
-    Node *n = new_node(ND_LVAR);
-    n->var = lvar;
+    Node *n = new_node(ND_BLOCK);
 
     if (consume(&token, token, "=")) {
-      n = new_binary(ND_ASSIGN, n, assign(&token, token));
+      Node *n_lvar = new_node(ND_LVAR);
+      n_lvar->var = lvar;
+      n->body = new_binary(ND_ASSIGN, n_lvar, assign(&token, token));
     }
 
     expect(&token, token, ";");
@@ -431,18 +432,18 @@ Node *new_add(Node *lhs, Node *rhs, Token *token) {
   Node *n;
 
   // num + num
-  if (lhs->ty->kind == TY_INT && rhs->ty->kind == TY_INT) {
+  if (!lhs->ty->next && !rhs->ty->next) {
     n = new_binary(ND_ADD, lhs, rhs);
     return n;
   }
 
   // pointer + pointer
-  if (lhs->ty->kind == TY_PTR && rhs->ty->kind == TY_PTR) {
+  if (lhs->ty->next && rhs->ty->next) {
     error("%s", "invalid operand");
   }
 
   // num + pointer to pointer + num
-  if (lhs->ty->kind == TY_INT && rhs->ty->kind == TY_PTR) {
+  if (!lhs->ty->next && rhs->ty->next) {
     Node *tmp = lhs;
     lhs = rhs;
     rhs = tmp;
@@ -462,20 +463,20 @@ Node *new_sub(Node *lhs, Node *rhs, Token *token) {
   Node *n;
 
   // num - num
-  if (lhs->ty->kind == TY_INT && rhs->ty->kind == TY_INT) {
+  if (!lhs->ty->next && !rhs->ty->next) {
     n = new_binary(ND_SUB, lhs, rhs);
     return n;
   }
 
   // pointer - num * ty->size 
   // int -> 4byte
-  if (lhs->ty->kind == TY_PTR && rhs->ty->kind == TY_INT) {
+  if (lhs->ty->next && !rhs->ty->next) {
     n = new_binary(ND_SUB, lhs, new_binary(ND_MUL, rhs, new_node_num(rhs->ty->size)));
     return n;
   }
 
   // pointer - pointer, return int elements between pointer and pointer
-  if (lhs->ty->kind == TY_PTR && rhs->ty->kind == TY_PTR) {
+  if (lhs->ty->next && rhs->ty->next) {
     n = new_binary(ND_DIV, new_binary(ND_SUB, lhs, rhs), new_node_num(rhs->ty->next->size));
     return n;
   }
@@ -578,15 +579,10 @@ Node *postfix(Token **rest, Token *token) {
   Node *n = primary(&token, token);
 
   //array
-  if (equal(token, "[")) {
+  while (equal(token, "[")) {
     token = token->next;
 
-    if (token->kind != TK_NUM) {
-      error("%s", "expect TK_NUM");
-    }
-
     // a[3] -> *(a+3) -> *(a + 3 * ty->size)
-    //n = new_binary(ND_ADD, n, new_binary(ND_MUL, new_node_num(token->val), n->var->ty->size));
     n = new_binary(ND_DEREF, new_add(n, expr(&token, token), token), NULL);
 
     expect(&token, token, "]");

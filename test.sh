@@ -88,7 +88,12 @@ assert 0 "int main() { int a[3]; return 0;}"
 assert 3 'int main() { int x[2]; int *y=&x; *y=3; return *x; }'
 assert 5 "int main() { int a[3]; *(a+1) = 5; return *(a+1);}"
 assert 15 "int main() { int a[3]; *(a+1) = 5; return 3 * *(a+1);}"
-assert 5 "int main() { int a[3]; a[1] = 5; return a[1];}"
+assert 6 "int main() { int a[8]; a[0] = 6; a[1] = 6; a[2] = 6; a[3] = 6; int b = 7; int c = 17; return a[1];}"
+assert 4 "int main() { int a[3]; a[0] = 5; *(a+1) = 4; *(a+2) = 3; return a[1];}"
+assert 4 "int main() { int a[3] = 0; a[0] = 5; *(a+1) = 4; *(a+2) = 3; return a[1];}"
+assert 5 "int main() { int a[3]; a[2] = 5; return a[2];}"
+assert 5 "int main() { int a[3]; a[2] = 5; return 2[a];}"
+#assert 5 "int main() { int a[3][3]; a[2][2] = 5; return a[2][2];}"
 
 
 echo OK

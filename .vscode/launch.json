@@ -10,7 +10,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/9cc",
             "args": [
-                "int main() { int a[3]; a[1] = 5; return 0;}"
+                "int main() { int a[3]; a[2] = 5; return 2[a];}"
             ],
             "preLaunchTask": "build_9cc",
             "stopAtEntry": false,

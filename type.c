@@ -21,8 +21,8 @@ Type *pointer_to(Type *base) {
 Type *ty_array(Type *base, int len) {
   Type *ty = calloc(1, sizeof(Type));
   ty->kind = TY_ARRAY;
-  ty->size = base->align * len;
-  ty->align = 8;
+  ty->size = base->size;
+  ty->align = align_to(base->size * len, 8);
   ty->next = base;
   ty->array_len = len;
 
