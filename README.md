@@ -44,7 +44,9 @@ mul ::= unary ("*" unary | "/" unary)*
 unary ::= "sizeof" unary |
         ("+" | "-")? primary |
         "*" unary |
-        "&" unary
+        "&" unary |
+        postfix
+postfix ::= primary ("[" expr "]")*
 primary ::= num | 
           ident ( "(" assign "," ")" )? | 
           "(" expr ")"

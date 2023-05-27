@@ -15,6 +15,7 @@ Node *relational(Token **rest, Token *token);
 Node *add(Token **rest, Token *token);
 Node *mul(Token **rest, Token *token);
 Node *unary(Token **rest, Token *token);
+Node *postfix(Token **rest, Token *token);
 Node *primary(Token **rest, Token *token);
 
 Node *new_node(NodeKind kind) {
@@ -520,10 +521,11 @@ Node *mul(Token **rest, Token *token) {
   return n;
 }
 
-// unary = "sizeof" unary |
+// unary = "sizeof | *"? unary |
 //         ("+" | "-")? primary |
 //         "*" unary |
-//         "&" unary
+//         "&" unary |
+//         postfix
 Node *unary(Token **rest, Token *token) {
   Node *n;
 
@@ -566,9 +568,33 @@ Node *unary(Token **rest, Token *token) {
     return n;
   }
 
-  n = primary(&token, token);
+  n = postfix(&token, token);
   *rest = token;
   return n;
+}
+
+// postfix = primary ("[" expr "]")*
+Node *postfix(Token **rest, Token *token) {
+  Node *n = primary(&token, token);
+
+  //array
+  if (equal(token, "[")) {
+    token = token->next;
+
+    if (token->kind != TK_NUM) {
+      error("%s", "expect TK_NUM");
+    }
+
+    // a[3] -> *(a+3) -> *(a + 3 * ty->size)
+    //n = new_binary(ND_ADD, n, new_binary(ND_MUL, new_node_num(token->val), n->var->ty->size));
+    n = new_binary(ND_DEREF, new_add(n, expr(&token, token), token), NULL);
+
+    expect(&token, token, "]");
+  }
+
+  *rest = token;
+  return n;
+
 }
 
 Node *funcall(Token **rest, Token *token) {
@@ -633,24 +659,6 @@ Node *primary(Token **rest, Token *token) {
     }
 
     token = token->next;
-
-    //array
-    while (equal(token, "[")) {
-      token = token->next;
-
-      if (token->kind != TK_NUM) {
-        error("%s", "expect TK_NUM");
-      }
-
-      // a[3] -> *(a+3) -> *(a + 3 * ty->align)
-      n = new_binary(ND_ADD, n, new_binary(ND_MUL, new_node_num(token->val), n->ty->next->align));
-      n = new_binary(ND_DEREF, n, NULL);
-
-      token = token->next;
-      expect(&token, token, "]");
-    }
-
-
     *rest = token;
     return n;
   } else {
