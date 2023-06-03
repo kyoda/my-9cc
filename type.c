@@ -21,8 +21,8 @@ Type *pointer_to(Type *base) {
 Type *ty_array(Type *base, int len) {
   Type *ty = calloc(1, sizeof(Type));
   ty->kind = TY_ARRAY;
-  ty->size = base->size;
-  ty->align = align_to(base->size * len, 8);
+  ty->size = base->size * len;
+  ty->align = base->size * len;
   ty->next = base;
   ty->array_len = len;
 
@@ -70,7 +70,7 @@ void add_type(Node *n) {
     n->ty = pointer_to(n->lhs->ty);
     return;
   case ND_DEREF:
-    if (n->lhs->ty->kind != TY_PTR) {
+    if (!n->lhs->ty->next) {
       error("%s", "invalid deref");
     }
 

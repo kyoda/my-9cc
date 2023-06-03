@@ -85,7 +85,7 @@ assert 8 "int main() { int *p; return sizeof p;}"
 assert 4 "int main() { int *p; return sizeof *p;}"
 assert 6 "int main() { return sizeof sizeof sizeof (8+3-2) + 2;}"
 assert 0 "int main() { int a[3]; return 0;}"
-assert 3 'int main() { int x[2]; int *y=&x; *y=3; return *x; }'
+assert 3 'int main() { int x[2]; int *y=x; *y=3; return *x; }'
 assert 5 "int main() { int a[3]; *(a+1) = 5; return *(a+1);}"
 assert 15 "int main() { int a[3]; *(a+1) = 5; return 3 * *(a+1);}"
 assert 6 "int main() { int a[8]; a[0] = 6; a[1] = 6; a[2] = 6; a[3] = 6; int b = 7; int c = 17; return a[1];}"
@@ -93,7 +93,14 @@ assert 4 "int main() { int a[3]; a[0] = 5; *(a+1) = 4; *(a+2) = 3; return a[1];}
 assert 4 "int main() { int a[3] = 0; a[0] = 5; *(a+1) = 4; *(a+2) = 3; return a[1];}"
 assert 5 "int main() { int a[3]; a[2] = 5; return a[2];}"
 assert 5 "int main() { int a[3]; a[2] = 5; return 2[a];}"
-#assert 5 "int main() { int a[3][3]; a[2][2] = 5; return a[2][2];}"
+assert 7 "int main() { int a[2][3]; a[0][2] = 7; return a[0][2];}"
+assert 7 "int main() { int a[2][3]; int *b = a; b[2] = 7; return a[0][2];}"
+assert 5 "int main() { int a[2][3]; a[1][0] = 5; return a[1][0];}"
+assert 48 'int main() { int x[3][4]; return sizeof(x); }'
+assert 8 'int main() { int x; return sizeof(&x); }'
+assert 5 'int main() { int x[3][4]; return sizeof **x + 1; }'
+assert 20 'int main() { int x[3][5]; return sizeof *x; }'
+assert 4 'int main() { int x[3][4]; return sizeof(**x + 1); }'
 
 
 echo OK

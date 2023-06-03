@@ -76,7 +76,9 @@ void gen_expr(Node *n) {
   case ND_DEREF:
     gen_expr(n->lhs);
 
-    printf("  mov rax, [rax]\n");
+    if (n->ty->kind != TY_ARRAY) {
+      printf("  mov rax, [rax]\n");
+    }
 
     return;
   case ND_ADDR:

@@ -153,6 +153,7 @@ Function *function (Token **rest, Token *token) {
   fn->params = locals;
 
   fn->body = stmt(&token, token);
+  add_type(fn->body);
   fn->locals = locals;
 
   *rest = token;
@@ -231,18 +232,21 @@ Type *declarator(Token **rest, Token *token, Type *ty) {
     return ty;
 }
 
-// type-suffix ::= ("[" num "]")*
+// type-suffix ::= "[" num "]" type-suffix
 Type *type_suffix(Token **rest, Token *token, Type *ty) {
-  while (equal(token, "[")) {
+  if (equal(token, "[")) {
     token = token->next;
 
     if (token->kind != TK_NUM) {
       error("%s", "expect TK_NUM");
     }
 
-    ty = ty_array(ty, token->val);
+    int size = token->val;
     token = token->next;
     expect(&token, token, "]");
+    ty = type_suffix(&token, token, ty);
+    *rest = token;
+    return ty_array(ty, size);
   }
 
   *rest = token;
@@ -286,6 +290,7 @@ Node *stmt(Token **rest, Token *token) {
 
   if (equal(token, "int")) {
     n = declaration(&token, token);
+    add_type(n);
     *rest = token;
     return n;
   }
@@ -451,7 +456,7 @@ Node *new_add(Node *lhs, Node *rhs, Token *token) {
   
   // pointer + num * ty->size
   // int -> 4byte
-  n = new_binary(ND_ADD, lhs, new_binary(ND_MUL, rhs, new_node_num(rhs->ty->size)));
+  n = new_binary(ND_ADD, lhs, new_binary(ND_MUL, rhs, new_node_num(lhs->ty->next->size)));
 
   return n;
 }
@@ -582,8 +587,10 @@ Node *postfix(Token **rest, Token *token) {
   while (equal(token, "[")) {
     token = token->next;
 
+    Node *ex = expr(&token, token);
+
     // a[3] -> *(a+3) -> *(a + 3 * ty->size)
-    n = new_binary(ND_DEREF, new_add(n, expr(&token, token), token), NULL);
+    n = new_binary(ND_DEREF, new_add(n, ex, token), NULL);
 
     expect(&token, token, "]");
   }
