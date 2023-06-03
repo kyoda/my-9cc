@@ -1,6 +1,6 @@
 #include "9cc.h"
 
-static Function *current_fn;
+static Obj *current_fn;
 static void gen_stmt(Node *n);
 static void gen_expr(Node *n);
 static char *argreg[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
@@ -212,17 +212,17 @@ int align_to(int n, int align) {
   return (n / align + 1) * align;
 }
 
-void align_stack_size(Function *prog) {
+void align_stack_size(Obj *prog) {
   int offset;
-  for (Function *fn = prog; fn; fn = fn->next) {
+  for (Obj *fn = prog; fn; fn = fn->next) {
     offset = 0;
-    for (LVar *var = fn->locals; var; var = var->next) {
+    for (Obj *var = fn->locals; var; var = var->next) {
       offset += var->ty->align;
     }
 
     fn->stack_size = align_to(offset, 16);
 
-    for (LVar *var = fn->locals; var; var = var->next) {
+    for (Obj *var = fn->locals; var; var = var->next) {
       var->offset = offset;
       offset -= var->ty->align;
     }
@@ -230,12 +230,12 @@ void align_stack_size(Function *prog) {
   }
 }
 
-void codegen(Function *prog) {
+void codegen(Obj *prog) {
   align_stack_size(prog);
 
   printf(".intel_syntax noprefix\n");
 
-  for (Function *fn = prog; fn; fn = fn->next) {
+  for (Obj *fn = prog; fn; fn = fn->next) {
     current_fn = fn;
     printf(".global %s\n", fn->name);
     printf("%s:\n", fn->name);
@@ -245,7 +245,7 @@ void codegen(Function *prog) {
     printf("  mov rbp, rsp\n");
     printf("  sub rsp, %d\n", fn->stack_size);
 
-    for (LVar *var = fn->params; var; var = var->next) {
+    for (Obj *var = fn->params; var; var = var->next) {
       printf("  mov [rbp - %d], %s\n", var->offset, argreg[var->offset / 8 - 1]);
     }
     

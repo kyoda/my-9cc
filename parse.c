@@ -1,7 +1,8 @@
 #include "9cc.h"
 
-LVar *locals;
-LVar *find_lvar(Token *t);
+Obj *locals;
+Obj *globals;
+Obj *find_lvar(Token *t);
 
 Type *declspec(Token **rest, Token *token);
 Node *declaration(Token **rest, Token *token);
@@ -37,20 +38,35 @@ Node *new_node_num(int val) {
   return n;
 }
 
-LVar *new_lvar(char *name, Type *ty) {
-  LVar *lvar;
-  lvar = calloc(1, sizeof(LVar));
-  lvar->name = name;
-  lvar->len = strlen(name);
-  lvar->ty = ty;
+Obj *new_var(char *name, Type *ty) {
+  Obj *var;
+  var = calloc(1, sizeof(Obj));
+  var->name = name;
+  var->len = strlen(name);
+  var->ty = ty;
+
+  return var;
+}
+
+Obj *new_lvar(char *name, Type *ty) {
+  Obj *lvar = new_var(name, ty);
+  lvar->is_local = true;
   lvar->next = locals;
   locals = lvar;
 
   return lvar;
 }
 
-LVar *find_lvar(Token *t) {
-  for (LVar *var = locals; var; var = var->next) {
+Obj *new_gvar(char *name, Type *ty) {
+  Obj *gvar = new_var(name, ty);
+  gvar->next = globals;
+  globals = gvar;
+
+  return gvar;
+}
+
+Obj *find_lvar(Token *t) {
+  for (Obj *var = locals; var; var = var->next) {
     if (var->len == t->len && strncmp(t->loc, var->name, var->len) == 0) {
       return var;
     }
@@ -122,7 +138,7 @@ void create_params(Token **rest, Token *token) {
       ty = pointer_to(ty);
     }
 
-    locals = new_lvar(strndup(token->loc, token->len), ty);
+    locals = new_lvar(get_ident_name(token), ty);
     token = token->next;
   }
 
@@ -130,23 +146,16 @@ void create_params(Token **rest, Token *token) {
 }
 
 // function_def_or_dec ::= declspec ident "(" function_params? ")" ( stmt? | ";")
-Function *function (Token **rest, Token *token) {
-  locals = NULL;
-
-  Function *fn = calloc(1, sizeof(Function));
-
-
+Obj *function (Token **rest, Token *token) {
   Type *ty = declspec(&token, token);
 
-  if (token->kind == TK_IDENT) {
-    fn->name = strndup(token->loc, token->len);
-    token = token->next;
-  } else {
-    error("%s", "expect ident");
-  }
+  Obj *fn = new_gvar(get_ident_name(token), ty);
+  fn->is_function = true;
+  token = token->next;
 
 
   expect(&token, token, "(");
+  locals = NULL;
   create_params(&token, token);
   expect(&token, token, ")");
 
@@ -161,21 +170,20 @@ Function *function (Token **rest, Token *token) {
 }
 
 // program ::= (declaration | function_def_or_dec)*
-Function *parse(Token *token) {
-  Function head = {};
-  Function *cur = &head;
+Obj *parse(Token *token) {
+  globals = NULL;
 
   while (token->kind != TK_EOF) {
     switch (next_function_def_or_dec(token)) {
     case FUNCTION_DEF:
-      cur = cur->next = function(&token, token);
+      globals = function(&token, token);
       break;
     case DEC:
       break;
     }
   }
 
-  return head.next;
+  return globals;
 }
 
 // declspec ::= "int"
@@ -194,7 +202,7 @@ Node *declaration(Token **rest, Token *token) {
     Type *basety = declspec(&token, token);
     Type *ty = declarator(&token, token, basety);
 
-    LVar *lvar = find_lvar(ty->token);
+    Obj *lvar = find_lvar(ty->token);
     if (lvar) {
       error("%s", "defined variable");
     }
@@ -654,7 +662,7 @@ Node *primary(Token **rest, Token *token) {
 
     // lvar
     Node *n = new_node(ND_LVAR);
-    LVar *lvar = find_lvar(token);
+    Obj *lvar = find_lvar(token);
     if (lvar) {
       n->var = lvar;
     } else {

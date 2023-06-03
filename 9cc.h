@@ -59,15 +59,6 @@ typedef struct Type {
   Token *token; // declaration
 } Type;
 
-// Local Variable
-typedef struct LVar {
-  struct LVar *next;
-  char *name;
-  Type *ty;
-  int len;
-  int offset;
-} LVar;
-
 typedef struct Node {
   NodeKind kind;
   struct Node *lhs;
@@ -89,30 +80,41 @@ typedef struct Node {
   struct Node *args;
 
   int val;
-  LVar *var; // ND_LVAR
+  struct Obj *var; // ND_LVAR
 
   Type *ty; // int or pointer
 } Node;
 
-
-// Function
-typedef struct Function {
-  struct Function *next;
+// function and variable
+typedef struct Obj {
+  struct Obj *next;
   char *name;
-  LVar *params;
+
+  // variable
+  Type *ty;
+  int len;
+  int offset;
+  bool is_local;
+
+  // function or global variable
+  bool is_function;
+
+  //function
+  struct Obj *params;
   Node *body;
-  LVar *locals;
+  struct Obj *locals;
   int stack_size;
-} Function;
+
+} Obj;
 
 int equal(Token *t, char *key);
 Token *skip(Token *t, char *op);
 void print_token(Token *t);
 void error(char *fmt, ...);
 void error_at(char *loc, char *fmt, ...);
-void codegen(Function *prog);
+void codegen(Obj *prog);
 void gen_main();
 void gen(Node *n);
 Token *tokenize();
-Function *parse(Token *token);
+Obj *parse(Token *token);
 int align_to(int n, int align);

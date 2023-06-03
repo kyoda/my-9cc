@@ -96,11 +96,11 @@ assert 5 "int main() { int a[3]; a[2] = 5; return 2[a];}"
 assert 7 "int main() { int a[2][3]; a[0][2] = 7; return a[0][2];}"
 assert 7 "int main() { int a[2][3]; int *b = a; b[2] = 7; return a[0][2];}"
 assert 5 "int main() { int a[2][3]; a[1][0] = 5; return a[1][0];}"
-assert 48 'int main() { int x[3][4]; return sizeof(x); }'
-assert 8 'int main() { int x; return sizeof(&x); }'
-assert 5 'int main() { int x[3][4]; return sizeof **x + 1; }'
-assert 20 'int main() { int x[3][5]; return sizeof *x; }'
-assert 4 'int main() { int x[3][4]; return sizeof(**x + 1); }'
+assert 48 "int main() { int x[3][4]; return sizeof(x); }"
+assert 8 "int main() { int x; return sizeof(&x); }"
+assert 5 "int main() { int x[3][4]; return sizeof **x + 1; }"
+assert 20 "int main() { int x[3][5]; return sizeof *x; }"
+assert 4 "int main() { int x[3][4]; return sizeof(**x + 1); }"
 
 
 echo OK
