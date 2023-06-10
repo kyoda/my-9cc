@@ -2,7 +2,7 @@
 
 Obj *locals;
 Obj *globals;
-Obj *find_lvar(Token *t);
+Obj *find_var(Token *t);
 
 Type *declspec(Token **rest, Token *token);
 Node *declaration(Token **rest, Token *token);
@@ -65,12 +65,19 @@ Obj *new_gvar(char *name, Type *ty) {
   return gvar;
 }
 
-Obj *find_lvar(Token *t) {
+Obj *find_var(Token *t) {
   for (Obj *var = locals; var; var = var->next) {
     if (var->len == t->len && strncmp(t->loc, var->name, var->len) == 0) {
       return var;
     }
   }
+
+  for (Obj *var = globals; var; var = var->next) {
+    if (var->len == t->len && strncmp(t->loc, var->name, var->len) == 0) {
+      return var;
+    }
+  }
+
   return NULL;
 }
 
@@ -118,12 +125,27 @@ bool at_eof(Token *token) {
 }
 
 typedef enum {
-  FUNCTION_DEF,
-  DEC 
-} NEXT_FUNCTION_DEF_OR_DEC;
+  FUNCTION,
+  DECL 
+} NEXT_FUNCTION_OR_DECL;
 
-static NEXT_FUNCTION_DEF_OR_DEC next_function_def_or_dec(Token *token) {
-  return FUNCTION_DEF;
+static NEXT_FUNCTION_OR_DECL next_function_or_decl(Token *token) {
+  if (equal(token, "int")) {
+    token = token->next;
+  }
+
+  while (consume(&token, token, "*")) {
+  }
+
+  // TK_IDENT
+  token = token->next;
+
+  if (equal(token, "(")) {
+    return FUNCTION;
+  } else {
+    return DECL;
+  }
+
 }
 
 void create_params(Token **rest, Token *token) {
@@ -145,7 +167,7 @@ void create_params(Token **rest, Token *token) {
   *rest = token;
 }
 
-// function_def_or_dec ::= declspec ident "(" function_params? ")" ( stmt? | ";")
+// function_or_decl ::= declspec ident "(" function_params? ")" ( stmt? | ";")
 Obj *function (Token **rest, Token *token) {
   Type *ty = declspec(&token, token);
 
@@ -169,16 +191,33 @@ Obj *function (Token **rest, Token *token) {
   return fn;
 }
 
-// program ::= (declaration | function_def_or_dec)*
+Obj *global_variable (Token **rest, Token *token) {
+    Type *basety = declspec(&token, token);
+    Type *ty = declarator(&token, token, basety);
+
+    Obj *gvar = find_var(ty->token);
+    if (gvar) {
+      error("%s", "defined gloval variable");
+    }
+
+    gvar = new_gvar(get_ident_name(ty->token), ty);
+  
+    expect(&token, token, ";");
+    *rest = token;
+    return gvar;
+}
+
+// program ::= (declaration | function)*
 Obj *parse(Token *token) {
   globals = NULL;
 
   while (token->kind != TK_EOF) {
-    switch (next_function_def_or_dec(token)) {
-    case FUNCTION_DEF:
+    switch (next_function_or_decl(token)) {
+    case FUNCTION:
       globals = function(&token, token);
       break;
-    case DEC:
+    case DECL:
+      globals = global_variable(&token, token);
       break;
     }
   }
@@ -202,7 +241,7 @@ Node *declaration(Token **rest, Token *token) {
     Type *basety = declspec(&token, token);
     Type *ty = declarator(&token, token, basety);
 
-    Obj *lvar = find_lvar(ty->token);
+    Obj *lvar = find_var(ty->token);
     if (lvar) {
       error("%s", "defined variable");
     }
@@ -212,7 +251,7 @@ Node *declaration(Token **rest, Token *token) {
     Node *n = new_node(ND_BLOCK);
 
     if (consume(&token, token, "=")) {
-      Node *n_lvar = new_node(ND_LVAR);
+      Node *n_lvar = new_node(ND_VAR);
       n_lvar->var = lvar;
       n->body = new_binary(ND_ASSIGN, n_lvar, assign(&token, token));
     }
@@ -661,8 +700,8 @@ Node *primary(Token **rest, Token *token) {
       return funcall(rest, token);
 
     // lvar
-    Node *n = new_node(ND_LVAR);
-    Obj *lvar = find_lvar(token);
+    Node *n = new_node(ND_VAR);
+    Obj *lvar = find_var(token);
     if (lvar) {
       n->var = lvar;
     } else {

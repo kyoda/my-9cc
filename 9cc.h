@@ -35,7 +35,7 @@ typedef enum {
   ND_LT,
   ND_LE,
   ND_FUNC,
-  ND_LVAR,
+  ND_VAR,
   ND_NUM,
   ND_RETURN,
   ND_IF,
@@ -80,7 +80,7 @@ typedef struct Node {
   struct Node *args;
 
   int val;
-  struct Obj *var; // ND_LVAR
+  struct Obj *var; // ND_VAR
 
   Type *ty; // int or pointer
 } Node;

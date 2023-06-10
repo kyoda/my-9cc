@@ -12,8 +12,14 @@ static int count() {
 
 void gen_addr(Node *n) {
   switch(n->kind) {
-  case ND_LVAR:
-    printf("  lea rax, [rbp - %d]\n", n->var->offset);
+  case ND_VAR:
+    if (n->var->is_local) {
+      printf("  lea rax, [rbp - %d]\n", n->var->offset);
+    } else {
+      printf("  lea rax, %s\n", n->var->name);
+      //printf("  lea rax, %s[rip]\n", n->var->name);
+      //printf("  mov rax, offset %s\n", n->var->name);
+    }
     return;
   case ND_DEREF:
     gen_expr(n->lhs);
@@ -35,7 +41,7 @@ void gen_expr(Node *n) {
     printf("  neg rax\n");    
 
     return;
-  case ND_LVAR:
+  case ND_VAR:
     gen_addr(n);
 
     if (n->var->ty->kind != TY_ARRAY) {
@@ -230,14 +236,31 @@ void align_stack_size(Obj *prog) {
   }
 }
 
-void codegen(Obj *prog) {
-  align_stack_size(prog);
+void emit_data(Obj *prog) {
+  for (Obj *var = prog; var; var = var->next) {
+    if (var->is_function) {
+      continue;
+    }
 
+    printf("  .data\n");
+    printf("  .global %s\n", var->name);
+    printf("%s:\n", var->name);
+    printf("  .zero %d\n", var->ty->align);
+  }
+
+}
+
+void emit_text(Obj *prog) {
   printf(".intel_syntax noprefix\n");
 
   for (Obj *fn = prog; fn; fn = fn->next) {
+    if (!fn->is_function) {
+      continue;
+    }
+
     current_fn = fn;
-    printf(".global %s\n", fn->name);
+    printf("  .global %s\n", fn->name);
+    printf("  .text \n");
     printf("%s:\n", fn->name);
 
     //prologue
@@ -257,6 +280,12 @@ void codegen(Obj *prog) {
     printf("  pop rbp\n");
     printf("  ret\n");
   }
+}
+
+void codegen(Obj *prog) {
+  align_stack_size(prog);
+  emit_data(prog);
+  emit_text(prog);
 
 }
 

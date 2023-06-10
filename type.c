@@ -63,7 +63,7 @@ void add_type(Node *n) {
   case ND_NUM:
     n->ty = ty_int();
     return;
-  case ND_LVAR:
+  case ND_VAR:
     n->ty = n->var->ty;
     return;
   case ND_ADDR:

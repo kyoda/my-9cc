@@ -10,7 +10,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/9cc",
             "args": [
-                "int main() { return add3(5, 3, 2); } int add3(int a, int b, int c) { return a + b + c; }"
+                "int x; int main() { x = 7; return x; }"
             ],
             "preLaunchTask": "build_9cc",
             "stopAtEntry": false,
@@ -33,7 +33,7 @@
             "program": "${workspaceFolder}/tmp",
             "args": [
             ],
-            "stopAtEntry": false,
+            "stopAtEntry": true,
             "cwd": "${fileDirname}",
             "environment": [],
             "externalConsole": false,

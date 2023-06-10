@@ -101,6 +101,9 @@ assert 8 "int main() { int x; return sizeof(&x); }"
 assert 5 "int main() { int x[3][4]; return sizeof **x + 1; }"
 assert 20 "int main() { int x[3][5]; return sizeof *x; }"
 assert 4 "int main() { int x[3][4]; return sizeof(**x + 1); }"
+assert 0 "int x; int main() { return x; }"
+assert 7 "int x; int main() { x = 7; return x; }"
+assert 12 "int x; int y; int z; int main() { x = 3; y = 4; z = 5; return x + y + z; }"
 
 
 echo OK
