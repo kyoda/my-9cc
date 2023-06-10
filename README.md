@@ -24,7 +24,7 @@ EBNF (Extended BNF)
 ```
 program ::= (declaration | function_def_or_dec)*
 function_def_or_dec ::= declspec ident "(" function_params? ")" ( stmt? | ";")
-declaration ::= declspec declarator ("=" assign)? ";"
+declaration ::= declspec declarator ("=" assign)? ("," declarator ("=" assign)?)? ";"
 declspec ::= "int"
 declarator = "*"* ident type-suffix
 type-suffix ::= ("[" expr "]")*

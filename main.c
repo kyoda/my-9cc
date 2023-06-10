@@ -8,9 +8,6 @@ int main(int argc, char **argv) {
   Obj *prog = parse(token);
   codegen(prog);
 
-  //debug
-  //print_token(token);
-
   return 0;
 }
 

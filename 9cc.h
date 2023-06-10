@@ -41,6 +41,7 @@ typedef enum {
   ND_IF,
   ND_WHILE,
   ND_FOR,
+  ND_EXPR_STMT,
   ND_BLOCK
 } NodeKind;
 
@@ -109,7 +110,6 @@ typedef struct Obj {
 
 int equal(Token *t, char *key);
 Token *skip(Token *t, char *op);
-void print_token(Token *t);
 void error(char *fmt, ...);
 void error_at(char *loc, char *fmt, ...);
 void codegen(Obj *prog);

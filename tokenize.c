@@ -1,14 +1,6 @@
 #include "9cc.h"
 char *user_input;
 
-void print_token(Token *t) {
-  while(t->kind != TK_EOF) {
-    fprintf(stderr, "token->loc: %s\n", t->loc);
-    fprintf(stderr, "token->kind: %d\n", t->kind);
-    t = t->next;
-  }
-}
-
 void error(char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
