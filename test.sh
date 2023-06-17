@@ -113,5 +113,7 @@ assert 3 "int main() { char a = 3; return a;}"
 assert 2 "int main() { char a = 3; int b = -1; return a + b;}"
 assert 3 "int main() { char a[2]; a[0] = 1; a[1] = 3; int b = -1; return a[0] + a[1] + b;}"
 
+#assert 0 "int main() { char;}"
+
 
 echo OK

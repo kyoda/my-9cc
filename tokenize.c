@@ -53,7 +53,7 @@ Token *skip(Token *t, char *op) {
 }
 
 int keyword_len(char *p) {
-  char *key[] = {"return", "if", "else", "for", "while", "int", "char", "sizeof"};
+  char *key[] = {"return", "if", "else", "for", "while", "char", "int", "sizeof"};
   int key_len;
   for (int i = 0; i < sizeof(key) / sizeof(*key); i++) {
     key_len = strlen(key[i]);
@@ -119,6 +119,20 @@ Token *tokenize(char* p) {
     if (isdigit(*p)) {
       cur = new_token(TK_NUM, cur, p, 0);
       cur->val = strtol(p, &p, 10);
+      continue;
+    }
+
+    if (strchr("\"", *p)) {
+      p++;
+      start = p; 
+      while (!strchr("\"", *p)) {
+        p++;
+      }
+      cur = new_token(TK_STR, cur, start, p - start);
+      cur->ty = ty_array(ty_char(), p - start);
+      cur->str = strndup(start, p - start);
+
+      p++;
       continue;
     }
 

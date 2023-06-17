@@ -78,6 +78,22 @@ Obj *new_gvar(char *name, Type *ty) {
   return gvar;
 }
 
+char *new_unique_name() {
+  static id = 0;
+  char *buf = calloc(1, 20);
+  char *str = "abc";
+  sprintf(buf, ".L..%d", id++);
+  return buf;
+}
+
+Obj *new_string_literal(Type *ty) {
+  Obj *gvar = new_gvar(new_unique_name(), ty);
+  gvar->next = globals;
+  globals = gvar;
+
+  return gvar;
+}
+
 Obj *find_var(Token *t) {
   for (Obj *var = locals; var; var = var->next) {
     if (var->len == t->len && strncmp(t->loc, var->name, var->len) == 0) {
@@ -724,7 +740,7 @@ Node *funcall(Token **rest, Token *token) {
   return n;
 }
 
-// primary = num | 
+// primary = num | str |
 //           ident ( "(" assign "," ")" )? | 
 //           "(" expr ")"
 Node *primary(Token **rest, Token *token) {
@@ -742,8 +758,9 @@ Node *primary(Token **rest, Token *token) {
 
     *rest = token;
     return new_node_num(v);
-  } else if (token->kind == TK_IDENT) {
+  }
 
+  if (token->kind == TK_IDENT) {
     //funcall
     if (equal(token->next, "("))
       return funcall(rest, token);
@@ -760,8 +777,14 @@ Node *primary(Token **rest, Token *token) {
     token = token->next;
     *rest = token;
     return n;
-  } else {
-    error("%s", "no num, no ident, no func");
   }
+
+  if (token->kind == TK_STR) {
+    Obj *var = new_string_literal(token->ty);
+    *rest = token->next;
+    return new_node_var(var);
+  }
+
+  error("%s", "no num, no ident, no func");
 
 }

@@ -9,6 +9,7 @@ typedef enum {
   TK_IDENT, // Identifiers
   TK_PUNCT, // Punctuators
   TK_KEYWORD, // if, while, etc..
+  TK_STR,
   TK_NUM,
   TK_EOF,
 } TokenKind;
@@ -19,6 +20,9 @@ typedef struct Token {
   int val;
   char *loc;
   int len;
+  // str
+  struct Type *ty;
+  char *str;
 } Token;
 
 typedef enum {
@@ -100,6 +104,9 @@ typedef struct Obj {
 
   // function or global variable
   bool is_function;
+
+  // global variable
+  char *init_data;
 
   //function
   struct Obj *params;
