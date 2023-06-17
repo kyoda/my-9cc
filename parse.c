@@ -155,6 +155,10 @@ bool is_function(Token *token) {
   }
 }
 
+bool is_type(Token *token) {
+  return equal(token, "int") || equal(token, "char");
+}
+
 void create_params(Token **rest, Token *token) {
   expect(&token, token, "(");
 
@@ -239,15 +243,19 @@ Obj *parse(Token *token) {
   return globals;
 }
 
-// declspec ::= "int"
+// declspec ::= "int" || "char"
 Type *declspec(Token **rest, Token *token) {
+  Type *ty;
   if (equal(token, "int")) {
-    Type *ty = ty_int();
-    *rest = token->next;
-    return ty;
+    ty = ty_int();
+  } else if (equal(token, "char")) {
+    ty = ty_char();
+  } else {
+    error("%s", "no int type");
   }
 
-  error("%s", "no int type");
+  *rest = token->next;
+  return ty;
 }
 
 // declaration ::= declspec (declarator ("=" expr)? ("," declarator ("=" expr)?)*)? ";"
@@ -363,7 +371,7 @@ Node *stmt(Token **rest, Token *token) {
     return n;
   }
 
-  if (equal(token, "int")) {
+  if (is_type(token)) {
     n = declaration(&token, token);
     add_type(n);
     *rest = token;

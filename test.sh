@@ -109,6 +109,9 @@ assert 12 "int x; int y; int z; int main() { x = 3; y = 4; z = 5; return x + y +
 
 assert 12 "int x, y, z; int main() { x=3;y=4;z=5;return x + y + z; }"
 assert 12 "int main() { int a = 3, b = 4, c = 5;  return a + b + c;}"
+assert 3 "int main() { char a = 3; return a;}"
+assert 2 "int main() { char a = 3; int b = -1; return a + b;}"
+assert 3 "int main() { char a[2]; a[0] = 1; a[1] = 3; int b = -1; return a[0] + a[1] + b;}"
 
 
 echo OK

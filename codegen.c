@@ -10,6 +10,18 @@ static int count() {
   return i++;
 }
 
+void load(Type *ty) {
+  if (ty->kind == TY_ARRAY) {
+    return;
+  }
+
+  if (ty->size == 1) {
+    printf("  mov al, [rax]\n");
+  } else {
+    printf("  mov rax, [rax]\n");
+  }
+}
+
 void gen_addr(Node *n) {
   switch(n->kind) {
   case ND_VAR:
@@ -43,10 +55,7 @@ void gen_expr(Node *n) {
     return;
   case ND_VAR:
     gen_addr(n);
-
-    if (n->var->ty->kind != TY_ARRAY) {
-      printf("  mov rax, [rax]\n");
-    }
+    load(n->var->ty);
 
     return;
   case ND_FUNC: {
@@ -75,16 +84,19 @@ void gen_expr(Node *n) {
 
     printf("  pop rdi\n");
     printf("  pop rax\n");
-    printf("  mov [rax], rdi\n");
+
+    if (n->ty->size == 1) {
+      printf("  mov [rax], dil\n");
+    } else {
+      printf("  mov [rax], rdi\n");
+    }
+
     printf("  mov rax, rdi\n");
 
     return;
   case ND_DEREF:
     gen_expr(n->lhs);
-
-    if (n->ty->kind != TY_ARRAY) {
-      printf("  mov rax, [rax]\n");
-    }
+    load(n->ty);
 
     return;
   case ND_ADDR:

@@ -16,7 +16,7 @@ EBNF (Extended BNF)
 演算子 (Operator)  
 被演算子 (Operand)  
 デリファレンス演算子（dereference operator）
-
+ニーモニック（mnemonic）
 
 # 生成文法
 
@@ -59,25 +59,6 @@ declspec -> 型
 ```
 
 ```
-compound-stmt = (declaration | stmt)* "}"
-stmt = "return" expr ";"
-     | "if" "(" expr ")" stmt ("else" stmt)?
-     | "for" "(" expr-stmt expr? ";" expr? ")" stmt
-     | "while" "(" expr ")" stmt
-     | "{" compound-stmt
-     | expr-stmt
-declaration = declspec (declarator ("=" expr)? ("," declarator ("=" expr)?)*)? ";"
-declspec = "int"
-declarator = "*"* ident type-suffix
-type-suffix = "(" func-params
-            | "[" num "]"
-            | ε
-func-params = (param ("," param)*)? ")"
-param       = declspec declarator
-```
-
-declarator = * test ( int * test2())
-int *test (int *test2());
 
 # stack
 

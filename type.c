@@ -8,6 +8,14 @@ Type *ty_int() {
   return ty;
 }
 
+Type *ty_char() {
+  Type *ty = calloc(1, sizeof(Type));
+  ty->kind = TY_CHAR;
+  ty->size = 1;
+  ty->align = 8;
+  return ty;
+}
+
 Type *pointer_to(Type *base) {
   Type *ty = calloc(1, sizeof(Type));
   ty->kind = TY_PTR;
