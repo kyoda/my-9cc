@@ -10,7 +10,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/9cc",
             "args": [
-                "int x; int main() { x = 7; return x; }"
+                "int main() { char *str = \\\"abc\\\"; return str[0]; }"
             ],
             "preLaunchTask": "build_9cc",
             "stopAtEntry": false,

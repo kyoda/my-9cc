@@ -129,7 +129,7 @@ Token *tokenize(char* p) {
         p++;
       }
       cur = new_token(TK_STR, cur, start, p - start);
-      cur->ty = ty_array(ty_char(), p - start);
+      cur->ty = ty_array(ty_char(), p - start + 1);
       cur->str = strndup(start, p - start);
 
       p++;

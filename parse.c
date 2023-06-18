@@ -81,15 +81,13 @@ Obj *new_gvar(char *name, Type *ty) {
 char *new_unique_name() {
   static id = 0;
   char *buf = calloc(1, 20);
-  char *str = "abc";
   sprintf(buf, ".L..%d", id++);
   return buf;
 }
 
-Obj *new_string_literal(Type *ty) {
+Obj *new_string_literal(char *str, Type *ty) {
   Obj *gvar = new_gvar(new_unique_name(), ty);
-  gvar->next = globals;
-  globals = gvar;
+  gvar->init_data = str;
 
   return gvar;
 }
@@ -250,9 +248,9 @@ Obj *parse(Token *token) {
 
   while (token->kind != TK_EOF) {
     if (is_function(token)) {
-      globals = function(&token, token);
+      function(&token, token);
     } else {
-      globals = global_variable(&token, token);
+      global_variable(&token, token);
     }
   }
 
@@ -780,7 +778,7 @@ Node *primary(Token **rest, Token *token) {
   }
 
   if (token->kind == TK_STR) {
-    Obj *var = new_string_literal(token->ty);
+    Obj *var = new_string_literal(token->str, token->ty);
     *rest = token->next;
     return new_node_var(var);
   }
