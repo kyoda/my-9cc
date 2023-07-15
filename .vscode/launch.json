@@ -10,7 +10,8 @@
             "request": "launch",
             "program": "${workspaceFolder}/9cc",
             "args": [
-                "int main() { char *str = \\\"abc\\\"; return str[0]; }"
+                //"int main() { char *str = \\\"abc\\\"; return str[0]; }"
+                "int main() { printf(\\\"abc\\n\\\", 0); }"
             ],
             "preLaunchTask": "build_9cc",
             "stopAtEntry": false,
@@ -31,8 +32,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/tmp",
-            "args": [
-            ],
+            "args": [],
             "stopAtEntry": true,
             "cwd": "${fileDirname}",
             "environment": [],

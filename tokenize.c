@@ -64,6 +64,69 @@ int keyword_len(char *p) {
   return 0;
 }
 
+char *string_literal_end(char *p) {
+  while (*p != '"') {
+    if (*p == '\n' || *p == '\0') {
+      error_at(p, "unclosed string literal");
+    }
+
+    // skip escaped double qoute
+    if (*p == '\\') {
+      p++;
+    }
+
+    p++;
+  }
+
+  return p;
+}
+
+Token *read_string_literal(char *start) {
+  char *end = string_literal_end(start + 1);
+  char *buf = calloc(1, end - start);
+
+  int len = 0;
+  for (char *p = start + 1; p < end; p++) {
+    if (*p == '\\') {
+      buf[len++] = read_escaped_char(++p);
+    } else {
+      buf[len++] = *p;
+    }
+  }
+
+  Token *t = calloc(1, sizeof(Token));
+  t->kind = TK_STR;
+  t->loc = start;
+  t->len = len + 1;
+  t->ty = ty_array(ty_char(), len + 1);
+  t->str = buf;
+
+  return t;
+}
+
+int read_escaped_char(char *p) {
+  switch (*p) {
+    case 'a':
+      return '\a';
+    case 'b':
+      return '\b';
+    case 't':
+      return '\t';
+    case 'n':
+      return '\n';
+    case 'v':
+      return '\v';
+    case 'f':
+      return '\f';
+    case 'r':
+      return '\r';
+    case '"':
+      return '\"';
+    default:
+      return *p;
+  }
+}
+
 Token *tokenize(char* p) {
   user_input = p;
   Token head;
@@ -122,17 +185,10 @@ Token *tokenize(char* p) {
       continue;
     }
 
-    if (strchr("\"", *p)) {
-      p++;
-      start = p; 
-      while (!strchr("\"", *p)) {
-        p++;
-      }
-      cur = new_token(TK_STR, cur, start, p - start);
-      cur->ty = ty_array(ty_char(), p - start + 1);
-      cur->str = strndup(start, p - start);
-
-      p++;
+    //string literal
+    if (*p == '"') {
+      cur = cur->next = read_string_literal(p);
+      p += cur->len + 1;
       continue;
     }
 
