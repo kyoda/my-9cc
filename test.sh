@@ -126,5 +126,8 @@ assert 12 'int main() { return "\f"[0]; }'
 assert 13 'int main() { return "\r"[0]; }'
 assert 34 'int main() { return "\""[0]; }'
 
+assert 1 'int main() { //return 0;
+return 1; }'
+assert 2 'int main() { /*return 1;*/ return 2; }'
 
 echo OK

@@ -182,6 +182,25 @@ Token *tokenize(char* p) {
       continue;
     }
 
+    //skip line comments
+    if (strncmp(p, "//", 2) == 0) {
+      p += 2;
+      while (*p != '\n') {
+        p++;
+      }
+      continue;
+    }
+
+    //skip block comments
+    if (strncmp(p, "/*", 2) == 0) {
+      char *q = strstr(p + 2, "*/");
+      if (!q) {
+        error_at(p, "unclosed block comment");
+      }
+      p = q + 2;
+      continue;
+    }
+
     //KEYWORDS
     int kl = keyword_len(p);
     if (kl) {
