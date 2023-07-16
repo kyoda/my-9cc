@@ -97,7 +97,7 @@ Token *read_string_literal(char *start) {
   Token *t = calloc(1, sizeof(Token));
   t->kind = TK_STR;
   t->loc = start;
-  t->len = len + 1;
+  t->len = end + 1 - start;
   t->ty = ty_array(ty_char(), len + 1);
   t->str = buf;
 
@@ -188,7 +188,7 @@ Token *tokenize(char* p) {
     //string literal
     if (*p == '"') {
       cur = cur->next = read_string_literal(p);
-      p += cur->len + 1;
+      p += cur->len;
       continue;
     }
 
