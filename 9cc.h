@@ -4,6 +4,7 @@
 #include <ctype.h>
 #include <string.h>
 #include <stdarg.h>
+#include <errno.h>
 
 typedef enum {
   TK_IDENT, // Identifiers
@@ -123,6 +124,6 @@ void error_at(char *loc, char *fmt, ...);
 void codegen(Obj *prog);
 void gen_main();
 void gen(Node *n);
-Token *tokenize();
+Token *tokenize_file(char *path);
 Obj *parse(Token *token);
 int align_to(int n, int align);

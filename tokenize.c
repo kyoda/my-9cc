@@ -127,6 +127,47 @@ int read_escaped_char(char *p) {
   }
 }
 
+char *read_file(char *path) {
+  FILE *fp;
+  if (strcmp(path, "-") == 0) {
+    fp = stdin;
+  } else {
+    fp = fopen(path, "r");
+    if (!fp) {
+      error("cannot open %s: %s", path, strerror(errno));
+    }
+  }
+
+  char *buf;
+  size_t buflen;
+  FILE *out = open_memstream(&buf, &buflen);
+
+  for (;;) {
+    char line[4096];
+    int n = fread(line, 1, sizeof(line), fp);
+    if (n == 0) {
+      break;
+    }
+    fwrite(line, 1, n, out);
+  }
+
+  if (fp != stdin) {
+    fclose(fp);
+  }
+
+  fflush(out);
+
+  // add newline to end of file
+  if (buflen == 0 || buf[buflen - 1] != '\n') {
+    fputc('\n', out);
+  }
+  fputc('\0', out);
+
+  fclose(out);
+
+  return buf;
+}
+
 Token *tokenize(char* p) {
   user_input = p;
   Token head;
@@ -200,3 +241,6 @@ Token *tokenize(char* p) {
 
 }
 
+Token *tokenize_file(char *path) {
+  return tokenize(read_file(path));
+}
