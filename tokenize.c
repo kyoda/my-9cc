@@ -13,10 +13,10 @@ void error_at(char *loc, char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
   int pos = loc - user_input;
-  fprintf(stderr, "%s\n", user_input);
-  fprintf(stderr, "%*s\n", pos, " ");
+  fprintf(stderr, "%s", user_input);
+  fprintf(stderr, "%*s", pos, " ");
   fprintf(stderr, "^ ");
-  fprintf(stderr, fmt, ap);
+  vfprintf(stderr, fmt, ap);
   fprintf(stderr, "\n");
   exit(1);
 }
@@ -48,7 +48,7 @@ int equal(Token *t, char *key) {
 
 Token *skip(Token *t, char *op) {
   if (!equal(t, op))
-    error("expected %s", op);
+    error_at(t->loc, "expected %s", op);
   return t->next;
 }
 
@@ -252,7 +252,7 @@ Token *tokenize(char* p) {
       continue;
     }
 
-    error("%s", "can't tokenize");
+    error_at(p, "%s", "can't tokenize");
   }
 
   new_token(TK_EOF, cur, NULL, 0);

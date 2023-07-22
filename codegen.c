@@ -38,7 +38,7 @@ void gen_addr(Node *n) {
     return;
   }
 
-  error("%s", "invalid addr");
+  error("invalid addr: %s", n->var->name);
 }
 
 void gen_expr(Node *n) {

@@ -110,7 +110,7 @@ Obj *find_var(Token *t) {
 
 char *get_ident_name(Token *t) {
   if (t->kind != TK_IDENT) {
-    error("%s", "expected an identifier");
+    error_at(t->loc, "%s", "expected an identifier");
   }
     
   return strndup(t->loc, t->len);
@@ -133,8 +133,7 @@ bool expect(Token **rest, Token *token, char *op) {
       strncmp(token->loc, op, token->len) == 0) {
     *rest = token->next;
   } else {
-    //error_at(token->loc, "no op: %s", op);
-    error("no op: %s", op);
+    error_at(token->loc, "no op: %s", op);
     exit(1);
   }
 }
@@ -143,7 +142,7 @@ bool expect_ident(Token **rest, Token *token) {
   if (token->kind == TK_IDENT) {
     *rest = token->next;
   } else {
-    error("%s", "expect TK_IDENT");
+    error_at(token->loc, "%s", "expect TK_IDENT");
   }
 }
 
@@ -231,7 +230,7 @@ Obj *global_variable (Token **rest, Token *token) {
 
       gvar = find_var(ty->token);
       if (gvar) {
-        error("%s", "defined gloval variable");
+        error_at(ty->token->loc, "%s", "defined gloval variable");
       }
 
       gvar = new_gvar(get_ident_name(ty->token), ty);
@@ -265,7 +264,7 @@ Type *declspec(Token **rest, Token *token) {
   } else if (equal(token, "char")) {
     ty = ty_char();
   } else {
-    error("%s", "no int type");
+    error(token->loc, "%s", "none of type defined");
   }
 
   *rest = token->next;
@@ -289,7 +288,7 @@ Node *declaration(Token **rest, Token *token) {
       Type *ty = declarator(&token, token, basety);
       Obj *lvar = find_var(ty->token);
       if (lvar) {
-        error("%s", "defined variable");
+        error_at(ty->token->loc, "%s", "defined variable");
       }
 
       lvar = new_lvar(get_ident_name(ty->token), ty);
@@ -319,7 +318,7 @@ Type *declarator(Token **rest, Token *token, Type *ty) {
     }
 
     if (token->kind != TK_IDENT) {
-      error("%s", "expect TK_IDENT");
+      error_at(token->loc, "%s", "expect TK_IDENT");
     }
 
     ty = type_suffix(rest, token->next, ty);
@@ -335,7 +334,7 @@ Type *type_suffix(Token **rest, Token *token, Type *ty) {
     token = token->next;
 
     if (token->kind != TK_NUM) {
-      error("%s", "expect TK_NUM");
+      error_at(token->loc, "%s", "expect TK_NUM");
     }
 
     int size = token->val;
@@ -554,7 +553,7 @@ Node *new_add(Node *lhs, Node *rhs, Token *token) {
 
   // pointer + pointer
   if (lhs->ty->next && rhs->ty->next) {
-    error("%s", "invalid operand");
+    error_at(token->loc, "%s", "invalid operand");
   }
 
   // num + pointer to pointer + num
@@ -596,7 +595,7 @@ Node *new_sub(Node *lhs, Node *rhs, Token *token) {
     return n;
   }
 
-  error("%s", "invalid operand");
+  error_at(token->loc, "%s", "invalid operand");
 }
 
 // add = mul ("+" mul | "-" mul)*
@@ -769,7 +768,7 @@ Node *primary(Token **rest, Token *token) {
     if (lvar) {
       n->var = lvar;
     } else {
-      error("%s", "variable not definded");
+      error_at(token->loc, "%s", "variable not definded");
     }
 
     token = token->next;
@@ -783,6 +782,6 @@ Node *primary(Token **rest, Token *token) {
     return new_node_var(var);
   }
 
-  error("%s", "no num, no ident, no func");
+  error_at(token->loc, "%s", "no num, no ident, no func");
 
 }
