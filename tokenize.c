@@ -1,5 +1,6 @@
 #include "9cc.h"
 char *user_input;
+char *filename;
 
 void error(char *fmt, ...) {
   va_list ap;
@@ -10,10 +11,30 @@ void error(char *fmt, ...) {
 }
 
 void error_at(char *loc, char *fmt, ...) {
+  char *start = loc;
+  while (user_input < start && start[-1] != '\n') {
+    start--;
+  }
+
+  char *end = loc;
+  while (*end != '\n') {
+    end++;
+  }
+
+  int line_num = 1;
+  for(char *p = user_input; p < start; p++) {
+    if (*p == '\n') {
+      line_num++;
+    }
+  }
+
   va_list ap;
   va_start(ap, fmt);
-  int pos = loc - user_input;
-  fprintf(stderr, "%s", user_input);
+
+  int indent = fprintf(stderr, "%s:%d: ", filename, line_num);
+  fprintf(stderr, "%.*s\n", end - start, start);
+
+  int pos = loc - start + indent;
   fprintf(stderr, "%*s", pos, " ");
   fprintf(stderr, "^ ");
   vfprintf(stderr, fmt, ap);
@@ -128,6 +149,7 @@ int read_escaped_char(char *p) {
 }
 
 char *read_file(char *path) {
+  filename = path;
   FILE *fp;
   if (strcmp(path, "-") == 0) {
     fp = stdin;
