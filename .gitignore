@@ -1,7 +1,8 @@
 *~
+*.s
 *.o
+*.out
 tmp*
-a.out
 9cc
-test
+mytest
 .vscode/settings.json
