@@ -6,6 +6,7 @@ OBJS=$(SRCS:.c=.o)
 TEST_SRCS=$(wildcard test/*.c)
 # .cを.oに置き換える
 TEST_OBJS=$(TEST_SRCS:.c=.o)
+TEST_AS=$(TEST_SRCS:.c=.s)
 
 9cc: $(OBJS)
 		$(CC) -o 9cc $(OBJS) $(LDFLAGS)
@@ -27,7 +28,7 @@ test: $(TEST_OBJS)
 #	./test.sh
 
 clean:
-	rm -f 9cc *.o *~ tmp*
+	rm -f 9cc *.o *~ tmp* $(TEST_OBJS) $(TEST_AS)
 
 .PHONY: test clean
 

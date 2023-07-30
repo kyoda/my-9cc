@@ -12,7 +12,7 @@
             "args": [
                 //"int main() { char *str = \\\"abc\\\"; return str[0]; }"
                 //"int main() { printf(\\\"abc\\n\\\", 0); }"
-                "./test/t.c"
+                "/tmp/brace.c"
             ],
             "preLaunchTask": "build_9cc",
             "stopAtEntry": false,
