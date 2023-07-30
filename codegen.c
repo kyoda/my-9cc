@@ -58,6 +58,13 @@ void gen_expr(Node *n) {
     load(n->var->ty);
 
     return;
+  case ND_STMT_EXPR: {
+    for (Node *nb = n->body; nb; nb = nb->next) {
+      gen_stmt(nb);
+    }
+
+    return;
+  }
   case ND_FUNC: {
     int nargs = 0;
 

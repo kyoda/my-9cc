@@ -47,6 +47,7 @@ typedef enum {
   ND_WHILE,
   ND_FOR,
   ND_EXPR_STMT,
+  ND_STMT_EXPR,
   ND_BLOCK
 } NodeKind;
 

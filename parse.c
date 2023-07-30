@@ -349,13 +349,15 @@ Type *type_suffix(Token **rest, Token *token, Type *ty) {
   return ty;
 }
 
-// stmt = expr? ";" |
-//        "{" stmt* "}" |
-//        "if" "(" expr ")" stmt ("else" stmt)? |
-//        "while" "(" expr ")" stmt |
-//        "for" "(" expr? ";" expr? ";" expr? ";"  ")" stmt |
-//        "return" expr ";" |
-//         declaration
+/*
+  stmt = expr? ";"
+       | "{" stmt* "}"
+       | "if" "(" expr ")" stmt ("else" stmt)?
+       | "while" "(" expr ")" stmt
+       | "for" "(" expr? ";" expr? ";" expr? ";"  ")" stmt
+       | "return" expr ";"
+       |  declaration
+*/
 Node *stmt(Token **rest, Token *token) {
   Node *n;
 
@@ -737,24 +739,44 @@ Node *funcall(Token **rest, Token *token) {
   return n;
 }
 
-// primary = num | str |
-//           ident ( "(" assign "," ")" )? | 
-//           "(" expr ")"
+/*
+  primary = "(" "{" stmt+ "}" ")"
+          | "(" expr ")"
+          | ident ( "(" assign "," ")" )?
+          | str
+          | num
+*/
+
 Node *primary(Token **rest, Token *token) {
+  if (equal(token, "(") && equal(token->next, "{")) {
+    token = token->next->next;
+
+    Node head = {};
+    Node *cur = &head;
+    // ({stmt+})のstmtの中でreturnがあるのを許してしまっている。
+    while (!equal(token, "}")) {
+      cur->next = stmt(&token, token);
+      cur = cur->next;
+    }
+
+    expect(&token, token, "}");
+    Node *n = new_node(ND_STMT_EXPR);
+    if (!head.next) {
+      error_at(token->loc, "%s", "empty block");
+    }
+    n->body = head.next;
+
+    expect(&token, token, ")");
+
+    *rest = token;
+    return n;
+  }
 
   if (consume(&token, token, "(")) {
     Node *n = expr(&token, token);
     expect(&token, token, ")");
     *rest = token;
     return n;
-  }
-
-  if (token->kind == TK_NUM) {
-    int v = token->val;
-    token = token->next;
-
-    *rest = token;
-    return new_node_num(v);
   }
 
   if (token->kind == TK_IDENT) {
@@ -782,6 +804,14 @@ Node *primary(Token **rest, Token *token) {
     return new_node_var(var);
   }
 
-  error_at(token->loc, "%s", "no num, no ident, no func");
+  if (token->kind == TK_NUM) {
+    int v = token->val;
+    token = token->next;
+
+    *rest = token;
+    return new_node_num(v);
+  }
+
+  error_at(token->loc, "%s", "expect ({}), (), ident, funcall, str and num");
 
 }
