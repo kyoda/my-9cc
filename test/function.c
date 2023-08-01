@@ -7,8 +7,6 @@ int add3(int a, int b, int c) { return a + b + c; }
 int mul3(int a, int b, int c) { return a * b * c; }
 int cal3(int a, int b, int c) { return a - b * c; }
 int cal6(int a, int b, int c, int d, int e, int f) { return f + e / b - c - a - d; }
-//void alloc3(int **p, int a, int b, int c) { int *i = malloc(sizeof(int) * 3); i[0] = a, i[1] = b; i[2] = c; *p = i; };
-//void alloc3add2(int **p, int a, int b, int c) { int *i = malloc(sizeof(int) * 3); i[0] = a, i[1] = b; i[2] = c; *p = i + 2; };
 
 int main() {
   ASSERT(3, ret3());

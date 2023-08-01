@@ -12,7 +12,10 @@
             "args": [
                 //"int main() { char *str = \\\"abc\\\"; return str[0]; }"
                 //"int main() { printf(\\\"abc\\n\\\", 0); }"
-                "/tmp/brace.c"
+                //"/tmp/brace.c"
+                //"/tmp/variable.c"
+                //"/tmp/string.c"
+                "/tmp/control.c"
             ],
             "preLaunchTask": "build_9cc",
             "stopAtEntry": false,

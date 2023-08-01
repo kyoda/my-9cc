@@ -8,10 +8,10 @@ int main() {
   //local
   ASSERT(2, ({ int a; a = 2; }));
   ASSERT(2, ({ int a = 2; a; }));
-  //ASSERT(10, ({ int a = 1; int b = 4*3; b / a - 2; }));
+  ASSERT(10, ({ int a = 1; int b = 4*3; b / a - 2; }));
   ASSERT(25, ({ int c; int d; c=d=5; c*d; }));
   ASSERT(2, ({ int a; int b; int c; int d; a=b=c=d=2;}));
-  //ASSERT(30, ({ int _foo1=5; int _bar2=6; _foo1*_bar2; }));
+  ASSERT(30, ({ int _foo1=5; int _bar2=6; _foo1*_bar2; }));
 
   //global
   ASSERT(0, ({ x; }));

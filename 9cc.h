@@ -125,6 +125,7 @@ typedef struct Scope {
 
 typedef struct VarScope {
   char *name;
+  Obj *var;
   struct VarScope *next;
 } VarScope;
 

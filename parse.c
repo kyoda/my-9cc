@@ -2,7 +2,7 @@
 
 Obj *locals;
 Obj *globals;
-Scope *scope;
+Scope *scope = NULL;
 Obj *find_var(Token *t);
 
 Type *declspec(Token **rest, Token *token);
@@ -68,8 +68,11 @@ Obj *new_lvar(char *name, Type *ty) {
   lvar->next = locals;
   locals = lvar;
 
-  lvar->next = scope->vars;
-  scope->vars = lvar;
+  VarScope *v = calloc(1, sizeof(VarScope));
+  v->name = name;
+  v->var = lvar;
+  v->next = scope->vars;
+  scope->vars = v;
 
   return lvar;
 }
@@ -112,9 +115,9 @@ static void leave_scope() {
 
 Obj *find_var(Token *t) {
   for (Scope *sc = scope; sc; sc = sc->next) {
-    for (Obj *var = sc->vars; var; var = var->next) {
-      if (strncmp(t->loc, var->name, t->len) == 0) {
-        return var;
+    for (VarScope *vs = sc->vars; vs; vs = vs->next) {
+      if (strncmp(t->loc, vs->name, t->len) == 0) {
+        return vs->var;
       }
     }
   }
@@ -462,7 +465,7 @@ Node *stmt(Token **rest, Token *token) {
     expect(&token, token, ")");
     n->then = stmt(&token, token);
 
-    *rest = token->next;
+    *rest = token;
     return n;
   }
 
