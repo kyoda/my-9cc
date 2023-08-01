@@ -2,6 +2,7 @@
 
 Obj *locals;
 Obj *globals;
+Scope *scope;
 Obj *find_var(Token *t);
 
 Type *declspec(Token **rest, Token *token);
@@ -67,6 +68,9 @@ Obj *new_lvar(char *name, Type *ty) {
   lvar->next = locals;
   locals = lvar;
 
+  lvar->next = scope->vars;
+  scope->vars = lvar;
+
   return lvar;
 }
 
@@ -92,15 +96,31 @@ Obj *new_string_literal(char *str, Type *ty) {
   return gvar;
 }
 
+static void enter_scope() {
+  Scope *sc = calloc(1, sizeof(Scope));
+  sc->next = scope;
+  scope = sc;
+}
+
+/*
+  変数検索では、block scopeと親のblockを探索する。
+  blockを抜けた後は、利用しないためpointerを保持していない 。
+*/
+static void leave_scope() {
+ scope = scope->next; 
+}
+
 Obj *find_var(Token *t) {
-  for (Obj *var = locals; var; var = var->next) {
-    if (var->len == t->len && strncmp(t->loc, var->name, var->len) == 0) {
-      return var;
+  for (Scope *sc = scope; sc; sc = sc->next) {
+    for (Obj *var = sc->vars; var; var = var->next) {
+      if (strncmp(t->loc, var->name, t->len) == 0) {
+        return var;
+      }
     }
   }
 
   for (Obj *var = globals; var; var = var->next) {
-    if (var->len == t->len && strncmp(t->loc, var->name, var->len) == 0) {
+    if (strncmp(t->loc, var->name, t->len) == 0) {
       return var;
     }
   }
@@ -202,6 +222,9 @@ Obj *function (Token **rest, Token *token) {
   fn->is_function = true;
   token = token->next;
 
+  scope = NULL;
+  enter_scope();
+
   locals = NULL;
   create_params(&token, token);
 
@@ -210,6 +233,8 @@ Obj *function (Token **rest, Token *token) {
   fn->body = stmt(&token, token);
   add_type(fn->body);
   fn->locals = locals;
+
+  leave_scope();
 
   *rest = token;
   return fn;
@@ -372,6 +397,9 @@ Node *stmt(Token **rest, Token *token) {
     n = calloc(1, sizeof(Node));
     n->kind = ND_BLOCK;
     expect(&token, token, "{");
+    
+    enter_scope();
+
     Node head = {};
     Node *cur = &head;
     while (!equal(token, "}")) {
@@ -380,6 +408,9 @@ Node *stmt(Token **rest, Token *token) {
     }
 
     expect(&token, token, "}");
+
+    leave_scope();
+
     n->body = head.next;
 
     *rest = token;
@@ -751,6 +782,8 @@ Node *primary(Token **rest, Token *token) {
   if (equal(token, "(") && equal(token->next, "{")) {
     token = token->next->next;
 
+    enter_scope();
+
     Node head = {};
     Node *cur = &head;
     // ({stmt+})のstmtの中でreturnがあるのを許してしまっている。
@@ -760,6 +793,9 @@ Node *primary(Token **rest, Token *token) {
     }
 
     expect(&token, token, "}");
+
+    leave_scope();
+
     Node *n = new_node(ND_STMT_EXPR);
     if (!head.next) {
       error_at(token->loc, "%s", "empty block");

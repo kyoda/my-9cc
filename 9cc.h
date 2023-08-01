@@ -118,6 +118,16 @@ typedef struct Obj {
 
 } Obj;
 
+typedef struct Scope {
+  struct Scope *next;
+  struct VarScope *vars;
+} Scope;
+
+typedef struct VarScope {
+  char *name;
+  struct VarScope *next;
+} VarScope;
+
 int equal(Token *t, char *key);
 Token *skip(Token *t, char *op);
 void error(char *fmt, ...);
