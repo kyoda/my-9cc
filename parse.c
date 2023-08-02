@@ -2,8 +2,7 @@
 
 Obj *locals;
 Obj *globals;
-Scope *scope = NULL;
-Obj *find_var(Token *t);
+Scope *scope = &(Scope){};
 
 Type *declspec(Token **rest, Token *token);
 Node *declaration(Token **rest, Token *token);
@@ -195,12 +194,13 @@ bool is_type(Token *token) {
   return equal(token, "int") || equal(token, "char");
 }
 
-void create_params(Token **rest, Token *token) {
+static void function_params(Token **rest, Token *token) {
   expect(&token, token, "(");
 
   while (!equal(token, ")")) {
-    if (locals != NULL)
+    if (locals) {
       expect(&token, token, ",");
+    }
 
 
     Type *ty = declspec(&token, token);
@@ -218,18 +218,17 @@ void create_params(Token **rest, Token *token) {
 }
 
 // function_or_decl ::= declspec ident "(" function_params? ")" ( stmt? | ";")
-Obj *function (Token **rest, Token *token) {
+static void *function (Token **rest, Token *token) {
   Type *ty = declspec(&token, token);
 
   Obj *fn = new_gvar(get_ident_name(token), ty);
   fn->is_function = true;
   token = token->next;
 
-  scope = NULL;
   enter_scope();
 
   locals = NULL;
-  create_params(&token, token);
+  function_params(&token, token);
 
   fn->params = locals;
 
@@ -240,10 +239,9 @@ Obj *function (Token **rest, Token *token) {
   leave_scope();
 
   *rest = token;
-  return fn;
 }
 
-Obj *global_variable (Token **rest, Token *token) {
+static void *global_variable (Token **rest, Token *token) {
     Obj *gvar;
     Type *basety = declspec(&token, token);
 
@@ -266,7 +264,6 @@ Obj *global_variable (Token **rest, Token *token) {
   
     expect(&token, token, ";");
     *rest = token;
-    return gvar;
 }
 
 // program ::= (declaration | function)*

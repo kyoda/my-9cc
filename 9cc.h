@@ -134,8 +134,5 @@ Token *skip(Token *t, char *op);
 void error(char *fmt, ...);
 void error_at(char *loc, char *fmt, ...);
 void codegen(Obj *prog);
-void gen_main();
-void gen(Node *n);
 Token *tokenize_file(char *path);
 Obj *parse(Token *token);
-int align_to(int n, int align);
