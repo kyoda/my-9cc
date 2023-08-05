@@ -27,7 +27,7 @@ int main() {
   ASSERT(10, ({ "\x000a"[0]; }));
   ASSERT(170, ({ "\x000aA"[0]; }));
   ASSERT(255, ({ "\x000ff"[0]; }));
-  ASSERT(255, ({ "\x000ffc"[0]; }));
+  ASSERT(252, ({ "\x000ffc"[0]; }));
 
   //comment
   ASSERT(1, ({ //return 0;
