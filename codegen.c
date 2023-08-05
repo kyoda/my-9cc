@@ -16,7 +16,7 @@ void load(Type *ty) {
   }
 
   if (ty->size == 1) {
-    printf("  movsx rax, BYTE PTR [rax]\n");
+    printf("  movzx rax, BYTE PTR [rax]\n");
   } else {
     printf("  mov rax, [rax]\n");
   }

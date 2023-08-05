@@ -3,7 +3,7 @@
 int x;
 int y;
 int z;
-int *str;
+char *str;
 
 int main() {
   //local

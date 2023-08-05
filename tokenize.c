@@ -109,7 +109,7 @@ Token *read_string_literal(char *start) {
   int len = 0;
   for (char *p = start + 1; p < end; p++) {
     if (*p == '\\') {
-      buf[len++] = read_escaped_char(++p);
+      buf[len++] = read_escaped_char(&p, ++p);
     } else {
       buf[len++] = *p;
     }
@@ -125,7 +125,21 @@ Token *read_string_literal(char *start) {
   return t;
 }
 
-int read_escaped_char(char *p) {
+int read_escaped_char(char **new_pos, char *p) {
+  // octal escape sequence
+  if ('0' <= *p && *p <= '7') {
+    int c = *p++ - '0';
+    if ('0' <= *p && *p <= '7') {
+      c = c*8 + (*p++ - '0');
+      if ('0' <= *p && *p <= '7') {
+        c = c*8 + (*p++ - '0');
+      }
+    }
+
+    *new_pos = p;
+    return c;
+  }
+
   switch (*p) {
     case 'a':
       return '\a';
