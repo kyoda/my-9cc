@@ -3,6 +3,7 @@
 int x;
 int y;
 int z;
+int *str;
 
 int main() {
   //local
@@ -19,6 +20,9 @@ int main() {
   ASSERT(8, ({ sizeof &x; }));
   ASSERT(7, ({ x = 7; x; }));
   ASSERT(12, ({ x = 3; y = 4; z = 5; x + y + z; }));
+  ASSERT(8, ({ sizeof str; }));
+  ASSERT(1, ({ sizeof str[0]; }));
+  ASSERT(97, ({ str = "abc"; str[0];}));
 
   printf("OK\n");
   return 0;

@@ -241,6 +241,15 @@ static void *function (Token **rest, Token *token) {
   *rest = token;
 }
 
+static void *gvar_initializer(Token **rest, Token *token, Obj *gvar) {
+  /*
+  if (gvar->ty->kind == TY_ARRAY) {
+    gvar->init_data = token->str;
+    *rest = token->next;
+  }
+  */
+}
+
 static void *global_variable (Token **rest, Token *token) {
     Obj *gvar;
     Type *basety = declspec(&token, token);
@@ -260,6 +269,10 @@ static void *global_variable (Token **rest, Token *token) {
       }
 
       gvar = new_gvar(get_ident_name(ty->token), ty);
+
+      if (consume(&token, token, "=")) {
+        gvar_initializer(&token, token, gvar);
+      }
     }
   
     expect(&token, token, ";");
@@ -835,6 +848,7 @@ Node *primary(Token **rest, Token *token) {
   }
 
   if (token->kind == TK_STR) {
+    // string literalは、.data領域に格納する。
     Obj *var = new_string_literal(token->str, token->ty);
     *rest = token->next;
     return new_node_var(var);
