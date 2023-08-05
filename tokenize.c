@@ -125,7 +125,39 @@ Token *read_string_literal(char *start) {
   return t;
 }
 
+static int from_hex(char *p) {
+  if ('0' <= *p && *p <= '9') {
+    return *p - '0';
+  } 
+
+  if ('a' <= *p && *p <= 'f') {
+    return *p - 'a' + 10;
+  }
+
+  if ('A' <= *p && *p <= 'F') {
+    return *p - 'A' + 10;
+  }
+
+  error_at(p, "invalid hex escape sequence");
+}
+
 int read_escaped_char(char **new_pos, char *p) {
+  // hex escape sequence
+  if (*p == 'x') {
+    p++;
+    if (!isxdigit(*p)) {
+      error_at(p, "invalid hex escape sequence");
+    }
+
+    int c = 0;
+    for (; isxdigit(*p); p++) {
+      c = c * 16 + from_hex(p);
+    }
+
+    *new_pos = p;
+    return c;
+  }
+
   // octal escape sequence
   if ('0' <= *p && *p <= '7') {
     int c = *p++ - '0';

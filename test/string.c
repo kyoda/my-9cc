@@ -13,12 +13,21 @@ int main() {
   ASSERT(12, ({ "\f"[0]; }));
   ASSERT(13, ({ "\r"[0]; }));
   ASSERT(34, ({ "\""[0]; }));
+
+  // octal escape
   ASSERT(0, ({ "\0"[0]; }));
   ASSERT(7, ({ "\7a"[0]; }));
   ASSERT(7, ({ "\007"[0]; }));
   ASSERT(24, ({ "\030"[0]; }));
   ASSERT(192, ({ "\300"[0]; }));
   ASSERT(192, ({ "\3000"[0]; }));
+
+  // hex escape
+  ASSERT(0, ({ "\x0"[0]; }));
+  ASSERT(10, ({ "\x000a"[0]; }));
+  ASSERT(170, ({ "\x000aA"[0]; }));
+  ASSERT(255, ({ "\x000ff"[0]; }));
+  ASSERT(255, ({ "\x000ffc"[0]; }));
 
   //comment
   ASSERT(1, ({ //return 0;
