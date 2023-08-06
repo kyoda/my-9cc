@@ -1,57 +1,57 @@
 #include "9cc.h"
 
-Obj *locals;
-Obj *globals;
-Scope *scope = &(Scope){};
+static Obj *locals;
+static Obj *globals;
+static Scope *scope = &(Scope){};
 
-Type *declspec(Token **rest, Token *token);
-Node *declaration(Token **rest, Token *token);
-Type *declarator(Token **rest, Token *token, Type *ty);
-Type *type_suffix(Token **rest, Token *token, Type *ty);
-Node *stmt(Token **rest, Token *token);
-Node *expr_stmt(Token **rest, Token *token);
-Node *expr(Token **rest, Token *token);
-Node *assign(Token **rest, Token *token);
-Node *equality(Token **rest, Token *token);
-Node *relational(Token **rest, Token *token);
-Node *add(Token **rest, Token *token);
-Node *mul(Token **rest, Token *token);
-Node *unary(Token **rest, Token *token);
-Node *postfix(Token **rest, Token *token);
-Node *primary(Token **rest, Token *token);
+static Type *declspec(Token **rest, Token *token);
+static Node *declaration(Token **rest, Token *token);
+static Type *declarator(Token **rest, Token *token, Type *ty);
+static Type *type_suffix(Token **rest, Token *token, Type *ty);
+static Node *stmt(Token **rest, Token *token);
+static Node *expr_stmt(Token **rest, Token *token);
+static Node *expr(Token **rest, Token *token);
+static Node *assign(Token **rest, Token *token);
+static Node *equality(Token **rest, Token *token);
+static Node *relational(Token **rest, Token *token);
+static Node *add(Token **rest, Token *token);
+static Node *mul(Token **rest, Token *token);
+static Node *unary(Token **rest, Token *token);
+static Node *postfix(Token **rest, Token *token);
+static Node *primary(Token **rest, Token *token);
 
-Node *new_node(NodeKind kind) {
+static Node *new_node(NodeKind kind) {
   Node *n = calloc(1, sizeof(Node));
   n->kind = kind;
   return n;
 }
 
-Node *new_node_unary(NodeKind kind, Node *lhs) {
+static Node *new_node_unary(NodeKind kind, Node *lhs) {
   Node *n = new_node(kind);
   n->lhs= lhs;
   return n;
 }
 
-Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs) {
+static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs) {
   Node *n = new_node(kind);
   n->lhs = lhs;
   n->rhs = rhs;
   return n;
 }
 
-Node *new_node_num(int val) {
+static Node *new_node_num(int val) {
   Node *n = new_node(ND_NUM);
   n->val = val;
   return n;
 }
 
-Node *new_node_var(Obj *var) {
+static Node *new_node_var(Obj *var) {
   Node *n = new_node(ND_VAR);
   n->var = var;
   return n;
 }
 
-Obj *new_var(char *name, Type *ty) {
+static Obj *new_var(char *name, Type *ty) {
   Obj *var;
   var = calloc(1, sizeof(Obj));
   var->name = name;
@@ -61,7 +61,7 @@ Obj *new_var(char *name, Type *ty) {
   return var;
 }
 
-Obj *new_lvar(char *name, Type *ty) {
+static Obj *new_lvar(char *name, Type *ty) {
   Obj *lvar = new_var(name, ty);
   lvar->is_local = true;
   lvar->next = locals;
@@ -76,7 +76,7 @@ Obj *new_lvar(char *name, Type *ty) {
   return lvar;
 }
 
-Obj *new_gvar(char *name, Type *ty) {
+static Obj *new_gvar(char *name, Type *ty) {
   Obj *gvar = new_var(name, ty);
   gvar->next = globals;
   globals = gvar;
@@ -84,14 +84,14 @@ Obj *new_gvar(char *name, Type *ty) {
   return gvar;
 }
 
-char *new_unique_name() {
+static char *new_unique_name() {
   static id = 0;
   char *buf = calloc(1, 20);
   sprintf(buf, ".L..%d", id++);
   return buf;
 }
 
-Obj *new_string_literal(char *str, Type *ty) {
+static Obj *new_string_literal(char *str, Type *ty) {
   Obj *gvar = new_gvar(new_unique_name(), ty);
   gvar->init_data = str;
 
@@ -112,7 +112,7 @@ static void leave_scope() {
  scope = scope->next; 
 }
 
-Obj *find_var(Token *t) {
+static Obj *find_var(Token *t) {
   for (Scope *sc = scope; sc; sc = sc->next) {
     for (VarScope *vs = sc->vars; vs; vs = vs->next) {
       if (strncmp(t->loc, vs->name, t->len) == 0) {
@@ -130,7 +130,7 @@ Obj *find_var(Token *t) {
   return NULL;
 }
 
-char *get_ident_name(Token *t) {
+static char *get_ident_name(Token *t) {
   if (t->kind != TK_IDENT) {
     error_at(t->loc, "%s", "expected an identifier");
   }
@@ -172,7 +172,7 @@ bool at_eof(Token *token) {
   return token->kind == TK_EOF;
 }
 
-bool is_function(Token *token) {
+static bool is_function(Token *token) {
   if (equal(token, "int")) {
     token = token->next;
   }
@@ -190,7 +190,7 @@ bool is_function(Token *token) {
   }
 }
 
-bool is_type(Token *token) {
+static bool is_type(Token *token) {
   return equal(token, "int") || equal(token, "char");
 }
 
@@ -295,7 +295,7 @@ Obj *parse(Token *token) {
 }
 
 // declspec ::= "int" || "char"
-Type *declspec(Token **rest, Token *token) {
+static Type *declspec(Token **rest, Token *token) {
   Type *ty;
   if (equal(token, "int")) {
     ty = ty_int();
@@ -310,7 +310,7 @@ Type *declspec(Token **rest, Token *token) {
 }
 
 // declaration ::= declspec (declarator ("=" expr)? ("," declarator ("=" expr)?)*)? ";"
-Node *declaration(Token **rest, Token *token) {
+static Node *declaration(Token **rest, Token *token) {
     Type *basety = declspec(&token, token);
 
     Node head = {};
@@ -350,7 +350,7 @@ Node *declaration(Token **rest, Token *token) {
 }
 
 // declarator ::= "*"* ident type-suffix
-Type *declarator(Token **rest, Token *token, Type *ty) {
+static Type *declarator(Token **rest, Token *token, Type *ty) {
     while (consume(&token, token, "*")) {
       ty = pointer_to(ty);
     }
@@ -367,7 +367,7 @@ Type *declarator(Token **rest, Token *token, Type *ty) {
 }
 
 // type-suffix ::= "[" num "]" type-suffix
-Type *type_suffix(Token **rest, Token *token, Type *ty) {
+static Type *type_suffix(Token **rest, Token *token, Type *ty) {
   if (equal(token, "[")) {
     token = token->next;
 
@@ -396,7 +396,7 @@ Type *type_suffix(Token **rest, Token *token, Type *ty) {
        | "return" expr ";"
        |  declaration
 */
-Node *stmt(Token **rest, Token *token) {
+static Node *stmt(Token **rest, Token *token) {
   Node *n;
 
   if (consume(&token, token, ";")) {
@@ -512,7 +512,7 @@ Node *stmt(Token **rest, Token *token) {
 }
 
 // expr-stmt = expr ";"?
-Node *expr_stmt(Token **rest, Token *token) {
+static Node *expr_stmt(Token **rest, Token *token) {
   if (equal(token, ";")) {
     expect(&token, token, ";");
     *rest = token;
@@ -526,14 +526,14 @@ Node *expr_stmt(Token **rest, Token *token) {
 }
 
 // expr = assign
-Node *expr(Token **rest, Token *token) {
+static Node *expr(Token **rest, Token *token) {
   Node *n = assign(&token, token);
   *rest = token;
   return n;
 }
 
 // assign = equality ("=" assign)?
-Node *assign(Token **rest, Token *token) {
+static Node *assign(Token **rest, Token *token) {
   Node *n = equality(&token, token);
   if (consume(&token, token, "=")) {
     n = new_node_binary(ND_ASSIGN, n, assign(&token, token));
@@ -544,7 +544,7 @@ Node *assign(Token **rest, Token *token) {
 }
 
 // equality = relational ("==" relational | "!=" relational)*
-Node *equality(Token **rest, Token *token) {
+static Node *equality(Token **rest, Token *token) {
   Node *n = relational(&token, token);
 
   for (;;) {
@@ -563,7 +563,7 @@ Node *equality(Token **rest, Token *token) {
 }
 
 // relational = add ("<" add | "<=" add | ">" add | ">=" add)*
-Node *relational(Token **rest, Token *token) {
+static Node *relational(Token **rest, Token *token) {
   Node *n = add(&token, token);
 
   for (;;) {
@@ -585,7 +585,7 @@ Node *relational(Token **rest, Token *token) {
   return n;
 }
 
-Node *new_add(Node *lhs, Node *rhs, Token *token) {
+static Node *new_add(Node *lhs, Node *rhs, Token *token) {
   add_type(lhs);
   add_type(rhs);
 
@@ -616,7 +616,7 @@ Node *new_add(Node *lhs, Node *rhs, Token *token) {
   return n;
 }
 
-Node *new_sub(Node *lhs, Node *rhs, Token *token) {
+static Node *new_sub(Node *lhs, Node *rhs, Token *token) {
   add_type(lhs);
   add_type(rhs);
 
@@ -645,7 +645,7 @@ Node *new_sub(Node *lhs, Node *rhs, Token *token) {
 }
 
 // add = mul ("+" mul | "-" mul)*
-Node *add(Token **rest, Token *token) {
+static Node *add(Token **rest, Token *token) {
   Node *n = mul(&token, token);
 
   for (;;) {
@@ -664,7 +664,7 @@ Node *add(Token **rest, Token *token) {
 }
 
 // mul = unary ("*" unary | "/" unary)*
-Node *mul(Token **rest, Token *token) {
+static Node *mul(Token **rest, Token *token) {
   Node *n = unary(&token, token);
 
   for (;;) {
@@ -687,7 +687,7 @@ Node *mul(Token **rest, Token *token) {
 //         "*" unary |
 //         "&" unary |
 //         postfix
-Node *unary(Token **rest, Token *token) {
+static Node *unary(Token **rest, Token *token) {
   Node *n;
 
   if (equal(token, "sizeof")) {
@@ -735,7 +735,7 @@ Node *unary(Token **rest, Token *token) {
 }
 
 // postfix = primary ("[" expr "]")*
-Node *postfix(Token **rest, Token *token) {
+static Node *postfix(Token **rest, Token *token) {
   Node *n = primary(&token, token);
 
   //array
@@ -755,7 +755,7 @@ Node *postfix(Token **rest, Token *token) {
 
 }
 
-Node *funcall(Token **rest, Token *token) {
+static Node *funcall(Token **rest, Token *token) {
 
   Token *start = token;
 
@@ -790,8 +790,7 @@ Node *funcall(Token **rest, Token *token) {
           | str
           | num
 */
-
-Node *primary(Token **rest, Token *token) {
+static Node *primary(Token **rest, Token *token) {
   if (equal(token, "(") && equal(token->next, "{")) {
     token = token->next->next;
 

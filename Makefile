@@ -15,7 +15,7 @@ $(OBJS): 9cc.h
 
 test/%.o: 9cc test/%.c
 # -E -P -C で、プリプロセスだけ処理
-	$(CC) -o- -E -P -C test/$*.c | ./9cc - > test/$*.s
+	$(CC) -o- -E -P -C test/$*.c | ./9cc -o test/$*.s -
 # common は、%.cに含まれないように'.c'を外している
 	$(CC) -o $@ test/$*.s -xc test/common
 
@@ -23,9 +23,7 @@ test: $(TEST_OBJS)
 # $^ は、依存関係（$(TEST_OBJS)）の全てのファイルを表す
 # $$i としているのは、Makefileの変数ではなく、シェルの変数として扱うため
 	for i in $^; do echo $$i; ./$$i || exit 1; echo; done
-
-#test: 9cc
-#	./test.sh
+	test/driver.sh
 
 clean:
 	rm -f 9cc *.o *~ tmp* $(TEST_OBJS) $(TEST_AS)

@@ -128,11 +128,3 @@ typedef struct VarScope {
   Obj *var;
   struct VarScope *next;
 } VarScope;
-
-int equal(Token *t, char *key);
-Token *skip(Token *t, char *op);
-void error(char *fmt, ...);
-void error_at(char *loc, char *fmt, ...);
-void codegen(Obj *prog);
-Token *tokenize_file(char *path);
-Obj *parse(Token *token);

@@ -1,6 +1,6 @@
 #include "9cc.h"
 char *user_input;
-char *filename;
+char *infile;
 
 void error(char *fmt, ...) {
   va_list ap;
@@ -31,7 +31,7 @@ void error_at(char *loc, char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
 
-  int indent = fprintf(stderr, "%s:%d: ", filename, line_num);
+  int indent = fprintf(stderr, "%s:%d: ", infile, line_num);
   fprintf(stderr, "%.*s\n", end - start, start);
 
   int pos = loc - start + indent;
@@ -42,7 +42,7 @@ void error_at(char *loc, char *fmt, ...) {
   exit(1);
 }
 
-Token *new_token(TokenKind kind, Token *cur, char *loc , int len) {
+static Token *new_token(TokenKind kind, Token *cur, char *loc , int len) {
   Token *t = calloc(1, sizeof(Token));
   t->kind = kind;
   t->loc = loc;
@@ -51,7 +51,7 @@ Token *new_token(TokenKind kind, Token *cur, char *loc , int len) {
   return t;
 }
 
-int is_ident1(char p) {
+static int is_ident1(char p) {
   return (
     ('a' <= p && p <= 'z') || 
     ('A' <= p && p <= 'Z') || 
@@ -59,7 +59,7 @@ int is_ident1(char p) {
   );
 }
 
-int is_ident2(char p) {
+static int is_ident2(char p) {
   return (is_ident1(p) || ('0' <= p && p <= '9'));
 }
 
@@ -73,7 +73,7 @@ Token *skip(Token *t, char *op) {
   return t->next;
 }
 
-int keyword_len(char *p) {
+static int keyword_len(char *p) {
   char *key[] = {"return", "if", "else", "for", "while", "char", "int", "sizeof"};
   int key_len;
   for (int i = 0; i < sizeof(key) / sizeof(*key); i++) {
@@ -85,7 +85,7 @@ int keyword_len(char *p) {
   return 0;
 }
 
-char *string_literal_end(char *p) {
+static char *string_literal_end(char *p) {
   while (*p != '"') {
     if (*p == '\n' || *p == '\0') {
       error_at(p, "unclosed string literal");
@@ -100,29 +100,6 @@ char *string_literal_end(char *p) {
   }
 
   return p;
-}
-
-Token *read_string_literal(char *start) {
-  char *end = string_literal_end(start + 1);
-  char *buf = calloc(1, end - start);
-
-  int len = 0;
-  for (char *p = start + 1; p < end; p++) {
-    if (*p == '\\') {
-      buf[len++] = read_escaped_char(&p, ++p);
-    } else {
-      buf[len++] = *p;
-    }
-  }
-
-  Token *t = calloc(1, sizeof(Token));
-  t->kind = TK_STR;
-  t->loc = start;
-  t->len = end + 1 - start;
-  t->ty = ty_array(ty_char(), len + 1);
-  t->str = buf;
-
-  return t;
 }
 
 static int from_hex(char *p) {
@@ -141,7 +118,7 @@ static int from_hex(char *p) {
   error_at(p, "invalid hex escape sequence");
 }
 
-int read_escaped_char(char **new_pos, char *p) {
+static int read_escaped_char(char **new_pos, char *p) {
   // hex escape sequence
   if (*p == 'x') {
     p++;
@@ -194,50 +171,33 @@ int read_escaped_char(char **new_pos, char *p) {
   }
 }
 
-char *read_file(char *path) {
-  filename = path;
-  FILE *fp;
-  if (strcmp(path, "-") == 0) {
-    fp = stdin;
-  } else {
-    fp = fopen(path, "r");
-    if (!fp) {
-      error("cannot open %s: %s", path, strerror(errno));
+static Token *read_string_literal(char *start) {
+  char *end = string_literal_end(start + 1);
+  char *buf = calloc(1, end - start);
+
+  int len = 0;
+  for (char *p = start + 1; p < end; p++) {
+    if (*p == '\\') {
+      buf[len++] = read_escaped_char(&p, ++p);
+    } else {
+      buf[len++] = *p;
     }
   }
 
-  char *buf;
-  size_t buflen;
-  FILE *out = open_memstream(&buf, &buflen);
+  Token *t = calloc(1, sizeof(Token));
+  t->kind = TK_STR;
+  t->loc = start;
+  t->len = end + 1 - start;
+  t->ty = ty_array(ty_char(), len + 1);
+  t->str = buf;
 
-  for (;;) {
-    char line[4096];
-    int n = fread(line, 1, sizeof(line), fp);
-    if (n == 0) {
-      break;
-    }
-    fwrite(line, 1, n, out);
-  }
-
-  if (fp != stdin) {
-    fclose(fp);
-  }
-
-  fflush(out);
-
-  // add newline to end of file
-  if (buflen == 0 || buf[buflen - 1] != '\n') {
-    fputc('\n', out);
-  }
-  fputc('\0', out);
-
-  fclose(out);
-
-  return buf;
+  return t;
 }
 
-Token *tokenize(char* p) {
+Token *tokenize(char* p, char *file) {
   user_input = p;
+  infile = file;
+
   Token head;
   head.next = NULL;
   Token *cur = &head;
@@ -326,8 +286,4 @@ Token *tokenize(char* p) {
   new_token(TK_EOF, cur, NULL, 0);
   return head.next;
 
-}
-
-Token *tokenize_file(char *path) {
-  return tokenize(read_file(path));
 }

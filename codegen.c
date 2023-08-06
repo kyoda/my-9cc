@@ -1,16 +1,17 @@
 #include "9cc.h"
 
 static Obj *current_fn;
+static FILE *out;
 static void gen_stmt(Node *n);
 static void gen_expr(Node *n);
 static char *argreg[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 
-void println(char *fmt, ...) {
+static void println(char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
-  vprintf(fmt, ap);
+  vfprintf(out, fmt, ap);
   va_end(ap);
-  printf( "\n");
+  fprintf(out, "\n");
 }
 
 static int count() {
@@ -18,7 +19,7 @@ static int count() {
   return i++;
 }
 
-void load(Type *ty) {
+static void load(Type *ty) {
   if (ty->kind == TY_ARRAY) {
     return;
   }
@@ -30,7 +31,7 @@ void load(Type *ty) {
   }
 }
 
-void gen_addr(Node *n) {
+static void gen_addr(Node *n) {
   switch(n->kind) {
   case ND_VAR:
     if (n->var->is_local) {
@@ -49,7 +50,7 @@ void gen_addr(Node *n) {
   error("expected a variable");
 }
 
-void gen_expr(Node *n) {
+static void gen_expr(Node *n) {
 
   switch (n->kind) {
   case ND_NUM:
@@ -244,11 +245,11 @@ static void gen_stmt(Node *n) {
   gen_expr(n);
 }
 
-int align_to(int n, int align) {
+static int align_to(int n, int align) {
   return (n / align + 1) * align;
 }
 
-void align_stack_size(Obj *prog) {
+static void align_stack_size(Obj *prog) {
   int offset;
   for (Obj *fn = prog; fn; fn = fn->next) {
     offset = 0;
@@ -266,7 +267,7 @@ void align_stack_size(Obj *prog) {
   }
 }
 
-void emit_data(Obj *prog) {
+static void emit_data(Obj *prog) {
   for (Obj *var = prog; var; var = var->next) {
     if (var->is_function) {
       continue;
@@ -286,7 +287,7 @@ void emit_data(Obj *prog) {
 
 }
 
-void emit_text(Obj *prog) {
+static void emit_text(Obj *prog) {
   println(".intel_syntax noprefix");
 
   for (Obj *fn = prog; fn; fn = fn->next) {
@@ -318,10 +319,11 @@ void emit_text(Obj *prog) {
   }
 }
 
-void codegen(Obj *prog) {
+void codegen(Obj *prog, FILE *outfile) {
+  out = outfile;
+
   align_stack_size(prog);
   emit_data(prog);
   emit_text(prog);
-
 }
 
