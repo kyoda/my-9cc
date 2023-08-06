@@ -9,6 +9,7 @@ int main() {
   //local
   ASSERT(2, ({ int a; a = 2; }));
   ASSERT(2, ({ int a = 2; a; }));
+  ASSERT(3, ({ int a = 2,b=3,c; b; }));
   ASSERT(10, ({ int a = 1; int b = 4*3; b / a - 2; }));
   ASSERT(25, ({ int c; int d; c=d=5; c*d; }));
   ASSERT(2, ({ int a; int b; int c; int d; a=b=c=d=2;}));

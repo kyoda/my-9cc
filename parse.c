@@ -331,16 +331,15 @@ static Node *declaration(Token **rest, Token *token) {
       }
 
       lvar = new_lvar(get_ident_name(ty->token), ty);
+      Node *lhs = new_node_var(lvar, token);
 
-      if (!consume(&token, token, "=")) {
-        continue;
+      if (equal(token, "=")) {
+        Node *node = new_node_binary(ND_ASSIGN, lhs, assign(&token, token->next), token);
+        cur = cur->next = new_node_unary(ND_EXPR_STMT, node, token);
+      } else {
+        cur = cur->next = lhs;
       }
 
-      Node *lhs = new_node_var(lvar, token);
-      Node *rhs = expr(&token, token);
-      Node *node = new_node_binary(ND_ASSIGN, lhs, rhs, token);
-
-      cur = cur->next = new_node_unary(ND_EXPR_STMT, node, token);
     }
 
     Node *n = new_node(ND_BLOCK, token);
@@ -508,9 +507,7 @@ static Node *stmt(Token **rest, Token *token) {
 
 // expr-stmt = expr ";"?
 static Node *expr_stmt(Token **rest, Token *token) {
-  if (equal(token, ";")) {
-    expect(&token, token, ";");
-    *rest = token;
+  if (consume(&token, token, ";")) {
     return new_node(ND_BLOCK, token);
   }
 
@@ -520,9 +517,14 @@ static Node *expr_stmt(Token **rest, Token *token) {
   return n;
 }
 
-// expr = assign
+// expr = assign ("," expr)*
 static Node *expr(Token **rest, Token *token) {
   Node *n = assign(&token, token);
+
+  if (consume(&token, token, ",")) {
+    return new_node_binary(ND_COMMA, n, expr(rest, token), token);
+  }
+
   *rest = token;
   return n;
 }

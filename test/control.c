@@ -8,6 +8,9 @@ int main() {
   ASSERT(3, ({ int a = 0; int i; for (i=0; i<3; i=i+1) {a = a + i;} a; }));
   ASSERT(0, ({ int a=0; for (;;) {a;} }));
 
+  ASSERT(2, ({ int i=0,j=3; (i=2, j) = 4; i;}));
+  ASSERT(4, ({ int i=0,j=3; (i=2, j) = 4; j;}));
+
   printf("OK\n");
   return 0;
 }

@@ -45,6 +45,10 @@ static void gen_addr(Node *n) {
   case ND_DEREF:
     gen_expr(n->lhs);
     return;
+  case ND_COMMA:
+    gen_expr(n->lhs);
+    gen_addr(n->rhs);
+    return; 
   }
 
   error("expected a variable");
@@ -109,6 +113,11 @@ static void gen_expr(Node *n) {
     }
 
     println("  mov rax, rdi");
+
+    return;
+  case ND_COMMA:
+    gen_expr(n->lhs);
+    gen_expr(n->rhs);
 
     return;
   case ND_DEREF:

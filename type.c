@@ -67,6 +67,9 @@ void add_type(Node *n) {
   case ND_ASSIGN:
     n->ty = n->lhs->ty;
     return;
+  case ND_COMMA:
+    n->ty = n->rhs->ty;
+    return;
   case ND_EQ:
   case ND_NEQ:
   case ND_LT:
