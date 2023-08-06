@@ -51,6 +51,7 @@ static void gen_addr(Node *n) {
 }
 
 static void gen_expr(Node *n) {
+  println("  .loc 1 %d", n->token->line);
 
   switch (n->kind) {
   case ND_NUM:
@@ -173,8 +174,9 @@ static void gen_expr(Node *n) {
 
 
 static void gen_stmt(Node *n) {
-  int c;
+  println("  .loc 1 %d", n->token->line);
 
+  int c;
   switch (n->kind) {
   case ND_BLOCK:
     for (Node *nb = n->body; nb; nb = nb->next) {

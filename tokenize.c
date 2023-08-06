@@ -194,6 +194,24 @@ static Token *read_string_literal(char *start) {
   return t;
 }
 
+static void add_lines(Token *token) {
+  int line_num = 1;
+  char *p = user_input;
+
+  while (*p) {
+    if (p == token->loc) {
+      token->line = line_num;
+      token = token->next;
+    }
+
+    if (*p == '\n') {
+      line_num++;
+    }
+
+    p++;
+  }
+}
+
 Token *tokenize(char* p, char *file) {
   user_input = p;
   infile = file;
@@ -284,6 +302,7 @@ Token *tokenize(char* p, char *file) {
   }
 
   new_token(TK_EOF, cur, NULL, 0);
+  add_lines(head.next);
   return head.next;
 
 }

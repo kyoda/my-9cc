@@ -20,33 +20,34 @@ static Node *unary(Token **rest, Token *token);
 static Node *postfix(Token **rest, Token *token);
 static Node *primary(Token **rest, Token *token);
 
-static Node *new_node(NodeKind kind) {
+static Node *new_node(NodeKind kind, Token *token) {
   Node *n = calloc(1, sizeof(Node));
   n->kind = kind;
+  n->token = token;
   return n;
 }
 
-static Node *new_node_unary(NodeKind kind, Node *lhs) {
-  Node *n = new_node(kind);
+static Node *new_node_unary(NodeKind kind, Node *lhs, Token *token) {
+  Node *n = new_node(kind, token);
   n->lhs= lhs;
   return n;
 }
 
-static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs) {
-  Node *n = new_node(kind);
+static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs, Token *token) {
+  Node *n = new_node(kind, token);
   n->lhs = lhs;
   n->rhs = rhs;
   return n;
 }
 
-static Node *new_node_num(int val) {
-  Node *n = new_node(ND_NUM);
+static Node *new_node_num(int val, Token *token) {
+  Node *n = new_node(ND_NUM, token);
   n->val = val;
   return n;
 }
 
-static Node *new_node_var(Obj *var) {
-  Node *n = new_node(ND_VAR);
+static Node *new_node_var(Obj *var, Token *token) {
+  Node *n = new_node(ND_VAR, token);
   n->var = var;
   return n;
 }
@@ -335,14 +336,14 @@ static Node *declaration(Token **rest, Token *token) {
         continue;
       }
 
-      Node *lhs = new_node_var(lvar);
+      Node *lhs = new_node_var(lvar, token);
       Node *rhs = expr(&token, token);
-      Node *node = new_node_binary(ND_ASSIGN, lhs, rhs);
+      Node *node = new_node_binary(ND_ASSIGN, lhs, rhs, token);
 
-      cur = cur->next = new_node_unary(ND_EXPR_STMT, node);
+      cur = cur->next = new_node_unary(ND_EXPR_STMT, node, token);
     }
 
-    Node *n = new_node(ND_BLOCK);
+    Node *n = new_node(ND_BLOCK, token);
     n->body = head.next;
     expect(&token, token, ";");
     *rest = token;
@@ -400,15 +401,13 @@ static Node *stmt(Token **rest, Token *token) {
   Node *n;
 
   if (consume(&token, token, ";")) {
-    n = calloc(1, sizeof(Node));
-    n->kind = ND_BLOCK;
+    n = new_node(ND_BLOCK, token);
     *rest = token;
     return n;
   }
 
   if (equal(token, "{")) {
-    n = calloc(1, sizeof(Node));
-    n->kind = ND_BLOCK;
+    n = new_node(ND_BLOCK, token);
     expect(&token, token, "{");
     
     enter_scope();
@@ -438,8 +437,7 @@ static Node *stmt(Token **rest, Token *token) {
   }
 
   if (equal(token, "return")) {
-    n = calloc(1, sizeof(Node));
-    n->kind = ND_RETURN;
+    n = new_node(ND_RETURN, token);
     token = token->next;
     n->lhs = expr(&token, token);
     expect(&token, token, ";");
@@ -449,8 +447,7 @@ static Node *stmt(Token **rest, Token *token) {
   }
 
   if (equal(token, "if")) {
-    n = calloc(1, sizeof(Node));
-    n->kind = ND_IF;
+    n = new_node(ND_IF, token);
     token = token->next;
     expect(&token, token, "(");
     n->cond = expr(&token, token);
@@ -467,8 +464,7 @@ static Node *stmt(Token **rest, Token *token) {
   }
 
   if (equal(token, "while")) {
-    n = calloc(1, sizeof(Node));
-    n->kind = ND_WHILE;
+    n = new_node(ND_WHILE, token);
     token = token->next;
     expect(&token, token, "(");
     n->cond = expr(&token, token);
@@ -480,8 +476,7 @@ static Node *stmt(Token **rest, Token *token) {
   }
 
   if (equal(token, "for")) {
-    n = calloc(1, sizeof(Node));
-    n->kind = ND_FOR;
+    n = new_node(ND_FOR, token);
     token = token->next;
     expect(&token, token, "(");
 
@@ -516,10 +511,10 @@ static Node *expr_stmt(Token **rest, Token *token) {
   if (equal(token, ";")) {
     expect(&token, token, ";");
     *rest = token;
-    return new_node(ND_BLOCK);
+    return new_node(ND_BLOCK, token);
   }
 
-  Node *n = new_node_unary(ND_EXPR_STMT, expr(&token, token));
+  Node *n = new_node_unary(ND_EXPR_STMT, expr(&token, token), token);
   expect(&token, token, ";");
   *rest = token;
   return n;
@@ -536,7 +531,7 @@ static Node *expr(Token **rest, Token *token) {
 static Node *assign(Token **rest, Token *token) {
   Node *n = equality(&token, token);
   if (consume(&token, token, "=")) {
-    n = new_node_binary(ND_ASSIGN, n, assign(&token, token));
+    n = new_node_binary(ND_ASSIGN, n, assign(&token, token), token);
   }
 
   *rest = token;
@@ -549,9 +544,9 @@ static Node *equality(Token **rest, Token *token) {
 
   for (;;) {
     if (consume(&token, token, "==")) {
-      n = new_node_binary(ND_EQ, n, relational(&token, token));
+      n = new_node_binary(ND_EQ, n, relational(&token, token), token);
     } else if (consume(&token, token, "!=")) {
-      n = new_node_binary(ND_NEQ, n, relational(&token, token));
+      n = new_node_binary(ND_NEQ, n, relational(&token, token), token);
     } else {
       *rest = token;
       return n;
@@ -568,13 +563,13 @@ static Node *relational(Token **rest, Token *token) {
 
   for (;;) {
     if (consume(&token, token, "<")) {
-      n = new_node_binary(ND_LT, n, add(&token, token));
+      n = new_node_binary(ND_LT, n, add(&token, token), token);
     } else if (consume(&token, token, ">")) {
-      n = new_node_binary(ND_LT, add(&token, token), n);
+      n = new_node_binary(ND_LT, add(&token, token), n, token);
     } else if (consume(&token, token, "<=")) {
-      n = new_node_binary(ND_LE, n, add(&token, token));
+      n = new_node_binary(ND_LE, n, add(&token, token), token);
     } else if (consume(&token, token, ">=")) {
-      n = new_node_binary(ND_LE, add(&token, token), n);
+      n = new_node_binary(ND_LE, add(&token, token), n, token);
     } else {
       *rest = token;
       return n;
@@ -593,7 +588,7 @@ static Node *new_add(Node *lhs, Node *rhs, Token *token) {
 
   // num + num
   if (!lhs->ty->next && !rhs->ty->next) {
-    n = new_node_binary(ND_ADD, lhs, rhs);
+    n = new_node_binary(ND_ADD, lhs, rhs, token);
     return n;
   }
 
@@ -611,7 +606,7 @@ static Node *new_add(Node *lhs, Node *rhs, Token *token) {
   
   // pointer + num * ty->size
   // int -> 4byte
-  n = new_node_binary(ND_ADD, lhs, new_node_binary(ND_MUL, rhs, new_node_num(lhs->ty->next->size)));
+  n = new_node_binary(ND_ADD, lhs, new_node_binary(ND_MUL, rhs, new_node_num(lhs->ty->next->size, token), token), token);
 
   return n;
 }
@@ -624,20 +619,20 @@ static Node *new_sub(Node *lhs, Node *rhs, Token *token) {
 
   // num - num
   if (!lhs->ty->next && !rhs->ty->next) {
-    n = new_node_binary(ND_SUB, lhs, rhs);
+    n = new_node_binary(ND_SUB, lhs, rhs, token);
     return n;
   }
 
   // pointer - num * ty->size 
   // int -> 4byte
   if (lhs->ty->next && !rhs->ty->next) {
-    n = new_node_binary(ND_SUB, lhs, new_node_binary(ND_MUL, rhs, new_node_num(rhs->ty->size)));
+    n = new_node_binary(ND_SUB, lhs, new_node_binary(ND_MUL, rhs, new_node_num(rhs->ty->size, token), token), token);
     return n;
   }
 
   // pointer - pointer, return int elements between pointer and pointer
   if (lhs->ty->next && rhs->ty->next) {
-    n = new_node_binary(ND_DIV, new_node_binary(ND_SUB, lhs, rhs), new_node_num(rhs->ty->next->size));
+    n = new_node_binary(ND_DIV, new_node_binary(ND_SUB, lhs, rhs, token), new_node_num(rhs->ty->next->size, token), token);
     return n;
   }
 
@@ -669,9 +664,9 @@ static Node *mul(Token **rest, Token *token) {
 
   for (;;) {
     if (consume(&token, token, "*")) {
-      n = new_node_binary(ND_MUL, n, unary(&token, token));
+      n = new_node_binary(ND_MUL, n, unary(&token, token), token);
     } else if (consume(&token, token, "/")) {
-      n = new_node_binary(ND_DIV, n, unary(&token, token));
+      n = new_node_binary(ND_DIV, n, unary(&token, token), token);
     } else {
       *rest = token;
       return n;
@@ -696,7 +691,7 @@ static Node *unary(Token **rest, Token *token) {
     add_type(n);
 
     *rest = token;
-    return new_node_num(n->ty->size);
+    return new_node_num(n->ty->size, token);
   }
 
   if (consume(&token, token, "+")) {
@@ -706,14 +701,13 @@ static Node *unary(Token **rest, Token *token) {
   }
 
   if (consume(&token, token, "-")) {
-    n = new_node_binary(ND_NEG, unary(&token, token), NULL);
+    n = new_node_binary(ND_NEG, unary(&token, token), NULL, token);
     *rest = token;
     return n;
   }
 
   if (consume(&token, token, "*")) {
-    n = calloc(1, sizeof(Node));
-    n->kind = ND_DEREF;
+    n = new_node(ND_DEREF, token);
     n->lhs = unary(&token, token);
 
     *rest = token;
@@ -721,8 +715,7 @@ static Node *unary(Token **rest, Token *token) {
   }
 
   if (consume(&token, token, "&")) {
-    n = calloc(1, sizeof(Node));
-    n->kind = ND_ADDR;
+    n = new_node(ND_ADDR, token);
     n->lhs = unary(&token, token);
 
     *rest = token;
@@ -745,7 +738,7 @@ static Node *postfix(Token **rest, Token *token) {
     Node *ex = expr(&token, token);
 
     // a[3] -> *(a+3) -> *(a + 3 * ty->size)
-    n = new_node_binary(ND_DEREF, new_add(n, ex, token), NULL);
+    n = new_node_binary(ND_DEREF, new_add(n, ex, token), NULL, token);
 
     expect(&token, token, "]");
   }
@@ -774,8 +767,7 @@ static Node *funcall(Token **rest, Token *token) {
 
   expect(&token, token, ")");
 
-  Node *n = calloc(1, sizeof(Node));
-  n->kind = ND_FUNC;
+  Node *n = new_node(ND_FUNC, token);
   n->funcname = strndup(start->loc, start->len);
   n->args = head.next;
 
@@ -808,7 +800,7 @@ static Node *primary(Token **rest, Token *token) {
 
     leave_scope();
 
-    Node *n = new_node(ND_STMT_EXPR);
+    Node *n = new_node(ND_STMT_EXPR, token);
     if (!head.next) {
       error_at(token->loc, "%s", "empty block");
     }
@@ -833,7 +825,7 @@ static Node *primary(Token **rest, Token *token) {
       return funcall(rest, token);
 
     // lvar
-    Node *n = new_node(ND_VAR);
+    Node *n = new_node(ND_VAR, token);
     Obj *lvar = find_var(token);
     if (lvar) {
       n->var = lvar;
@@ -850,7 +842,7 @@ static Node *primary(Token **rest, Token *token) {
     // string literalは、.data領域に格納する。
     Obj *var = new_string_literal(token->str, token->ty);
     *rest = token->next;
-    return new_node_var(var);
+    return new_node_var(var, token);
   }
 
   if (token->kind == TK_NUM) {
@@ -858,7 +850,7 @@ static Node *primary(Token **rest, Token *token) {
     token = token->next;
 
     *rest = token;
-    return new_node_num(v);
+    return new_node_num(v, token);
   }
 
   error_at(token->loc, "%s", "expect ({}), (), ident, funcall, str and num");

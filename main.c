@@ -94,6 +94,7 @@ int main(int argc, char **argv) {
   Obj *prog = parse(token);
 
   FILE *outfile = open_file(out_opt);
+  fprintf(outfile, ".file 1 \"%s\"\n", infile);
   codegen(prog, outfile);
 
   return 0;

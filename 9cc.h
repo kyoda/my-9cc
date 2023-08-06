@@ -21,6 +21,7 @@ typedef struct Token {
   int val;
   char *loc;
   int len;
+  int line; //for .loc directive
   // str
   struct Type *ty;
   char *str;
@@ -90,6 +91,7 @@ typedef struct Node {
   int val;
   struct Obj *var; // ND_VAR
 
+  Token *token; // for error message
   Type *ty; // int or pointer
 } Node;
 
