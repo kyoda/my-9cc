@@ -6,6 +6,26 @@
 #include <stdarg.h>
 #include <errno.h>
 
+typedef struct Type Type;
+typedef struct Token Token;
+
+typedef enum {
+  TY_CHAR,
+  TY_INT,
+  TY_PTR,
+  TY_ARRAY,
+  TY_MEMBER
+} TypeKind;
+
+struct Type {
+  TypeKind *kind;
+  int size; //sizeof
+  int align; //stacksize
+  Type *next; // Pointer
+  int array_len; // Array Length
+  Token *token; // declaration
+};
+
 typedef enum {
   TK_IDENT, // Identifiers
   TK_PUNCT, // Punctuators
@@ -15,90 +35,76 @@ typedef enum {
   TK_EOF,
 } TokenKind;
 
-typedef struct Token {
+struct Token {
   TokenKind kind;
-  struct Token *next;
+  Token *next;
   int val;
   char *loc;
   int len;
   int line; //for .loc directive
   // str
-  struct Type *ty;
+  Type *ty;
   char *str;
-} Token;
+};
 
 typedef enum {
-  ND_ADD,
-  ND_SUB,
-  ND_MUL,
-  ND_DIV,
-  ND_NEG,
-  ND_ASSIGN,
-  ND_COMMA,
-  ND_ADDR,
-  ND_DEREF,
-  ND_EQ,
-  ND_NEQ,
-  ND_LT,
-  ND_LE,
-  ND_FUNC,
-  ND_VAR,
-  ND_NUM,
-  ND_RETURN,
-  ND_IF,
-  ND_WHILE,
-  ND_FOR,
+  ND_ADD, // +
+  ND_SUB, // -
+  ND_MUL, // *
+  ND_DIV, // /
+  ND_NEG, // unary -
+  ND_ASSIGN, // =
+  ND_COMMA, // ,
+  ND_ADDR, // &
+  ND_DEREF, // unary *
+  ND_EQ, // ==
+  ND_NEQ, // !=
+  ND_LT, // <
+  ND_LE, // <=
+  ND_FUNC, // function
+  ND_VAR, // variable
+  ND_NUM, // integer 
+  ND_RETURN, // return
+  ND_IF, // if
+  ND_WHILE, // while
+  ND_FOR, // for
   ND_EXPR_STMT,
   ND_STMT_EXPR,
-  ND_BLOCK
+  ND_BLOCK, // { ... }
 } NodeKind;
 
-typedef enum {
-  TY_CHAR,
-  TY_INT,
-  TY_PTR,
-  TY_ARRAY
-} TypeKind;
-
-typedef struct Type {
-  TypeKind *kind;
-  int size; //sizeof
-  int align; //stacksize
-  struct Type *next; // Pointer
-  int array_len; // Array Length
-  Token *token; // declaration
-} Type;
-
-typedef struct Node {
+typedef struct Node Node;
+struct Node {
   NodeKind kind;
-  struct Node *lhs;
-  struct Node *rhs;
+  Node *lhs;
+  Node *rhs;
 
   //if or for or while
-  struct Node *cond;
-  struct Node *init;
-  struct Node *inc;
-  struct Node *then;
-  struct Node *els;
+  Node *cond;
+  Node *init;
+  Node *inc;
+  Node *then;
+  Node *els;
 
   //block
-  struct Node *body; 
-  struct Node *next;
+  Node *body; 
+  Node *next;
 
   //function
   char *funcname;
-  struct Node *args;
+  Node *args;
 
   int val;
   struct Obj *var; // ND_VAR
 
   Token *token; // for error message
   Type *ty; // int or pointer
-} Node;
+};
 
 // function and variable
-typedef struct Obj {
-  struct Obj *next;
+typedef struct Obj Obj;
+struct Obj {
+  Obj *next;
   char *name;
 
   // variable
@@ -114,20 +120,23 @@ typedef struct Obj {
   char *init_data;
 
   //function
-  struct Obj *params;
+  Obj *params;
   Node *body;
-  struct Obj *locals;
+  Obj *locals;
   int stack_size;
 
-} Obj;
+};
 
-typedef struct Scope {
-  struct Scope *next;
-  struct VarScope *vars;
-} Scope;
+typedef struct Scope Scope;
+typedef struct VarScope VarScope;
 
-typedef struct VarScope {
+struct Scope {
+  Scope *next;
+  VarScope *vars;
+};
+
+struct VarScope {
   char *name;
   Obj *var;
-  struct VarScope *next;
-} VarScope;
+  VarScope *next;
+};
