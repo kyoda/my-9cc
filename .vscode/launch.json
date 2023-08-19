@@ -15,7 +15,8 @@
                 //"/tmp/brace.c"
                 //"/tmp/variable.c"
                 //"/tmp/string.c"
-                "/tmp/control.c"
+                //"/tmp/control.c"
+                "/tmp/struct.c"
             ],
             "preLaunchTask": "build_9cc",
             "stopAtEntry": false,

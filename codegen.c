@@ -42,6 +42,10 @@ static void gen_addr(Node *n) {
       //println("  mov rax, offset %s", n->var->name);
     }
     return;
+  case ND_MEMBER:
+    gen_addr(n->lhs);
+    println("  lea rax, [rax - %d]", n->member->offset);
+    return;
   case ND_DEREF:
     gen_expr(n->lhs);
     return;
@@ -68,8 +72,9 @@ static void gen_expr(Node *n) {
 
     return;
   case ND_VAR:
+  case ND_MEMBER:
     gen_addr(n);
-    load(n->var->ty);
+    load(n->ty);
 
     return;
   case ND_STMT_EXPR: {

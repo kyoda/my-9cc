@@ -8,23 +8,9 @@
 
 typedef struct Type Type;
 typedef struct Token Token;
-
-typedef enum {
-  TY_CHAR,
-  TY_INT,
-  TY_PTR,
-  TY_ARRAY,
-  TY_MEMBER
-} TypeKind;
-
-struct Type {
-  TypeKind *kind;
-  int size; //sizeof
-  int align; //stacksize
-  Type *next; // Pointer
-  int array_len; // Array Length
-  Token *token; // declaration
-};
+typedef struct Node Node;
+typedef struct Obj Obj;
+typedef struct Member Member;
 
 typedef enum {
   TK_IDENT, // Identifiers
@@ -71,9 +57,9 @@ typedef enum {
   ND_EXPR_STMT,
   ND_STMT_EXPR,
   ND_BLOCK, // { ... }
+  ND_MEMBER // struct member
 } NodeKind;
 
-typedef struct Node Node;
 struct Node {
   NodeKind kind;
   Node *lhs;
@@ -95,14 +81,33 @@ struct Node {
   Node *args;
 
   int val;
-  struct Obj *var; // ND_VAR
+  Obj *var; // ND_VAR
 
   Token *token; // for error message
   Type *ty; // int or pointer
+
+  Member *member; // struct member
+};
+
+typedef enum {
+  TY_CHAR,
+  TY_INT,
+  TY_PTR,
+  TY_ARRAY,
+  TY_STRUCT
+} TypeKind;
+
+struct Type {
+  TypeKind *kind;
+  int size; //sizeof
+  int align; //stacksize
+  Type *next; // Pointer
+  int array_len; // Array Length
+  Token *token; // declaration
+  Member *members; // struct member
 };
 
 // function and variable
-typedef struct Obj Obj;
 struct Obj {
   Obj *next;
   char *name;
@@ -125,6 +130,14 @@ struct Obj {
   Obj *locals;
   int stack_size;
 
+};
+
+struct Member {
+  Member *next;
+  char *name;
+  int offset;
+  Type *ty;
+  Token *token;
 };
 
 typedef struct Scope Scope;

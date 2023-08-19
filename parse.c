@@ -131,6 +131,16 @@ static Obj *find_var(Token *t) {
   return NULL;
 }
 
+static Member *find_member(Type *ty, Token *token) {
+  for (Member *m = ty->members; m; m = m->next) {
+    if (strncmp(token->loc, m->name, token->len) == 0) {
+      return m;
+    }
+  }
+
+  error_at(token->loc, "no member: %.*s", token->len, token->loc);
+}
+
 static char *get_ident_name(Token *t) {
   if (t->kind != TK_IDENT) {
     error_at(t->loc, "%s", "expected an identifier");
@@ -174,7 +184,7 @@ bool at_eof(Token *token) {
 }
 
 static bool is_function(Token *token) {
-  if (equal(token, "int")) {
+  if (equal(token, "int") || equal(token, "char")) {
     token = token->next;
   }
 
@@ -192,7 +202,7 @@ static bool is_function(Token *token) {
 }
 
 static bool is_type(Token *token) {
-  return equal(token, "int") || equal(token, "char");
+  return equal(token, "int") || equal(token, "char") || equal(token, "struct");
 }
 
 static void function_params(Token **rest, Token *token) {
@@ -280,7 +290,7 @@ static void *global_variable (Token **rest, Token *token) {
     *rest = token;
 }
 
-// program ::= (declaration | function)*
+// program ::= (global_variable | function)*
 Obj *parse(Token *token) {
   globals = NULL;
 
@@ -295,13 +305,68 @@ Obj *parse(Token *token) {
   return globals;
 }
 
-// declspec ::= "int" || "char"
+// struct-member ::= (declspec declarator ("," declarator)* ";")*
+static void struct_member(Token **rest, Token *token, Type *ty) {
+  Member head = {};
+  Member *cur = &head;
+
+  while (!equal(token, "}")) {
+    Type *basety = declspec(&token, token);
+
+    int i = 0;
+    while (!equal(token, ";")) {
+      if (i > 0) {
+        expect(&token, token, ",") ;
+      }
+      i++;
+
+      Member *mem = calloc(1, sizeof(Member));
+      mem->ty = declarator(&token, token, basety);
+      mem->name = get_ident_name(mem->ty->token);
+      cur = cur->next = mem;
+    }
+
+    // ";"
+    token = token->next;
+  }
+
+  ty->members = head.next;
+  *rest = token;
+}
+
+// struct-decl ::= "struct" "{" struct-member "}"
+static Type *struct_decl(Token **rest, Token *token) {
+  // "struct"
+  token = token->next;
+  expect(&token, token, "{");
+
+  Type *ty = calloc(1, sizeof(Type));
+  ty->kind = TY_STRUCT;
+  struct_member(&token, token, ty);
+
+  int offset = 0;
+  for (Member *m = ty->members; m; m = m->next) {
+    m->offset = offset;
+    offset += m->ty->size;
+  }
+
+  ty->size = offset;
+  ty->align = offset;
+
+  *rest = token;
+  return ty;
+}
+
+// declspec ::= "int" || "char" || "struct-decl"
 static Type *declspec(Token **rest, Token *token) {
   Type *ty;
   if (equal(token, "int")) {
     ty = ty_int();
   } else if (equal(token, "char")) {
     ty = ty_char();
+  } else if (equal(token, "struct")) {
+    ty = struct_decl(&token, token);
+    // token -> "}"
   } else {
     error(token->loc, "%s", "none of type defined");
   }
@@ -729,25 +794,50 @@ static Node *unary(Token **rest, Token *token) {
   return n;
 }
 
-// postfix = primary ("[" expr "]")*
+static Node *struct_ref(Token *token, Node *lhs) {
+  // token -> "."
+  add_type(lhs);
+
+  if (lhs->ty->kind != TY_STRUCT) {
+    error_at(token->loc, "%s", "not struct");
+  }
+
+  Node *n = new_node_unary(ND_MEMBER, lhs, token);
+  n->member = find_member(lhs->ty, token->next);
+
+  return n;
+}
+
+// postfix = primary ("[" expr "]" | "." ident)*
 static Node *postfix(Token **rest, Token *token) {
   Node *n = primary(&token, token);
 
   //array
-  while (equal(token, "[")) {
-    token = token->next;
+  for (;;) {
+    // array
+    if (equal(token, "[")) {
+      token = token->next;
 
-    Node *ex = expr(&token, token);
+      Node *ex = expr(&token, token);
 
-    // a[3] -> *(a+3) -> *(a + 3 * ty->size)
-    n = new_node_binary(ND_DEREF, new_add(n, ex, token), NULL, token);
+      // a[3] -> *(a+3) -> *(a + 3 * ty->size)
+      n = new_node_binary(ND_DEREF, new_add(n, ex, token), NULL, token);
 
-    expect(&token, token, "]");
+      expect(&token, token, "]");
+      continue;
+    }
+
+    //struct member
+    if (equal(token, ".")) {
+      n = struct_ref(token, n);
+      token = token->next->next;
+
+      continue;
+    }
+
+    *rest = token;
+    return n;
   }
-
-  *rest = token;
-  return n;
-
 }
 
 static Node *funcall(Token **rest, Token *token) {

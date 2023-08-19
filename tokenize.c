@@ -74,7 +74,7 @@ Token *skip(Token *t, char *op) {
 }
 
 static int keyword_len(char *p) {
-  char *key[] = {"return", "if", "else", "for", "while", "char", "int", "sizeof"};
+  char *key[] = {"return", "if", "else", "for", "while", "char", "int", "sizeof", "struct"};
   int key_len;
   for (int i = 0; i < sizeof(key) / sizeof(*key); i++) {
     key_len = strlen(key[i]);
@@ -267,7 +267,7 @@ Token *tokenize(char* p, char *file) {
       continue;
     }
 
-    if (strchr("+-*/()<>=;{},&[]", *p)) {
+    if (strchr("+-*/()<>=;{},&[].", *p)) {
       cur = new_token(TK_PUNCT, cur, p, 1);
       p++;
       continue;
