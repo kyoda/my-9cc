@@ -44,7 +44,7 @@ static void gen_addr(Node *n) {
     return;
   case ND_MEMBER:
     gen_addr(n->lhs);
-    println("  lea rax, [rax - %d]", n->member->offset);
+    println("  add rax, %d", n->member->offset);
     return;
   case ND_DEREF:
     gen_expr(n->lhs);
@@ -261,7 +261,7 @@ static void gen_stmt(Node *n) {
   gen_expr(n);
 }
 
-static int align_to(int n, int align) {
+int align_to(int n, int align) {
   return (n / align + 1) * align;
 }
 
