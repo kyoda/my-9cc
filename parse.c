@@ -66,7 +66,6 @@ static Obj *new_lvar(char *name, Type *ty) {
   Obj *lvar = new_var(name, ty);
   lvar->is_local = true;
   lvar->next = locals;
-  locals = lvar;
 
   VarScope *v = calloc(1, sizeof(VarScope));
   v->name = name;
@@ -208,8 +207,11 @@ static bool is_type(Token *token) {
 static void function_params(Token **rest, Token *token) {
   expect(&token, token, "(");
 
+  Obj head = {};
+  Obj *cur = &head;
+
   while (!equal(token, ")")) {
-    if (locals) {
+    if (cur != &head) {
       expect(&token, token, ",");
     }
 
@@ -220,10 +222,11 @@ static void function_params(Token **rest, Token *token) {
       ty = pointer_to(ty);
     }
 
-    locals = new_lvar(get_ident_name(token), ty);
+    cur = cur->next = new_lvar(get_ident_name(token), ty);
     token = token->next;
   }
 
+  locals = head.next;
   expect(&token, token, ")");
   *rest = token;
 }
@@ -396,6 +399,7 @@ static Node *declaration(Token **rest, Token *token) {
       }
 
       lvar = new_lvar(get_ident_name(ty->token), ty);
+      locals = lvar;
       Node *lhs = new_node_var(lvar, token);
 
       if (equal(token, "=")) {

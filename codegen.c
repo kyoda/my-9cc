@@ -269,17 +269,15 @@ static void align_stack_size(Obj *prog) {
   int offset;
   for (Obj *fn = prog; fn; fn = fn->next) {
     offset = 0;
+    /*
+      stack_sizeは、functionのparamsも含む 
+    */
     for (Obj *var = fn->locals; var; var = var->next) {
       offset += var->ty->align;
+      var->offset = offset;
     }
 
     fn->stack_size = align_to(offset, 16);
-
-    for (Obj *var = fn->locals; var; var = var->next) {
-      var->offset = offset;
-      offset -= var->ty->align;
-    }
-
   }
 }
 
@@ -321,8 +319,14 @@ static void emit_text(Obj *prog) {
     println("  mov rbp, rsp");
     println("  sub rsp, %d", fn->stack_size);
 
+    /*
+      paramsのリストは引数指定順
+      func(a, b, c, d, e, f)
+      a -> b -> c -> d -> e -> f
+    */
+    int i = 0;
     for (Obj *var = fn->params; var; var = var->next) {
-      println("  mov [rbp - %d], %s", var->offset, argreg[var->offset / 8 - 1]);
+      println("  mov [rbp - %d], %s", var->offset, argreg[i++]);
     }
 
     gen_stmt(fn->body);
