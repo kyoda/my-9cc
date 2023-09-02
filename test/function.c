@@ -10,8 +10,8 @@ int cal6(int a, int b, int c, int d, int e, int f) { return f + e / b - c - a - 
 
 int main() {
   ASSERT(3, ret3());
-  ASSERT(2, sub2(5, 3));
   ASSERT(8, add2(5, 3));
+  ASSERT(2, sub2(5, 3));
   ASSERT(66, add6(1, 2, add6(3, 4, 5, 6, 7, 11), 8, 9, 10));
   ASSERT(10, add3(5, 3, 2));
   ASSERT(30, mul3(5, 3, 2));

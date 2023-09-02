@@ -94,6 +94,7 @@ typedef enum {
   TY_INT,
   TY_PTR,
   TY_ARRAY,
+  TY_FUNC,
   TY_STRUCT
 } TypeKind;
 
@@ -101,8 +102,13 @@ struct Type {
   TypeKind *kind;
   int size; //sizeof
   int align; //stacksize
-  Type *next; // Pointer
-  int array_len; // Array Length
+  Type *base; // pointer, array
+  int array_len; // array length
+
+  // function
+  Type *params;
+  Type *next; //params
+
   Token *token; // declaration
   Member *members; // struct member
 };

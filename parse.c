@@ -62,6 +62,43 @@ static Obj *new_var(char *name, Type *ty) {
   return var;
 }
 
+/*
+  新しい変数をリストの先頭に追加
+  new --> ~~~ -> second -> first
+  先頭アドレスはlocals
+
+  stack
+  +------------------------------
+  | rbp
+  | 7fff ffff ffff ffff 
+  +------------------------------
+  | [rbp - first->offset]    (offset = 8 の場合)
+  | 6fff ffff ffff ffff
+  +------------------------------
+  | ~~~
+  +------------------------------
+  | [rbp - (new->offset)]
+  +------------------------------
+  | ~~~
+  +------------------------------
+  | rsp
+  +------------------------------
+  | ~~~
+  +------------------------------
+  | 0x 0000 0000 0000 0000
+  +------------------------------
+
+  例:
+  int exp(int a, int b, int c) {
+     int d, e, f;
+     return a + b + c + d + e + f;
+  };
+
+  リストは下記となる
+  f -> e -> d -> c -> a -> b -> c
+  params部分は、順番が逆としている
+  
+*/
 static Obj *new_lvar(char *name, Type *ty) {
   Obj *lvar = new_var(name, ty);
   lvar->is_local = true;
@@ -204,45 +241,26 @@ static bool is_type(Token *token) {
   return equal(token, "int") || equal(token, "char") || equal(token, "struct");
 }
 
-static void function_params(Token **rest, Token *token) {
-  expect(&token, token, "(");
-
-  Obj head = {};
-  Obj *cur = &head;
-
-  while (!equal(token, ")")) {
-    if (cur != &head) {
-      expect(&token, token, ",");
-    }
-
-
-    Type *ty = declspec(&token, token);
-
-    while(consume(&token, token, "*")) {
-      ty = pointer_to(ty);
-    }
-
-    cur = cur->next = new_lvar(get_ident_name(token), ty);
-    token = token->next;
+static void create_params(Type *param) {
+  if (param) {
+    create_params(param->next);
+    locals = new_lvar(get_ident_name(param->token), param);
   }
-
-  locals = head.next;
-  expect(&token, token, ")");
-  *rest = token;
 }
 
-// function_or_decl ::= declspec ident "(" function_params? ")" ( stmt? | ";")
+// function ::= declspec declarator ( stmt? | ";")
 static void *function (Token **rest, Token *token) {
-  Type *ty = declspec(&token, token);
+  Type *basety = declspec(&token, token);
 
-  Obj *fn = new_gvar(get_ident_name(token), ty);
+  Type *ty = declarator(&token, token, basety);
+  Obj *fn = new_gvar(get_ident_name(ty->token), basety);
   fn->is_function = true;
-  token = token->next;
 
   enter_scope();
 
   locals = NULL;
-  function_params(&token, token);
+  //このタイミングでparamsをlvarにする
+  create_params(ty->params);
 
   fn->params = locals;
 
@@ -308,6 +326,42 @@ Obj *parse(Token *token) {
   return globals;
 }
 
+/*
+  
+  新しいmemberをリストの最後に追加
+  old -> new 
+
+  例；
+  struct {
+    int *a;
+    int *b;
+  } x;
+
+  b->offset = 8
+  a->offset = 0
+  xの先頭アドレスはaのアドレスと同じ
+
+  stack
+  +------------------------------
+  | rbp
+  | 7fff ffff ffff ffff 
+  +------------------------------
+  | [rbp - x->offset + b->offset]
+  | 6fff ffff ffff ffff
+  +------------------------------
+  | [rbp - x->offset + a->offset]
+  | 5fff ffff ffff ffff
+  +------------------------------
+  | ~~~
+  +------------------------------
+  | rsp
+  +------------------------------
+  | ~~~
+  +------------------------------
+  | 0x 0000 0000 0000 0000
+  +------------------------------
+  
+*/
 // struct-member ::= (declspec declarator ("," declarator)* ";")*
 static void struct_member(Token **rest, Token *token, Type *ty) {
   Member head = {};
@@ -429,14 +483,54 @@ static Type *declarator(Token **rest, Token *token, Type *ty) {
     }
 
     ty = type_suffix(rest, token->next, ty);
-    //ident
+
+    //ident取得用
     ty->token = token;
 
     return ty;
 }
 
-// type-suffix ::= "[" num "]" type-suffix
+// func-params ::= "(" (declspec declarator ("," declspec declarator)*)? ")"
+static Type *func_params(Token **rest, Token *token, Type *ty) {
+  Type head = {};
+  Type *cur = &head;
+
+  int i = 0;
+  while (!equal(token, ")")) {
+    if (i > 0) {
+      expect(&token, token, ",");
+    }
+    i++;
+
+    Type *basety = declspec(&token, token);
+    Type *ty2 = declarator(&token, token, basety);
+    cur = cur->next = ty2;
+  }
+
+  /*
+    TYPE_FUNC
+    ty->params: Type型でparamごとにnextでのリスト
+    ローカル変数生成は、function内でtoken->nameから取得しlocalsに追加する
+  */
+
+  ty = ty_func(ty);
+  ty->params = head.next;
+  expect(&token, token, ")");
+  *rest = token;
+
+  return ty;
+}
+
+/*
+  type-suffix ::= "(" func-params ")"
+                | "[" num "]" type-suffix
+                | ε
+*/
 static Type *type_suffix(Token **rest, Token *token, Type *ty) {
+  if (equal(token, "(")) {
+    return func_params(rest, token->next, ty);
+  }
+
   if (equal(token, "[")) {
     token = token->next;
 
@@ -658,18 +752,18 @@ static Node *new_add(Node *lhs, Node *rhs, Token *token) {
   Node *n;
 
   // num + num
-  if (!lhs->ty->next && !rhs->ty->next) {
+  if (!lhs->ty->base && !rhs->ty->base) {
     n = new_node_binary(ND_ADD, lhs, rhs, token);
     return n;
   }
 
   // pointer + pointer
-  if (lhs->ty->next && rhs->ty->next) {
+  if (lhs->ty->base && rhs->ty->base) {
     error_at(token->loc, "%s", "invalid operand");
   }
 
   // num + pointer to pointer + num
-  if (!lhs->ty->next && rhs->ty->next) {
+  if (!lhs->ty->base && rhs->ty->base) {
     Node *tmp = lhs;
     lhs = rhs;
     rhs = tmp;
@@ -677,7 +771,7 @@ static Node *new_add(Node *lhs, Node *rhs, Token *token) {
   
   // pointer + num * ty->size
   // int -> 4byte
-  n = new_node_binary(ND_ADD, lhs, new_node_binary(ND_MUL, rhs, new_node_num(lhs->ty->next->size, token), token), token);
+  n = new_node_binary(ND_ADD, lhs, new_node_binary(ND_MUL, rhs, new_node_num(lhs->ty->base->size, token), token), token);
 
   return n;
 }
@@ -689,21 +783,21 @@ static Node *new_sub(Node *lhs, Node *rhs, Token *token) {
   Node *n;
 
   // num - num
-  if (!lhs->ty->next && !rhs->ty->next) {
+  if (!lhs->ty->base && !rhs->ty->base) {
     n = new_node_binary(ND_SUB, lhs, rhs, token);
     return n;
   }
 
   // pointer - num * ty->size 
   // int -> 4byte
-  if (lhs->ty->next && !rhs->ty->next) {
+  if (lhs->ty->base && !rhs->ty->base) {
     n = new_node_binary(ND_SUB, lhs, new_node_binary(ND_MUL, rhs, new_node_num(rhs->ty->size, token), token), token);
     return n;
   }
 
   // pointer - pointer, return int elements between pointer and pointer
-  if (lhs->ty->next && rhs->ty->next) {
-    n = new_node_binary(ND_DIV, new_node_binary(ND_SUB, lhs, rhs, token), new_node_num(rhs->ty->next->size, token), token);
+  if (lhs->ty->base && rhs->ty->base) {
+    n = new_node_binary(ND_DIV, new_node_binary(ND_SUB, lhs, rhs, token), new_node_num(rhs->ty->base->size, token), token);
     return n;
   }
 
