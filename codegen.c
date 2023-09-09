@@ -298,16 +298,59 @@ int align_to(int n, int align) {
   return n % align == 0 ? n : ((n / align + 1) * align);
 }
 
+/*
+  新しい変数をリストの先頭に追加
+  new --> ~~~ -> second -> first
+  先頭アドレスはlocals
+  align_stack_size()でoffsetをリストの最初から加算していくので、stack上は新しい変数ほどアドレスは大きい
+
+  stack
+  +------------------------------
+  | rbp
+  | 7fff ffff ffff ffff 
+  +------------------------------
+  | [rbp - new->offset]    (offset = 8 の場合)
+  | 6fff ffff ffff ffff
+  +------------------------------
+  | ~~~
+  +------------------------------
+  | [rbp - (first->offset)]
+  +------------------------------
+  | ~~~
+  +------------------------------
+  | rsp
+  +------------------------------
+  | ~~~
+  +------------------------------
+  | 0x 0000 0000 0000 0000
+  +------------------------------
+
+  例:
+  int exp(int a, int b, int c) {
+     int d, e, f;
+     return a + b + c + d + e + f;
+  };
+
+  stack_sizeは、functionのparamsも含む 
+  リストは下記となる
+  f -> e -> d -> c -> a -> b -> c
+  params部分は、順番が逆としている
+*/
 static void align_stack_size(Obj *prog) {
   int offset;
   for (Obj *fn = prog; fn; fn = fn->next) {
     offset = 0;
-    /*
-      stack_sizeは、functionのparamsも含む 
-    */
     for (Obj *var = fn->locals; var; var = var->next) {
       offset += var->ty->size;
-      //offset = align_to(offset, var->ty->align);
+      /*
+        例:
+        int a; char b;
+        locals = b --> a
+        offset = 0 --> offset = 1(b->offset) --> offset = 1 + 4 --> align_to(5, 4) = 8(a->offset)
+        char a; int b;
+        offset = 0 --> offset = 4(b->offset) --> offset = 4 + 1 --> align_to(5, 1) = 5(a->offset)
+      */
+      offset = align_to(offset, var->ty->align);
       var->offset = offset;
     }
 
