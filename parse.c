@@ -399,16 +399,25 @@ static Type *struct_decl(Token **rest, Token *token) {
 
   Type *ty = calloc(1, sizeof(Type));
   ty->kind = TY_STRUCT;
+  ty->align = 1;
+
   struct_member(&token, token, ty);
 
   int offset = 0;
   for (Member *m = ty->members; m; m = m->next) {
     m->offset = offset;
+    // memberのtypeのalignに合わせてoffsetをalignした後、memberのtype->sizeをoffsetに加算
+    offset = align_to(offset, m->ty->align);
     offset += m->ty->size;
+
+    // structのtypeのalignは、memberのalignの最大値
+    if (ty->align < m->ty->align) {
+      ty->align = m->ty->align;
+    }
   }
 
-  ty->size = offset;
-  ty->align = offset;
+  //structのalign(memberのalignnの最大値)に合わせてoffsetをalignしそれをsizeとする
+  ty->size = align_to(offset, ty->align);
 
   *rest = token;
   return ty;
@@ -791,13 +800,13 @@ static Node *new_sub(Node *lhs, Node *rhs, Token *token) {
   // pointer - num * ty->size 
   // int -> 4byte
   if (lhs->ty->base && !rhs->ty->base) {
-    n = new_node_binary(ND_SUB, lhs, new_node_binary(ND_MUL, rhs, new_node_num(rhs->ty->size, token), token), token);
+    n = new_node_binary(ND_SUB, lhs, new_node_binary(ND_MUL, rhs, new_node_num(lhs->ty->size, token), token), token);
     return n;
   }
 
   // pointer - pointer, return int elements between pointer and pointer
   if (lhs->ty->base && rhs->ty->base) {
-    n = new_node_binary(ND_DIV, new_node_binary(ND_SUB, lhs, rhs, token), new_node_num(rhs->ty->base->size, token), token);
+    n = new_node_binary(ND_DIV, new_node_binary(ND_SUB, lhs, rhs, token), new_node_num(lhs->ty->base->size, token), token);
     return n;
   }
 

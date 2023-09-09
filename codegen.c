@@ -4,7 +4,10 @@ static Obj *current_fn;
 static FILE *out;
 static void gen_stmt(Node *n);
 static void gen_expr(Node *n);
-static char *argreg[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
+static char *argreg64[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
+static char *argreg32[] = {"edi", "esi", "edx", "ecx", "r8d", "r9d"};
+static char *argreg16[] = {"di", "si", "dx", "cx", "r8w", "r9w"};
+static char *argreg8[] = {"dil", "sil", "dl", "cl", "r8b", "r9b"};
 
 static void println(char *fmt, ...) {
   va_list ap;
@@ -24,11 +27,21 @@ static void load(Type *ty) {
     return;
   }
 
-  if (ty->size == 1) {
+  switch(ty->size) {
+  case 1:
     println("  movzx rax, BYTE PTR [rax]");
-  } else {
+    break;
+  case 2:
+    println("  movsx rax, WORD PTR [rax]");
+    break;
+  case 4:
+    println("  movsxd rax, DWORD PTR [rax]");
+    break;
+  default:
     println("  mov rax, [rax]");
-  }
+    break;
+  } 
+
 }
 
 static void gen_addr(Node *n) {
@@ -94,7 +107,7 @@ static void gen_expr(Node *n) {
     }
 
     for (int i = nargs - 1; i >= 0; i--) {
-      println("  pop %s", argreg[i]);
+      println("  pop %s", argreg64[i]);
     }
 
     println("  mov rax, 0");
@@ -111,10 +124,21 @@ static void gen_expr(Node *n) {
     println("  pop rdi");
     println("  pop rax");
 
-    if (n->ty->size == 1) {
+    switch (n->ty->size) {
+    case 1:
       println("  mov [rax], dil");
-    } else {
+      break;
+    case 2: 
+      println("  mov [rax], di");
+      break;
+    case 4: 
+      println("  mov [rax], edi");
+      break;
+    case 8:
       println("  mov [rax], rdi");
+      break;
+    default:
+      error("invalid size");
     }
 
     println("  mov rax, rdi");
@@ -261,8 +285,17 @@ static void gen_stmt(Node *n) {
   gen_expr(n);
 }
 
+/*
+  n以上の最小のalignの倍数を返す 
+  例:
+  0, 4 -> 0
+  0, 8 -> 0
+  1, 8 -> 8
+  11, 8 -> 16
+  17, 8 -> 24
+*/
 int align_to(int n, int align) {
-  return (n / align + 1) * align;
+  return n % align == 0 ? n : ((n / align + 1) * align);
 }
 
 static void align_stack_size(Obj *prog) {
@@ -273,7 +306,8 @@ static void align_stack_size(Obj *prog) {
       stack_sizeは、functionのparamsも含む 
     */
     for (Obj *var = fn->locals; var; var = var->next) {
-      offset += var->ty->align;
+      offset += var->ty->size;
+      //offset = align_to(offset, var->ty->align);
       var->offset = offset;
     }
 
@@ -326,7 +360,20 @@ static void emit_text(Obj *prog) {
     */
     int i = 0;
     for (Obj *var = fn->params; var; var = var->next) {
-      println("  mov [rbp - %d], %s", var->offset, argreg[i++]);
+      switch (var->ty->size) {
+      case 1:
+        println("  mov [rbp - %d], %s", var->offset, argreg8[i++]);
+        break;
+      case 2:
+        println("  mov [rbp - %d], %s", var->offset, argreg16[i++]);
+        break;
+      case 4:
+        println("  mov [rbp - %d], %s", var->offset, argreg32[i++]);
+        break;
+      default:
+        println("  mov [rbp - %d], %s", var->offset, argreg64[i++]);
+        break;
+      }
     }
 
     gen_stmt(fn->body);

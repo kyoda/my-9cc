@@ -99,7 +99,7 @@ typedef enum {
 } TypeKind;
 
 struct Type {
-  TypeKind *kind;
+  TypeKind kind;
   int size; //sizeof
   int align; //stacksize
   Type *base; // pointer, array

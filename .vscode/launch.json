@@ -16,8 +16,9 @@
                 //"/tmp/variable.c"
                 //"/tmp/string.c"
                 //"/tmp/control.c"
-                //"/tmp/struct.c"
                 "/tmp/function.c"
+                //"/tmp/pointer.c"
+                //"/tmp/struct.c"
             ],
             "preLaunchTask": "build_9cc",
             "stopAtEntry": false,

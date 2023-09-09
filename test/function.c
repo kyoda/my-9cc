@@ -1,4 +1,5 @@
 #include "test.h"
+
 int ret3() { return 3; }
 int add2(int a, int b) { return a + b; }
 int sub2(int a, int b) { return a - b; }
@@ -9,6 +10,7 @@ int cal3(int a, int b, int c) { return a - b * c; }
 int cal6(int a, int b, int c, int d, int e, int f) { return f + e / b - c - a - d; }
 
 int main() {
+  ASSERT(8, add2(5, 3));
   ASSERT(3, ret3());
   ASSERT(8, add2(5, 3));
   ASSERT(2, sub2(5, 3));

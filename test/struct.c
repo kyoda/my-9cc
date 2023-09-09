@@ -1,6 +1,7 @@
 #include "test.h"
 
 int main() {
+  ASSERT(4, ({ struct {int a;} x; sizeof(x);}));
   ASSERT(0, ({ struct {} x; 0;}));
   ASSERT(0, ({ struct {int a;} x; 0;}));
   ASSERT(0, ({ struct {int a, b;} x; 0;}));
@@ -22,11 +23,13 @@ int main() {
   ASSERT(0, ({ struct {} x; sizeof x;}));
   ASSERT(4, ({ struct {int a;} x; sizeof(x);}));
   ASSERT(8, ({ struct {int a, b;} x; sizeof(x);}));
-  ASSERT(12, ({ struct {int a, *b;} x; sizeof(x);}));
-  ASSERT(13, ({ struct {int a, *b; char c;} x; sizeof(x);}));
+  ASSERT(16, ({ struct {int a, *b;} x; sizeof(x);}));
+  ASSERT(24, ({ struct {int a, *b; char c;} x; sizeof(x);}));
   ASSERT(12, ({ struct { int a[3]; } x; sizeof(x);}));
   ASSERT(16, ({ struct { int a; } x[4]; sizeof(x);}));
   ASSERT(48, ({ struct { int a[3]; } x[4]; sizeof(x);}));
+  ASSERT(8, ({ struct {int a; char b;} x; sizeof(x);}));
+  ASSERT(16, ({ struct {int *a; char b;} x; sizeof(x);}));
 
   printf("OK\n");
   return 0;
