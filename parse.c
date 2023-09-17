@@ -237,7 +237,7 @@ static bool is_function(Token *token) {
 }
 
 static bool is_type(Token *token) {
-  return equal(token, "int") || equal(token, "char") || equal(token, "struct");
+  return equal(token, "int") || equal(token, "char") || equal(token, "struct") || equal(token, "union");
 }
 
 static void create_params(Type *param) {
@@ -390,8 +390,8 @@ static void struct_member(Token **rest, Token *token, Type *ty) {
   *rest = token;
 }
 
-// struct-decl ::= "struct" ident "{" struct-member "}"
-static Type *struct_decl(Token **rest, Token *token) {
+// struct-union-decl ::= "struct" ident "{" struct-member "}"
+static Type *struct_union_decl(Token **rest, Token *token) {
   // "struct"
   token = token->next;
 
@@ -416,11 +416,23 @@ static Type *struct_decl(Token **rest, Token *token) {
   expect(&token, token, "{");
 
   Type *ty = calloc(1, sizeof(Type));
-  ty->kind = TY_STRUCT;
   ty->align = 1;
 
   struct_member(&token, token, ty);
   expect(&token, token, "}");
+
+  if (token_tag) {
+    push_new_tag(token_tag, ty);
+  }
+
+  *rest = token;
+  return ty;
+}
+
+// struct-decl ::= struct-union-decl
+static Type *struct_decl(Token **rest, Token *token) {
+  Type *ty = struct_union_decl(rest, token);
+  ty->kind = TY_STRUCT;
 
   int offset = 0;
   for (Member *m = ty->members; m; m = m->next) {
@@ -435,18 +447,35 @@ static Type *struct_decl(Token **rest, Token *token) {
     }
   }
 
-  //structのalign(memberのalignnの最大値)に合わせてoffsetをalignしそれをsizeとする
+  //structのalign(memberのalignの最大値)に合わせてoffsetをalignしそれをsizeとする
   ty->size = align_to(offset, ty->align);
 
-  if (token_tag) {
-    push_new_tag(token_tag, ty);
-  }
-
-  *rest = token;
   return ty;
 }
 
-// declspec ::= "int" || "char" || "struct-decl"
+// union-decl ::= struct-union-decl
+static Type *union_decl(Token **rest, Token *token) {
+  Type *ty = struct_union_decl(rest, token);
+  ty->kind = TY_UNION;
+
+  int offset = 0;
+  for (Member *m = ty->members; m; m = m->next) {
+    // unionのtypeのalignは、memberのalignの最大値
+    if (ty->align < m->ty->align) {
+      ty->align = m->ty->align;
+    }
+    // unionのtypeのsizeは、memberのsizeの最大値
+    if (ty->size< m->ty->size) {
+      ty->size = m->ty->size;
+    }
+  }
+
+  ty->size = align_to(ty->size, ty->align);
+
+  return ty;
+}
+
+// declspec ::= "int" || "char" || "struct-decl" || "union-decl"
 static Type *declspec(Token **rest, Token *token) {
   Type *ty;
   if (equal(token, "int")) {
@@ -457,6 +486,8 @@ static Type *declspec(Token **rest, Token *token) {
     token = token->next;
   } else if (equal(token, "struct")) {
     ty = struct_decl(&token, token);
+  } else if (equal(token, "union")) {
+    ty = union_decl(&token, token);
   } else {
     error(token->loc, "%s", "none of type defined");
   }
@@ -929,7 +960,7 @@ static Node *struct_ref(Token *token, Node *lhs) {
   // token is "."
   add_type(lhs);
 
-  if (lhs->ty->kind != TY_STRUCT) {
+  if (lhs->ty->kind != TY_STRUCT && lhs->ty->kind != TY_UNION) {
     error_at(token->loc, "%s", "not struct");
   }
 
