@@ -52,6 +52,26 @@ static Node *new_node_var(Obj *var, Token *token) {
   return n;
 }
 
+static Type *find_tag_type(Token *t) {
+  for (Scope *sc = scope; sc; sc = sc->next) {
+    for (TagScope *ts = sc->tags; ts; ts = ts->next) {
+      if (strncmp(t->loc, ts->name, t->len) == 0) {
+        return ts->ty;
+      }
+    }
+  }
+
+  return NULL;
+}
+
+static void *push_new_tag(Token *token, Type *ty) {
+  TagScope *tag = calloc(1, sizeof(TagScope));
+  tag->name = strndup(token->loc, token->len);
+  tag->ty = ty;
+  tag->next = scope->tags;
+  scope->tags = tag;
+}
+
 static Obj *new_var(char *name, Type *ty) {
   Obj *var;
   var = calloc(1, sizeof(Obj));
@@ -370,10 +390,29 @@ static void struct_member(Token **rest, Token *token, Type *ty) {
   *rest = token;
 }
 
-// struct-decl ::= "struct" "{" struct-member "}"
+// struct-decl ::= "struct" ident "{" struct-member "}"
 static Type *struct_decl(Token **rest, Token *token) {
   // "struct"
   token = token->next;
+
+  Token *token_tag = NULL;
+  if (token->kind == TK_IDENT) {
+    //tokenだけ保持しておき、後でstructのtypeを作成した後にtagを追加する
+    token_tag = token;
+    token = token->next;
+  }
+
+  // struct tag x; といったtagによるstructの宣言
+  if (token_tag && !equal(token, "{")) {
+    Type *ty = find_tag_type(token_tag);
+    if (!ty) {
+      error_at(token_tag->loc, "%s", "undefined struct tag");
+    }
+
+    *rest = token;
+    return ty;
+  }
+
   expect(&token, token, "{");
 
   Type *ty = calloc(1, sizeof(Type));
@@ -381,6 +420,7 @@ static Type *struct_decl(Token **rest, Token *token) {
   ty->align = 1;
 
   struct_member(&token, token, ty);
+  expect(&token, token, "}");
 
   int offset = 0;
   for (Member *m = ty->members; m; m = m->next) {
@@ -398,6 +438,10 @@ static Type *struct_decl(Token **rest, Token *token) {
   //structのalign(memberのalignnの最大値)に合わせてoffsetをalignしそれをsizeとする
   ty->size = align_to(offset, ty->align);
 
+  if (token_tag) {
+    push_new_tag(token_tag, ty);
+  }
+
   *rest = token;
   return ty;
 }
@@ -407,16 +451,17 @@ static Type *declspec(Token **rest, Token *token) {
   Type *ty;
   if (equal(token, "int")) {
     ty = ty_int();
+    token = token->next;
   } else if (equal(token, "char")) {
     ty = ty_char();
+    token = token->next;
   } else if (equal(token, "struct")) {
     ty = struct_decl(&token, token);
-    // token -> "}"
   } else {
     error(token->loc, "%s", "none of type defined");
   }
 
-  *rest = token->next;
+  *rest = token;
   return ty;
 }
 

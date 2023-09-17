@@ -146,16 +146,24 @@ struct Member {
   Token *token;
 };
 
-typedef struct Scope Scope;
 typedef struct VarScope VarScope;
-
-struct Scope {
-  Scope *next;
-  VarScope *vars;
-};
-
 struct VarScope {
   char *name;
   Obj *var;
   VarScope *next;
+};
+
+// struct tag
+typedef struct TagScope TagScope;
+struct TagScope {
+  char *name;
+  Type *ty;
+  TagScope *next;
+};
+
+typedef struct Scope Scope;
+struct Scope {
+  Scope *next;
+  VarScope *vars;
+  TagScope *tags;
 };

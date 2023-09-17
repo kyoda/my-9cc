@@ -31,6 +31,13 @@ int main() {
   ASSERT(8, ({ struct {int a; char b;} x; sizeof(x);}));
   ASSERT(16, ({ struct {int *a; char b;} x; sizeof(x);}));
 
+  ASSERT(16, ({ struct t {int *a; char b;}; struct t y; sizeof(y);}));
+  ASSERT(16, ({ struct t {int *a; char b;} x; struct t y; sizeof(y);}));
+  ASSERT(16, ({ struct t {int *a; char b;} x; struct t y; sizeof(x);}));
+  ASSERT(3, ({ struct t {int *a; char b;} x; struct t y; y.a = 3; y.a;}));
+  ASSERT(3, ({ struct t {int *a;}; int t = 1; struct t y; y.a = 3; y.a;}));
+  ASSERT(12, ({ struct t {int a[3];}; {struct t {int a;};}; struct t y; sizeof(y);}));
+
   printf("OK\n");
   return 0;
 }
