@@ -926,7 +926,7 @@ static Node *unary(Token **rest, Token *token) {
 }
 
 static Node *struct_ref(Token *token, Node *lhs) {
-  // token -> "."
+  // token is "."
   add_type(lhs);
 
   if (lhs->ty->kind != TY_STRUCT) {
@@ -939,7 +939,7 @@ static Node *struct_ref(Token *token, Node *lhs) {
   return n;
 }
 
-// postfix = primary ("[" expr "]" | "." ident)*
+// postfix = primary ("[" expr "]" | "." ident | "->" ident)*
 static Node *postfix(Token **rest, Token *token) {
   Node *n = primary(&token, token);
 
@@ -961,6 +961,15 @@ static Node *postfix(Token **rest, Token *token) {
     //struct member
     if (equal(token, ".")) {
       n = struct_ref(token, n);
+      token = token->next->next;
+
+      continue;
+    }
+
+    //struct member
+    // a->b is (*a).b
+    if (equal(token, "->")) {
+      n = struct_ref(token, new_node_unary(ND_DEREF, n, token));
       token = token->next->next;
 
       continue;
