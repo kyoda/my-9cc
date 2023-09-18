@@ -48,6 +48,17 @@ static void store(Type *ty) {
   println("  pop rdi"); //rhs
   println("  pop rax"); //lhs
 
+  if (ty->kind == TY_STRUCT || ty->kind == TY_UNION) {
+    for (int i = 0; i < ty->size; i++) {
+      println("  mov r8b, [rdi + %d]", i);
+      println("  mov [rax + %d], r8b", i);
+    }
+
+    println("  mov rax, rdi");
+    return;
+  }
+
+
   switch (ty->size) {
   case 1:
     println("  mov [rax], dil");
