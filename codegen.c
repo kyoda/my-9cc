@@ -23,7 +23,7 @@ static int count() {
 }
 
 static void load(Type *ty) {
-  if (ty->kind == TY_ARRAY) {
+  if (ty->kind == TY_ARRAY || ty->kind == TY_STRUCT || ty->kind == TY_UNION) {
     return;
   }
 

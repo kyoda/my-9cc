@@ -41,6 +41,8 @@ int main() {
   ASSERT(3, ({ struct t {int a;} x; struct t *y = &x; x.a = 3; y->a;}));
   ASSERT(3, ({ struct t {int a;} x; struct t *y = &x; y->a = 3; x.a;}));
 
+  ASSERT(3, ({ struct t {int a;} x; int *y = x; x.a = 3; *y;}));
+
   printf("OK\n");
   return 0;
 }
