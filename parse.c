@@ -237,9 +237,8 @@ static bool is_function(Token *token) {
 }
 
 static bool is_type(Token *token) {
-  return equal(token, "int") || equal(token, "char") ||
-         equal(token, "struct") || equal(token, "union") ||
-         equal(token, "long");
+  return equal(token, "char") || equal(token, "short") ||equal(token, "int") ||
+         equal(token, "long") || equal(token, "struct") || equal(token, "union");
 }
 
 static void create_params(Type *param) {
@@ -477,22 +476,25 @@ static Type *union_decl(Token **rest, Token *token) {
   return ty;
 }
 
-// declspec ::= "int" || "char" || "struct-decl" || "union-decl" || "long"
+// declspec ::= "char" || "short" || "int" || "long" || "struct-decl" || "union-decl"
 static Type *declspec(Token **rest, Token *token) {
   Type *ty;
-  if (equal(token, "int")) {
+  if (equal(token, "char")) {
+    ty = ty_char();
+    token = token->next;
+  } else if (equal(token, "short")) {
+    ty = ty_short();
+    token = token->next;
+  } else if (equal(token, "int")) {
     ty = ty_int();
     token = token->next;
-  } else if (equal(token, "char")) {
-    ty = ty_char();
+  } else if (equal(token, "long")) {
+    ty = ty_long();
     token = token->next;
   } else if (equal(token, "struct")) {
     ty = struct_decl(&token, token);
   } else if (equal(token, "union")) {
     ty = union_decl(&token, token);
-  } else if (equal(token, "long")) {
-    ty = ty_long();
-    token = token->next;
   } else {
     error(token->loc, "%s", "none of type defined");
   }

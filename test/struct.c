@@ -44,6 +44,7 @@ int main() {
   ASSERT(3, ({ struct t {int a;} x; int *y = x; x.a = 3; *y;}));
 
   ASSERT(16, ({ struct {long a; char b;} x; sizeof(x);}));
+  ASSERT(4, ({ struct {short a; char b;} x; sizeof(x);}));
 
   printf("OK\n");
   return 0;
