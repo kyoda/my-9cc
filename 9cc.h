@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <ctype.h>
@@ -24,7 +25,7 @@ typedef enum {
 struct Token {
   TokenKind kind;
   Token *next;
-  int val;
+  int64_t val;
   char *loc;
   int len;
   int line; //for .loc directive
@@ -80,7 +81,7 @@ struct Node {
   char *funcname;
   Node *args;
 
-  int val;
+  int64_t val;
   Obj *var; // ND_VAR
 
   Token *token; // for error message
@@ -92,6 +93,7 @@ struct Node {
 typedef enum {
   TY_CHAR,
   TY_INT,
+  TY_LONG,
   TY_PTR,
   TY_ARRAY,
   TY_FUNC,

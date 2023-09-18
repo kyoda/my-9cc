@@ -12,6 +12,10 @@ Type *ty_int() {
   return new_type(TY_INT, 4, 4);
 }
 
+Type *ty_long() {
+  return new_type(TY_LONG, 8, 8);
+}
+
 Type *ty_char() {
   return new_type(TY_CHAR, 1, 1);
 }
@@ -81,7 +85,7 @@ void add_type(Node *n) {
   case ND_LE:
   case ND_FUNC:
   case ND_NUM:
-    n->ty = ty_int();
+    n->ty = ty_long();
     return;
   case ND_VAR:
     n->ty = n->var->ty;

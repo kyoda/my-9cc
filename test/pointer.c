@@ -13,10 +13,10 @@ int main() {
   //ASSERT(3, ({ int *p; alloc3(&p, 7, 11, 3); *(p+2);}));
   //ASSERT(11, ({ int *p; alloc3add2(&p, 7, 11, 3); *(p-1);}));
   //ASSERT(2, ({ int *p; alloc3(&p, 7, 11, 3); (p+2)-p;}));
-  ASSERT(4, ({ sizeof 8;}));
+  ASSERT(8, ({ sizeof 8;}));
   ASSERT(8, ({ int *p; sizeof p;}));
   ASSERT(4, ({ int *p; sizeof *p;}));
-  ASSERT(6, ({ sizeof sizeof sizeof (8+3-2) + 2;}));
+  ASSERT(10, ({ sizeof sizeof sizeof (8+3-2) + 2;}));
   ASSERT(0, ({ int a[3]; 0;}));
   ASSERT(99, ({ 2["abcd"]; }));
   ASSERT(3, ({ int x[2]; int *y=x; *y=3; *x; }));

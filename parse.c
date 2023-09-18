@@ -40,7 +40,7 @@ static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs, Token *token) 
   return n;
 }
 
-static Node *new_node_num(int val, Token *token) {
+static Node *new_node_num(int64_t val, Token *token) {
   Node *n = new_node(ND_NUM, token);
   n->val = val;
   return n;
@@ -237,7 +237,9 @@ static bool is_function(Token *token) {
 }
 
 static bool is_type(Token *token) {
-  return equal(token, "int") || equal(token, "char") || equal(token, "struct") || equal(token, "union");
+  return equal(token, "int") || equal(token, "char") ||
+         equal(token, "struct") || equal(token, "union") ||
+         equal(token, "long");
 }
 
 static void create_params(Type *param) {
@@ -475,7 +477,7 @@ static Type *union_decl(Token **rest, Token *token) {
   return ty;
 }
 
-// declspec ::= "int" || "char" || "struct-decl" || "union-decl"
+// declspec ::= "int" || "char" || "struct-decl" || "union-decl" || "long"
 static Type *declspec(Token **rest, Token *token) {
   Type *ty;
   if (equal(token, "int")) {
@@ -488,6 +490,9 @@ static Type *declspec(Token **rest, Token *token) {
     ty = struct_decl(&token, token);
   } else if (equal(token, "union")) {
     ty = union_decl(&token, token);
+  } else if (equal(token, "long")) {
+    ty = ty_long();
+    token = token->next;
   } else {
     error(token->loc, "%s", "none of type defined");
   }

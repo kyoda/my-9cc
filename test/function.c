@@ -8,6 +8,7 @@ int add3(int a, int b, int c) { return a + b + c; }
 int mul3(int a, int b, int c) { return a * b * c; }
 int cal3(int a, int b, int c) { return a - b * c; }
 int cal6(int a, int b, int c, int d, int e, int f) { return f + e / b - c - a - d; }
+int sub_long(long a, long b, long c) { return a - b - c;}
 
 int main() {
   ASSERT(8, add2(5, 3));
@@ -19,6 +20,8 @@ int main() {
   ASSERT(30, mul3(5, 3, 2));
   ASSERT(2, cal3(5, 3, 1));
   ASSERT(8, cal6(5, 3, 2, 8, 9, 20));
+
+  ASSERT(5, sub_long(9, 3, 1));
 
   printf("OK\n");
   return 0;
