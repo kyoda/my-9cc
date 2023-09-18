@@ -44,6 +44,30 @@ static void load(Type *ty) {
 
 }
 
+static void store(Type *ty) {
+  println("  pop rdi"); //rhs
+  println("  pop rax"); //lhs
+
+  switch (ty->size) {
+  case 1:
+    println("  mov [rax], dil");
+    break;
+  case 2: 
+    println("  mov [rax], di");
+    break;
+  case 4: 
+    println("  mov [rax], edi");
+    break;
+  case 8:
+    println("  mov [rax], rdi");
+    break;
+  default:
+    error("invalid size");
+  }
+
+  println("  mov rax, rdi");
+}
+
 static void gen_addr(Node *n) {
   switch(n->kind) {
   case ND_VAR:
@@ -121,27 +145,7 @@ static void gen_expr(Node *n) {
     gen_expr(n->rhs);
     println("  push rax");
 
-    println("  pop rdi");
-    println("  pop rax");
-
-    switch (n->ty->size) {
-    case 1:
-      println("  mov [rax], dil");
-      break;
-    case 2: 
-      println("  mov [rax], di");
-      break;
-    case 4: 
-      println("  mov [rax], edi");
-      break;
-    case 8:
-      println("  mov [rax], rdi");
-      break;
-    default:
-      error("invalid size");
-    }
-
-    println("  mov rax, rdi");
+    store(n->ty);
 
     return;
   case ND_COMMA:
