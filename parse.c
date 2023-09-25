@@ -244,6 +244,10 @@ static void *function (Token **rest, Token *token, Type *basety) {
   Type *ty = declarator(&token, token, basety);
   Obj *fn = new_gvar(get_ident_name(ty->token), basety);
   fn->is_function = true;
+  fn->is_definition = !consume(&token, token, ";");
+  if (!fn->is_definition) {
+    return;
+  }
 
   enter_scope();
 
