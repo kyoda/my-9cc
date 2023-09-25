@@ -13,12 +13,12 @@
                 //"int main() { char *str = \\\"abc\\\"; return str[0]; }"
                 //"int main() { printf(\\\"abc\\n\\\", 0); }"
                 //"/tmp/brace.c"
-                //"/tmp/variable.c"
+                "/tmp/variable.c"
                 //"/tmp/string.c"
                 //"/tmp/control.c"
                 //"/tmp/function.c"
                 //"/tmp/pointer.c"
-                "/tmp/struct.c"
+                //"/tmp/struct.c"
             ],
             "preLaunchTask": "build_9cc",
             "stopAtEntry": false,

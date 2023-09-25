@@ -8,6 +8,7 @@ static Type *declspec(Token **rest, Token *token);
 static Node *declaration(Token **rest, Token *token);
 static Type *declarator(Token **rest, Token *token, Type *ty);
 static Type *type_suffix(Token **rest, Token *token, Type *ty);
+static Type *func_params(Token **rest, Token *token, Type *ty);
 static Node *stmt(Token **rest, Token *token);
 static Node *expr_stmt(Token **rest, Token *token);
 static Node *expr(Token **rest, Token *token);
@@ -543,10 +544,30 @@ static Node *declaration(Token **rest, Token *token) {
     return n;
 }
 
-// declarator ::= "*"* ident type-suffix
+// declarator ::= "*"* ( "(" declarator ")" | ident ) type-suffix
 static Type *declarator(Token **rest, Token *token, Type *ty) {
     while (consume(&token, token, "*")) {
       ty = pointer_to(ty);
+    }
+
+    if (equal(token, "(")) {
+      Token *start = token;
+      token = token->next;
+      
+      Type dummy = {};
+      declarator(&token, token, &dummy);
+      expect(&token, token, ")");
+
+      /*
+        nest内のtypeは、nest外のsuffixのtypeを指すため先読みしておく
+        進めたtoken(rest)は使わない
+      */
+      ty = type_suffix(rest, token, ty);
+
+      /*
+        tokenは、"("の次のtoken
+      */
+      return declarator(&token, start->next, ty);
     }
 
     if (token->kind != TK_IDENT) {
@@ -559,6 +580,35 @@ static Type *declarator(Token **rest, Token *token, Type *ty) {
     ty->token = token;
 
     return ty;
+}
+
+/*
+  type-suffix ::= "(" func-params ")"
+                | "[" num "]" type-suffix
+                | ε
+*/
+static Type *type_suffix(Token **rest, Token *token, Type *ty) {
+  if (equal(token, "(")) {
+    return func_params(rest, token->next, ty);
+  }
+
+  if (equal(token, "[")) {
+    token = token->next;
+
+    if (token->kind != TK_NUM) {
+      error_at(token->loc, "%s", "expect TK_NUM");
+    }
+
+    int size = token->val;
+    token = token->next;
+    expect(&token, token, "]");
+    ty = type_suffix(&token, token, ty);
+    *rest = token;
+    return ty_array(ty, size);
+  }
+
+  *rest = token;
+  return ty;
 }
 
 // func-params ::= "(" (declspec declarator ("," declspec declarator)*)? ")"
@@ -589,35 +639,6 @@ static Type *func_params(Token **rest, Token *token, Type *ty) {
   expect(&token, token, ")");
   *rest = token;
 
-  return ty;
-}
-
-/*
-  type-suffix ::= "(" func-params ")"
-                | "[" num "]" type-suffix
-                | ε
-*/
-static Type *type_suffix(Token **rest, Token *token, Type *ty) {
-  if (equal(token, "(")) {
-    return func_params(rest, token->next, ty);
-  }
-
-  if (equal(token, "[")) {
-    token = token->next;
-
-    if (token->kind != TK_NUM) {
-      error_at(token->loc, "%s", "expect TK_NUM");
-    }
-
-    int size = token->val;
-    token = token->next;
-    expect(&token, token, "]");
-    ty = type_suffix(&token, token, ty);
-    *rest = token;
-    return ty_array(ty, size);
-  }
-
-  *rest = token;
   return ty;
 }
 

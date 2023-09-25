@@ -30,6 +30,20 @@ int main() {
   ASSERT(7, ({ int a; char b; char *p = &a; char *q = &b; q-p; }));
   ASSERT(1, ({ char a; int b; char *p = &a; char *q = &b; q-p; }));
 
+  //nested type
+  ASSERT(24, ({ char *a[3]; sizeof(a); }));
+  ASSERT(8, ({ char (*a)[3]; sizeof(a); }));
+  ASSERT(8, ({ char (*a)(); sizeof(a);}));
+  ASSERT(8, ({ char (*a)(int b, int c); sizeof(a);}));
+  ASSERT(1, ({ char (a); sizeof(a); }));
+  ASSERT(3, ({ char (a)[3]; sizeof(a); }));
+  ASSERT(12, ({ char (a[4])[3]; sizeof(a); }));
+  ASSERT(3, ({ char (a[4])[3]; sizeof(a[0]); }));
+  ASSERT(7, ({ char *a[3]; char b; a[0] = &b; b = 7; a[0][0]; }));
+  ASSERT(7, ({ char *a[3]; char b; a[0] = &b; b = 7; **a; }));
+  ASSERT(7, ({ char a[3]; char (*b)[3] = a; b[0][0] = 7; a[0]; }));
+  ASSERT(9, ({ char a[3]; char (*b)[3] = a; b[0][2] = 9; a[2]; }));
+
   //global
   ASSERT(0, ({ x; }));
   ASSERT(4, ({ sizeof x; }));
