@@ -42,7 +42,7 @@ Type *ty_array(Type *base, int len) {
 Type *ty_func(Type *base) {
   Type *ty = calloc(1, sizeof(Type));
   ty->kind = TY_FUNC;
-  ty->base = base;
+  ty->return_type = base;
 
   return ty;
 }

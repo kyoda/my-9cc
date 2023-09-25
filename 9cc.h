@@ -110,6 +110,7 @@ struct Type {
   int array_len; // array length
 
   // function
+  Type *return_type;
   Type *params;
   Type *next; //params
 
