@@ -220,21 +220,11 @@ bool at_eof(Token *token) {
 }
 
 static bool is_function(Token *token) {
-  if (equal(token, "int") || equal(token, "char")) {
-    token = token->next;
-  }
+  Type dummy = {};
+  // functionかどうか先読みを行う
+  Type *ty = declarator(&token, token, &dummy);
 
-  while (consume(&token, token, "*")) {
-  }
-
-  // TK_IDENT
-  token = token->next;
-
-  if (equal(token, "(")) {
-    return true;
-  } else {
-    return false;
-  }
+  return ty->kind == TY_FUNC;
 }
 
 static bool is_type(Token *token) {
@@ -250,9 +240,7 @@ static void create_params(Type *param) {
 }
 
 // function ::= declspec declarator ( stmt? | ";")
-static void *function (Token **rest, Token *token) {
-  Type *basety = declspec(&token, token);
-
+static void *function (Token **rest, Token *token, Type *basety) {
   Type *ty = declarator(&token, token, basety);
   Obj *fn = new_gvar(get_ident_name(ty->token), basety);
   fn->is_function = true;
@@ -283,9 +271,8 @@ static void *gvar_initializer(Token **rest, Token *token, Obj *gvar) {
   */
 }
 
-static void *global_variable (Token **rest, Token *token) {
+static void *global_variable (Token **rest, Token *token, Type *basety) {
     Obj *gvar;
-    Type *basety = declspec(&token, token);
 
     int i = 0;
     while (!equal(token, ";")) {
@@ -317,10 +304,12 @@ Obj *parse(Token *token) {
   globals = NULL;
 
   while (token->kind != TK_EOF) {
+    Type *basety = declspec(&token, token);
+
     if (is_function(token)) {
-      function(&token, token);
+      function(&token, token, basety);
     } else {
-      global_variable(&token, token);
+      global_variable(&token, token, basety);
     }
   }
 
