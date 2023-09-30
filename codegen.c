@@ -81,8 +81,10 @@ static void gen_addr(Node *n) {
   switch(n->kind) {
   case ND_VAR:
     if (n->var->is_local) {
+      // local variable
       println("  lea rax, [rbp - %d]", n->var->offset);
     } else {
+      // global variable
       println("  lea rax, %s", n->var->name);
       //println("  lea rax, %s[rip]", n->var->name);
       //println("  mov rax, offset %s", n->var->name);
@@ -124,6 +126,7 @@ static void gen_expr(Node *n) {
 
     return;
   case ND_STMT_EXPR: {
+    //expresion to statement
     for (Node *nb = n->body; nb; nb = nb->next) {
       gen_stmt(nb);
     }
@@ -236,6 +239,7 @@ static void gen_stmt(Node *n) {
 
     return;
   case ND_EXPR_STMT:
+    // statement to expression
     gen_expr(n->lhs);
     return;
   case ND_RETURN:

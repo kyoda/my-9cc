@@ -43,6 +43,7 @@ int main() {
   ASSERT(3, ({ char (a[4])[3]; sizeof(a[0]); }));
   ASSERT(7, ({ char *a[3]; char b; a[0] = &b; b = 7; a[0][0]; }));
   ASSERT(7, ({ char *a[3]; char b; a[0] = &b; b = 7; **a; }));
+  ASSERT(7, ({ char a[3];  a[1] = 7; char (*b)[3]; b = &a; (*b)[1]; }));
   ASSERT(7, ({ char a[3]; char (*b)[3] = a; b[0][0] = 7; a[0]; }));
   ASSERT(9, ({ char a[3]; char (*b)[3] = a; b[0][2] = 9; a[2]; }));
 

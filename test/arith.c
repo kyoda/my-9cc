@@ -17,9 +17,6 @@ int main() {
   ASSERT(0, 3 < 2);
   ASSERT(1, 3 <= 3);
   ASSERT(0, 2 + 3 * 2 / 2 <= 3 == 0 < 1);
-  ASSERT(2, ({ 1; 2; 2; }));
-  ASSERT(2, ({;; ; 2;}));
-  ASSERT(2, ({ {{};; ; 2; }{}}));
 
   printf("OK\n");
   return 0;

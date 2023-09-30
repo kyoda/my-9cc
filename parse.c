@@ -1094,6 +1094,7 @@ static Node *primary(Token **rest, Token *token) {
 
     Node *n = new_node(ND_STMT_EXPR, token);
     if (!head.next) {
+      // add_type()でtypeを設定せずにここでエラーにしている
       error_at(token->loc, "%s", "empty block");
     }
     n->body = head.next;

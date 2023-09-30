@@ -11,6 +11,18 @@ int main() {
   ASSERT(2, ({ int i=0,j=3; (i=2, j) = 4; i;}));
   ASSERT(4, ({ int i=0,j=3; (i=2, j) = 4; j;}));
 
+  ASSERT(2, ({ 1; 2; 2; }));
+  ASSERT(2, ({;; ; 2;}));
+  ASSERT(2, ({ {{};; ; 2; }{}}));
+  ASSERT(0, ({; }));
+
+  /* error
+  ASSERT(0, ({ }));
+  ASSERT(0, ({ int a[3]; int *p; p = &a;}));
+  ASSERT(0, ({ int a[3]; int b[3]; b = a;}));
+  ASSERT(0, ({ void a; }));
+  */
+
   printf("OK\n");
   return 0;
 }
