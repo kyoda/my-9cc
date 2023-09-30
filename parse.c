@@ -228,7 +228,7 @@ static bool is_function(Token *token) {
 }
 
 static bool is_type(Token *token) {
-  return equal(token, "char") || equal(token, "short") ||equal(token, "int") ||
+  return equal(token, "void") || equal(token, "char") || equal(token, "short") || equal(token, "int") ||
          equal(token, "long") || equal(token, "struct") || equal(token, "union");
 }
 
@@ -473,7 +473,10 @@ static Type *union_decl(Token **rest, Token *token) {
 // declspec ::= "char" || "short" || "int" || "long" || "struct-decl" || "union-decl"
 static Type *declspec(Token **rest, Token *token) {
   Type *ty;
-  if (equal(token, "char")) {
+  if (equal(token, "void")) {
+    ty = ty_void();
+    token = token->next;
+  } else if (equal(token, "char")) {
     ty = ty_char();
     token = token->next;
   } else if (equal(token, "short")) {
@@ -512,6 +515,11 @@ static Node *declaration(Token **rest, Token *token) {
       i++;
 
       Type *ty = declarator(&token, token, basety);
+
+      if (ty->kind == TY_VOID) {
+        error_at(token->loc, "%s", "void type variable");
+      }
+
       Obj *lvar = find_var(ty->token);
       if (lvar) {
         error_at(ty->token->loc, "%s", "defined variable");

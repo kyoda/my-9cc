@@ -8,6 +8,10 @@ Type *new_type(TypeKind kind, int size, int align) {
   return ty;
 }
 
+Type *ty_void() {
+  return new_type(TY_VOID, 1, 1);
+}
+
 Type *ty_char() {
   return new_type(TY_CHAR, 1, 1);
 }
@@ -100,6 +104,10 @@ void add_type(Node *n) {
   case ND_DEREF:
     if (!n->lhs->ty->base) {
       error("%s", "invalid deref");
+    }
+
+    if (n->lhs->ty->base->kind == TY_VOID) {
+      error("%s", "dereferencing a void pointer");
     }
 
     n->ty = n->lhs->ty->base;

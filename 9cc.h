@@ -91,6 +91,7 @@ struct Node {
 };
 
 typedef enum {
+  TY_VOID,
   TY_CHAR,
   TY_SHORT,
   TY_INT,

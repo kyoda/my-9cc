@@ -18,6 +18,8 @@ int main() {
   ASSERT(8, ({ long a; sizeof(a); }));
   ASSERT(2, ({ short a; sizeof(a); }));
 
+  { void *a; }
+
   //align
   /*
     例:
