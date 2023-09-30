@@ -470,31 +470,72 @@ static Type *union_decl(Token **rest, Token *token) {
   return ty;
 }
 
-// declspec ::= "char" || "short" || "int" || "long" || "struct-decl" || "union-decl"
+// declspec ::= ("char" || "short" || "int" || "long" || "struct-decl" || "union-decl")+
 static Type *declspec(Token **rest, Token *token) {
-  Type *ty;
-  if (equal(token, "void")) {
-    ty = ty_void();
+  enum {
+    VOID = 1 << 0,
+    CHAR = 1 << 2,
+    SHORT = 1 << 4,
+    INT = 1 << 6,
+    LONG = 1 << 8,
+    OTHER = 1 << 10
+  };
+
+  Type *ty = ty_int();
+  int counter = 0; 
+
+  while (is_type(token)) {
+    if (equal(token, "struct") || equal(token, "union")) {
+      if (equal(token, "struct")) {
+        ty = struct_decl(&token, token);
+      } else {
+        ty = union_decl(&token, token);
+      }
+      counter += OTHER;
+      continue;
+    }
+
+    if (equal(token, "void")) {
+      counter += VOID;
+    } else if (equal(token, "char")) {
+      counter += CHAR;
+    } else if (equal(token, "short")) {
+      counter += SHORT;
+    } else if (equal(token, "int")) {
+      counter += INT;
+    } else if (equal(token, "long")) {
+      counter += LONG;
+    } else {
+      error(token->loc, "%s", "none of type defined");
+    }
+
+    switch(counter) {
+    case VOID:
+      ty = ty_void();
+      break;
+    case CHAR:
+      ty = ty_char();
+      break;
+    case SHORT:
+    case SHORT + INT:
+      ty = ty_short();
+      break;
+    case INT:
+      ty = ty_int();
+      break;
+    case LONG:
+    case LONG + INT:
+    case LONG + LONG:
+    case LONG + LONG + INT:
+      ty = ty_long();
+      break;
+    default:
+      error(token->loc, "%s", "none of type defined");
+    }
+
     token = token->next;
-  } else if (equal(token, "char")) {
-    ty = ty_char();
-    token = token->next;
-  } else if (equal(token, "short")) {
-    ty = ty_short();
-    token = token->next;
-  } else if (equal(token, "int")) {
-    ty = ty_int();
-    token = token->next;
-  } else if (equal(token, "long")) {
-    ty = ty_long();
-    token = token->next;
-  } else if (equal(token, "struct")) {
-    ty = struct_decl(&token, token);
-  } else if (equal(token, "union")) {
-    ty = union_decl(&token, token);
-  } else {
-    error(token->loc, "%s", "none of type defined");
   }
+
 
   *rest = token;
   return ty;
