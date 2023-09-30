@@ -69,11 +69,9 @@ static void store(Type *ty) {
   case 4: 
     println("  mov [rax], edi");
     break;
-  case 8:
+  default:
     println("  mov [rax], rdi");
     break;
-  default:
-    error("invalid size");
   }
 
   println("  mov rax, rdi");

@@ -18,6 +18,7 @@ int main() {
   ASSERT(4, ({ int *p; sizeof *p;}));
   ASSERT(10, ({ sizeof sizeof sizeof (8+3-2) + 2;}));
   ASSERT(0, ({ int a[3]; 0;}));
+  ASSERT(3, ({ int a[3]; *a = 3; }));
   ASSERT(99, ({ 2["abcd"]; }));
   ASSERT(3, ({ int x[2]; int *y=x; *y=3; *x; }));
   ASSERT(5, ({ int a[3]; *(a+1) = 5; *(a+1);}));

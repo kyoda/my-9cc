@@ -78,7 +78,12 @@ void add_type(Node *n) {
   case ND_MUL:
   case ND_DIV:
   case ND_NEG:
+    n->ty = n->lhs->ty;
+    return;
   case ND_ASSIGN:
+    if (n->lhs->ty->kind == TY_ARRAY) {
+      error("%s", "left variable is array");
+    }
     n->ty = n->lhs->ty;
     return;
   case ND_COMMA:
