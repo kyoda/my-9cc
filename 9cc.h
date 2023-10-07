@@ -153,11 +153,13 @@ struct Member {
   Token *token;
 };
 
+// scope local, global variable, typedef
 typedef struct VarScope VarScope;
 struct VarScope {
   char *name;
   Obj *var;
   VarScope *next;
+  Type *type_def;
 };
 
 // struct tag
@@ -174,3 +176,7 @@ struct Scope {
   VarScope *vars;
   TagScope *tags;
 };
+
+typedef struct {
+  bool is_typedef;
+} VarAttr;

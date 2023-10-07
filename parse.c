@@ -4,7 +4,7 @@ static Obj *locals;
 static Obj *globals;
 static Scope *scope = &(Scope){};
 
-static Type *declspec(Token **rest, Token *token);
+static Type *declspec(Token **rest, Token *token, VarAttr *attr);
 static Node *declaration(Token **rest, Token *token);
 static Type *declarator(Token **rest, Token *token, Type *ty);
 static Type *type_suffix(Token **rest, Token *token, Type *ty);
@@ -73,12 +73,48 @@ static void *push_new_tag(Token *token, Type *ty) {
   scope->tags = tag;
 }
 
+static VarScope *find_var(Token *t) {
+  for (Scope *sc = scope; sc; sc = sc->next) {
+    for (VarScope *vs = sc->vars; vs; vs = vs->next) {
+      if (strncmp(t->loc, vs->name, t->len) == 0) {
+        return vs;
+      }
+    }
+  }
+
+  return NULL;
+}
+
+//search only global variable
+static VarScope *find_var_by_name(char *name) {
+  for (Scope *sc = scope; sc; sc = sc->next) {
+    for (VarScope *vs = sc->vars; vs; vs = vs->next) {
+      if (strncmp(name, vs->name, strlen(name)) == 0) {
+        return vs;
+      }
+    }
+  }
+
+  return NULL;
+}
+
+static VarScope *push_scope(char *name) {
+  VarScope *v = calloc(1, sizeof(VarScope));
+  v->name = name;
+  v->next = scope->vars;
+  scope->vars = v;
+
+  return v;
+}
+
 static Obj *new_var(char *name, Type *ty) {
   Obj *var;
   var = calloc(1, sizeof(Obj));
   var->name = name;
   var->len = strlen(name);
   var->ty = ty;
+
+  push_scope(name)->var = var;
 
   return var;
 }
@@ -104,16 +140,15 @@ static Obj *new_lvar(char *name, Type *ty) {
   lvar->is_local = true;
   lvar->next = locals;
 
-  VarScope *v = calloc(1, sizeof(VarScope));
-  v->name = name;
-  v->var = lvar;
-  v->next = scope->vars;
-  scope->vars = v;
-
   return lvar;
 }
 
 static Obj *new_gvar(char *name, Type *ty) {
+  VarScope *vs = find_var_by_name(name);
+  if (vs) {
+    error("%s: defined variable", name);
+  }
+
   Obj *gvar = new_var(name, ty);
   gvar->next = globals;
   globals = gvar;
@@ -135,6 +170,10 @@ static Obj *new_string_literal(char *str, Type *ty) {
   return gvar;
 }
 
+/*
+  scopeの先頭に新しいscopeを追加
+  一番古いscopeは、global
+*/
 static void enter_scope() {
   Scope *sc = calloc(1, sizeof(Scope));
   sc->next = scope;
@@ -149,19 +188,14 @@ static void leave_scope() {
  scope = scope->next; 
 }
 
-static Obj *find_var(Token *t) {
-  for (Scope *sc = scope; sc; sc = sc->next) {
-    for (VarScope *vs = sc->vars; vs; vs = vs->next) {
-      if (strncmp(t->loc, vs->name, t->len) == 0) {
-        return vs->var;
-      }
-    }
-  }
+static Type *find_typedef(Token *t) {
+  //if (t->kind != TK_IDENT) {
+  //  error_at(t->loc, "%s", "expected an typedef identifier");
+  //}
 
-  for (Obj *var = globals; var; var = var->next) {
-    if (strncmp(t->loc, var->name, t->len) == 0) {
-      return var;
-    }
+  VarScope *vs = find_var(t);
+  if (vs) {
+    return vs->type_def;
   }
 
   return NULL;
@@ -228,8 +262,16 @@ static bool is_function(Token *token) {
 }
 
 static bool is_type(Token *token) {
-  return equal(token, "void") || equal(token, "char") || equal(token, "short") || equal(token, "int") ||
-         equal(token, "long") || equal(token, "struct") || equal(token, "union");
+  char *kw[] = {
+    "void", "char", "short", "int", "long", "struct", "union", "typedef"
+  };
+  for (int i = 0; i < sizeof(kw) / sizeof(*kw); i++) {
+    if (equal(token, kw[i])) {
+      return true;
+    }
+  }
+
+  return find_typedef(token);
 }
 
 static void create_params(Type *param) {
@@ -276,8 +318,6 @@ static void *gvar_initializer(Token **rest, Token *token, Obj *gvar) {
 }
 
 static void *global_variable (Token **rest, Token *token, Type *basety) {
-    Obj *gvar;
-
     int i = 0;
     while (!equal(token, ";")) {
       if (i > 0) {
@@ -287,12 +327,7 @@ static void *global_variable (Token **rest, Token *token, Type *basety) {
 
       Type *ty = declarator(&token, token, basety);
 
-      gvar = find_var(ty->token);
-      if (gvar) {
-        error_at(ty->token->loc, "%s", "defined gloval variable");
-      }
-
-      gvar = new_gvar(get_ident_name(ty->token), ty);
+      Obj *gvar = new_gvar(get_ident_name(ty->token), ty);
 
       if (consume(&token, token, "=")) {
         gvar_initializer(&token, token, gvar);
@@ -303,18 +338,46 @@ static void *global_variable (Token **rest, Token *token, Type *basety) {
     *rest = token;
 }
 
-// program ::= (global_variable | function)*
+// parse_typedef ::= declarator ";"
+static void parse_typedef(Token **rest, Token *token, Type *basety) {
+
+  int c = 0;
+
+  // typedef int t;
+  while (!consume(&token, token, ";")) {
+    if (c > 0) {
+      expect(&token, token, ",");
+    }
+
+    Type *ty = declarator(&token, token, basety);
+    push_scope(get_ident_name(ty->token))->type_def = ty;
+
+    c++;
+  }
+  
+  *rest = token;
+}
+
+// program ::= (declspec (parse_typedef | function | global_variable))*
 Obj *parse(Token *token) {
   globals = NULL;
 
   while (token->kind != TK_EOF) {
-    Type *basety = declspec(&token, token);
+    VarAttr attr = {};
+    Type *basety = declspec(&token, token, &attr);
+
+    //typedef int t;
+    if (attr.is_typedef) {
+      parse_typedef(&token, token, basety);  
+      continue;
+    }
 
     if (is_function(token)) {
       function(&token, token, basety);
-    } else {
-      global_variable(&token, token, basety);
+      continue;
     }
+
+    global_variable(&token, token, basety);
   }
 
   return globals;
@@ -362,7 +425,7 @@ static void struct_member(Token **rest, Token *token, Type *ty) {
   Member *cur = &head;
 
   while (!equal(token, "}")) {
-    Type *basety = declspec(&token, token);
+    Type *basety = declspec(&token, token, NULL);
 
     int i = 0;
     while (!equal(token, ";")) {
@@ -470,8 +533,12 @@ static Type *union_decl(Token **rest, Token *token) {
   return ty;
 }
 
-// declspec ::= ("char" || "short" || "int" || "long" || "struct-decl" || "union-decl")+
-static Type *declspec(Token **rest, Token *token) {
+/*
+  declspec ::= ("char" || "short" || "int" || "long"
+            || "struct-decl" || "union-decl"
+            || "typedef" || typedef-name)+
+*/
+static Type *declspec(Token **rest, Token *token, VarAttr *attr) {
   enum {
     VOID = 1 << 0,
     CHAR = 1 << 2,
@@ -485,12 +552,35 @@ static Type *declspec(Token **rest, Token *token) {
   int counter = 0; 
 
   while (is_type(token)) {
-    if (equal(token, "struct") || equal(token, "union")) {
+    //"typedef"
+    if (equal(token, "typedef")) {
+      if (!attr) {
+        error(token->loc, "%s", "typedef is not allowed");
+      }
+
+      attr->is_typedef = true;
+      token = token->next;
+      continue;
+    }
+    
+    //"struct" "union" typedef-name
+    Type *ty2 = find_typedef(token);
+    if (equal(token, "struct") || equal(token, "union") || ty2) {
+      // struct や union, typedefで定義された型は、重複した定義はない
+      if (counter) {
+        break;
+      }
+
       if (equal(token, "struct")) {
         ty = struct_decl(&token, token);
-      } else {
+      } else if (equal(token, "union")) {
         ty = union_decl(&token, token);
+      } else {
+        //t x; (typedef int t;)
+        ty = ty2;
+        token = token->next;
       }
+
       counter += OTHER;
       continue;
     }
@@ -541,9 +631,20 @@ static Type *declspec(Token **rest, Token *token) {
   return ty;
 }
 
-// declaration ::= declspec (declarator ("=" expr)? ("," declarator ("=" expr)?)*)? ";"
+/*
+  declaration ::= declspec parse_typedef
+               || declspec (declarator ("=" expr)? ("," declarator ("=" expr)?)*)? ";"
+*/
 static Node *declaration(Token **rest, Token *token) {
-    Type *basety = declspec(&token, token);
+    VarAttr attr = {};
+    Type *basety = declspec(&token, token, &attr);
+
+    //typedef int t;
+    if (attr.is_typedef) {
+      parse_typedef(&token, token, basety);
+      *rest = token;
+      return new_node(ND_BLOCK, token);
+    }
 
     Node head = {};
     Node *cur = &head;
@@ -561,12 +662,12 @@ static Node *declaration(Token **rest, Token *token) {
         error_at(token->loc, "%s", "void type variable");
       }
 
-      Obj *lvar = find_var(ty->token);
-      if (lvar) {
+      VarScope *vs = find_var(ty->token);
+      if (vs) {
         error_at(ty->token->loc, "%s", "defined variable");
       }
 
-      lvar = new_lvar(get_ident_name(ty->token), ty);
+      Obj *lvar = new_lvar(get_ident_name(ty->token), ty);
       locals = lvar;
       Node *lhs = new_node_var(lvar, token);
 
@@ -665,7 +766,7 @@ static Type *func_params(Token **rest, Token *token, Type *ty) {
     }
     i++;
 
-    Type *basety = declspec(&token, token);
+    Type *basety = declspec(&token, token, NULL);
     Type *ty2 = declarator(&token, token, basety);
     cur = cur->next = ty2;
   }
@@ -687,11 +788,13 @@ static Type *func_params(Token **rest, Token *token, Type *ty) {
 /*
   stmt = expr? ";"
        | "{" stmt* "}"
+       | typedef
+       | declaration
+       | "return" expr ";"
        | "if" "(" expr ")" stmt ("else" stmt)?
        | "while" "(" expr ")" stmt
        | "for" "(" expr? ";" expr? ";" expr? ";"  ")" stmt
-       | "return" expr ";"
-       |  declaration
+       | expr-stmt
 */
 static Node *stmt(Token **rest, Token *token) {
   Node *n;
@@ -1158,15 +1261,14 @@ static Node *primary(Token **rest, Token *token) {
     if (equal(token->next, "("))
       return funcall(rest, token);
 
-    // lvar
+    //var
     Node *n = new_node(ND_VAR, token);
-    Obj *lvar = find_var(token);
-    if (lvar) {
-      n->var = lvar;
-    } else {
+    VarScope *vs = find_var(token);
+    if (!vs || !vs->var) {
       error_at(token->loc, "%s", "variable not definded");
     }
 
+    n->var = vs->var;
     token = token->next;
     *rest = token;
     return n;
