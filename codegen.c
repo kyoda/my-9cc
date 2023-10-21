@@ -186,40 +186,55 @@ static void gen_expr(Node *n) {
   println("  pop rdi");
   println("  pop rax");
 
+  // パフォーマンスの最適化？？32bit計算時の一貫性？？
+  char *ax, *di;
+  if (n->lhs->ty->kind == TY_LONG || n->lhs->ty->base) {
+    ax = "rax";
+    di = "rdi";
+  } else {
+    ax = "eax";
+    di = "edi";
+  }
+  //println("  pop %s", di);
+  //println("  pop %s", ax);
+
   switch(n->kind) {
   case ND_ADD:
-     println("  add rax, rdi");
-     break;
+    println("  add %s, %s", ax, di);
+    break;
   case ND_SUB:
-     println("  sub rax, rdi");
-     break;
+    println("  sub %s, %s", ax, di);
+    break;
   case ND_MUL:
-     println("  imul rax, rdi");
-     break;
+    println("  imul %s, %s", ax, di);
+    break;
   case ND_DIV:
-     println("  cqo");
-     println("  idiv rdi");
-     break;
+    if (n->lhs->ty->size == 8) {
+      println("  cqo");
+    } else {
+      println("  cdq");
+    }
+
+    println("  idiv %s", di);
+    break;
   case ND_EQ:
-     println("  cmp rax, rdi");
-     println("  sete al");
-     println("  movzb rax, al");
-     break;
   case ND_NEQ:
-     println("  cmp rax, rdi");
-     println("  setne al");
-     println("  movzb rax, al");
-     break;
   case ND_LT:
-     println("  cmp rax, rdi");
-     println("  setl al");
-     println("  movzb rax, al");
-     break;
   case ND_LE:
-     println("  cmp rax, rdi");
-     println("  setle al");
-     println("  movzb rax, al");
-     break;
+    println("  cmp %s, %s", ax, di);
+
+    if (n->kind == ND_EQ) {
+      println("  sete al");
+    } else if (n->kind == ND_NEQ) {
+      println("  setne al");
+    } else if (n->kind == ND_LT) {
+      println("  setl al");
+    } else if (n->kind == ND_LE) {
+      println("  setle al");
+    }
+
+    println("  movzb %s, al", ax);
+    break;
   default:
     break;
   }
