@@ -1041,7 +1041,7 @@ static Node *new_sub(Node *lhs, Node *rhs, Token *token) {
   error_at(token->loc, "%s", "invalid operand");
 }
 
-// add = mul ("+" mul | "-" mul)*
+// add = mul ("+" new_add | "-" new_sub)*
 static Node *add(Token **rest, Token *token) {
   Node *n = mul(&token, token);
 
@@ -1079,13 +1079,56 @@ static Node *mul(Token **rest, Token *token) {
   return n;
 }
 
-// unary = "sizeof | *"? unary |
-//         ("+" | "-")? primary |
-//         "*" unary |
-//         "&" unary |
-//         postfix
+// abstract-declarator = "*"* ("(" abstract-declarator ")")? type-suffix
+static Type *abstract_declarator(Type **rest, Token *token, Type *ty) {
+  while (consume(&token, token, "*")) {
+    ty = pointer_to(ty);
+  }
+  
+  if (equal(token, "(")) {
+    Token *start = token;
+    token = token->next;
+    
+    Type dummy = {};
+    abstract_declarator(&token, token, &dummy);
+    expect(&token, token, ")");
+
+    ty = type_suffix(rest, token, ty);
+
+    return abstract_declarator(&token, start->next, ty);
+  }
+
+  return type_suffix(rest, token, ty);
+}
+
+// typename := declspec abstract-declarator
+static Type *typename(Token **rest , Token *token) {
+  Type *basety = declspec(&token, token, NULL);
+  return abstract_declarator(rest, token, basety);
+}
+
+/*
+  unary = "sizeof" "(" typename ")"
+        | "sizeof" unary
+        | ("+" | "-")? primary
+        | "*" unary
+        | "&" unary
+        | postfix
+*/
 static Node *unary(Token **rest, Token *token) {
   Node *n;
+
+  if (equal(token, "sizeof") && equal(token->next, "(") && is_type(token->next->next)) {
+    Token *start = token;
+    token = token->next->next;
+
+    Type *ty = typename(&token, token);
+    n = new_node_num(ty->size, start);
+    expect(&token, token, ")");
+
+    *rest = token;
+    return n;
+  }
 
   if (equal(token, "sizeof")) {
     token = token->next;
