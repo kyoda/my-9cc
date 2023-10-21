@@ -25,8 +25,18 @@ test: $(TEST_OBJS)
 	for i in $^; do echo $$i; ./$$i || exit 1; echo; done
 	test/driver.sh
 
+# ccのテスト用
+CCTEST_OBJS=$(TEST_SRCS:.c=.out)
+
+test/%.out: test/%.c
+	$(CC) -o test/$*.out test/$*.c -xc test/common
+
+cctest: $(CCTEST_OBJS)
+	for i in $^; do echo $$i; ./$$i || exit 1; echo; done
+	test/driver.sh
+
 clean:
-	rm -f 9cc *.o *~ tmp* $(TEST_OBJS) $(TEST_AS)
+	rm -f 9cc *.o *~ tmp* $(CCTEST_OBJS) $(TEST_OBJS) $(TEST_AS)
 
 .PHONY: test clean
 

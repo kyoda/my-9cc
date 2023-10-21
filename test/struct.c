@@ -41,7 +41,7 @@ int main() {
   ASSERT(3, ({ struct t {int a;} x; struct t *y = &x; x.a = 3; y->a;}));
   ASSERT(3, ({ struct t {int a;} x; struct t *y = &x; y->a = 3; x.a;}));
 
-  ASSERT(3, ({ struct t {int a;} x; int *y = x; x.a = 3; *y;}));
+  ASSERT(3, ({ struct t {int a;} x; int *y = x; x.a = 3; *y;})); //gcc error
 
   ASSERT(16, ({ struct {long a; char b;} x; sizeof(x);}));
   ASSERT(4, ({ struct {short a; char b;} x; sizeof(x);}));

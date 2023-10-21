@@ -19,15 +19,15 @@ int main() {
   ASSERT(7, ({ "\7a"[0]; }));
   ASSERT(7, ({ "\007"[0]; }));
   ASSERT(24, ({ "\030"[0]; }));
-  ASSERT(192, ({ "\300"[0]; }));
-  ASSERT(192, ({ "\3000"[0]; }));
+  ASSERT(192, ({ "\300"[0]; })); //gcc -> -64
+  ASSERT(192, ({ "\3000"[0]; })); //gcc -> -64
 
   // hex escape
   ASSERT(0, ({ "\x0"[0]; }));
   ASSERT(10, ({ "\x000a"[0]; }));
-  ASSERT(170, ({ "\x000aA"[0]; }));
-  ASSERT(255, ({ "\x000ff"[0]; }));
-  ASSERT(252, ({ "\x000ffc"[0]; }));
+  ASSERT(170, ({ "\x000aA"[0]; })); //gcc -> -86
+  ASSERT(255, ({ "\x000ff"[0]; })); //gcc -> -1
+  ASSERT(252, ({ "\x000ffc"[0]; })); //gcc -> -4
 
   //comment
   ASSERT(1, ({ //return 0;
