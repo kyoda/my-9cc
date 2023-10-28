@@ -106,6 +106,52 @@ static void gen_addr(Node *n) {
   error("expected a variable");
 }
 
+enum {I8, I16, I32, I64};
+static int getTypeId(Type *ty) {
+  switch (ty->kind) {
+  case TY_CHAR:
+    return I8;
+  case TY_SHORT:
+    return I16;
+  case TY_INT:
+    return I32;
+  default:
+    return I64;
+  }
+}
+
+static char i32i8[] = "movsbl eax, al";
+static char i32i16[] = "movswl eax, ax";
+static char i64i32[] = "movsxd rax, eax";
+
+/*
+  + 同じbit数同士は、cast不要
+  + 下位bitから64bitに拡張する場合は32bitレジスタを直接64bitへ
+    - movsxdで符号拡張
+    - 自動で上位bitは0埋めされる
+  + 上記以外の下位bitから64bitに拡張する場合は、何もしない
+  + 上位bitから下位bitに縮小する場合は、32bitレジスタへ
+  + 64bitから32bitへは、何もしない
+*/
+static char *cast_table[4][4] = {
+  {NULL, NULL, NULL, i64i32}, //from I8
+  {i32i8, NULL, NULL, i64i32}, //from I16
+  {i32i8, i32i16, NULL, i64i32}, //from I32
+  {i32i8, i32i16, NULL, NULL}    //from I64
+};
+
+static void cast(Type *from, Type *to) {
+  if (to->kind == TY_VOID) {
+    return;
+  }
+
+  int t1 = getTypeId(from);
+  int t2 = getTypeId(to);
+  if (cast_table[t1][t2]) {
+    println("  %s", cast_table[t1][t2]);
+  }
+}
+
 static void gen_expr(Node *n) {
   println("  .loc 1 %d", n->token->line);
 
@@ -151,6 +197,11 @@ static void gen_expr(Node *n) {
 
     return;
   }
+  case ND_CAST:
+    gen_expr(n->lhs);
+    // cast(from, to);
+    cast(n->lhs->ty, n->ty);
+    return;
   case ND_ASSIGN:
     gen_addr(n->lhs);
     println("  push rax");

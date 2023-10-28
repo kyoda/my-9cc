@@ -17,6 +17,8 @@ static Node *equality(Token **rest, Token *token);
 static Node *relational(Token **rest, Token *token);
 static Node *add(Token **rest, Token *token);
 static Node *mul(Token **rest, Token *token);
+static Node *cast(Token **rest, Token *token);
+static Type *typename(Token **rest , Token *token);
 static Node *unary(Token **rest, Token *token);
 static Node *postfix(Token **rest, Token *token);
 static Node *primary(Token **rest, Token *token);
@@ -1060,15 +1062,15 @@ static Node *add(Token **rest, Token *token) {
   return n;
 }
 
-// mul = unary ("*" unary | "/" unary)*
+// mul = cast ("*" cast | "/" cast)*
 static Node *mul(Token **rest, Token *token) {
-  Node *n = unary(&token, token);
+  Node *n = cast(&token, token);
 
   for (;;) {
     if (consume(&token, token, "*")) {
-      n = new_node_binary(ND_MUL, n, unary(&token, token), token);
+      n = new_node_binary(ND_MUL, n, cast(&token, token), token);
     } else if (consume(&token, token, "/")) {
-      n = new_node_binary(ND_DIV, n, unary(&token, token), token);
+      n = new_node_binary(ND_DIV, n, cast(&token, token), token);
     } else {
       *rest = token;
       return n;
@@ -1077,6 +1079,27 @@ static Node *mul(Token **rest, Token *token) {
 
   *rest = token;
   return n;
+}
+
+// cast := "(" typename ")" cast | unary
+static Node *cast(Token **rest, Token *token) {
+  if (equal(token, "(") && is_type(token->next)) {
+    Token *start = token;
+    token = token->next;
+
+    Type *ty = typename(&token, token);
+    expect(&token, token, ")");
+
+    Node *nc = cast(&token, token);
+    add_type(nc);
+    Node *n = new_node_unary(ND_CAST, nc, start);
+    n->ty = ty;
+
+    *rest = token;
+    return n;
+  }
+
+  return unary(rest, token);
 }
 
 // abstract-declarator = "*"* ("(" abstract-declarator ")")? type-suffix
@@ -1109,10 +1132,7 @@ static Type *typename(Token **rest , Token *token) {
 
 /*
   unary = "sizeof" "(" typename ")"
-        | "sizeof" unary
-        | ("+" | "-")? primary
-        | "*" unary
-        | "&" unary
+        | ("sizeof" | "+" | "-" | "*" | "&") cast
         | postfix
 */
 static Node *unary(Token **rest, Token *token) {
@@ -1132,7 +1152,7 @@ static Node *unary(Token **rest, Token *token) {
 
   if (equal(token, "sizeof")) {
     token = token->next;
-    n = unary(&token, token);
+    n = cast(&token, token);
     add_type(n);
 
     *rest = token;
@@ -1140,20 +1160,20 @@ static Node *unary(Token **rest, Token *token) {
   }
 
   if (consume(&token, token, "+")) {
-    n = unary(&token, token);
+    n = cast(&token, token);
     *rest = token;
     return n;
   }
 
   if (consume(&token, token, "-")) {
-    n = new_node_binary(ND_NEG, unary(&token, token), NULL, token);
+    n = new_node_binary(ND_NEG, cast(&token, token), NULL, token);
     *rest = token;
     return n;
   }
 
   if (consume(&token, token, "*")) {
     n = new_node(ND_DEREF, token);
-    n->lhs = unary(&token, token);
+    n->lhs = cast(&token, token);
 
     *rest = token;
     return n;
@@ -1161,7 +1181,7 @@ static Node *unary(Token **rest, Token *token) {
 
   if (consume(&token, token, "&")) {
     n = new_node(ND_ADDR, token);
-    n->lhs = unary(&token, token);
+    n->lhs = cast(&token, token);
 
     *rest = token;
     return n;

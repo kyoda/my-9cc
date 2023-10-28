@@ -58,7 +58,8 @@ typedef enum {
   ND_EXPR_STMT,
   ND_STMT_EXPR,
   ND_BLOCK, // { ... }
-  ND_MEMBER // struct member
+  ND_MEMBER, // struct member
+  ND_CAST // type cast
 } NodeKind;
 
 struct Node {

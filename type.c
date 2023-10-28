@@ -78,6 +78,7 @@ void add_type(Node *n) {
   case ND_MUL:
   case ND_DIV:
   case ND_NEG:
+  case ND_CAST:
     n->ty = n->lhs->ty;
     return;
   case ND_ASSIGN:

@@ -6,3 +6,5 @@ tmp*
 9cc
 mytest
 .vscode/settings.json
+test/debug.c
+
