@@ -24,6 +24,15 @@ int main() {
   ASSERT(16, ({ sizeof(struct {int x; long y;}); }));
   ASSERT(8, ({ sizeof(union {char x; long y;}); }));
 
+  ASSERT(8, ({ sizeof(-3 + (long)3);}));
+  ASSERT(8, ({ sizeof(-3 - (long)3);}));
+  ASSERT(8, ({ sizeof(-3 * (long)3);}));
+  ASSERT(8, ({ sizeof(-3 / (long)3);}));
+  ASSERT(8, ({ sizeof((long)-3 + 3);}));
+  ASSERT(8, ({ sizeof((long)-3 - 3);}));
+  ASSERT(8, ({ sizeof((long)-3 * 3);}));
+  ASSERT(8, ({ sizeof((long)-3 / 3);}));
+
   printf("OK\n");
   return 0;
 }

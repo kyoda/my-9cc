@@ -51,6 +51,26 @@ Type *ty_func(Type *base) {
   return ty;
 }
 
+static Type *get_common_type(Type *ty1, Type *ty2) {
+  // ty1 is pointer
+  if (ty1->base) {
+    return pointer_to(ty1->base);
+  }
+
+  if (ty1->size == 8 || ty2->size == 8) {
+    return ty_long();
+  }
+
+  return ty_int();
+}
+
+static void usual_arith_conv(Node **lhs, Node **rhs) {
+  Type *ty = get_common_type((*lhs)->ty, (*rhs)->ty);
+
+  *lhs = new_cast(*lhs, ty, (*lhs)->token);
+  *rhs = new_cast(*rhs, ty, (*rhs)->token);
+}
+
 void add_type(Node *n) {
   if (!n || n->ty) {
     return;
@@ -73,19 +93,33 @@ void add_type(Node *n) {
   }
 
   switch(n->kind) {
+  case ND_NUM:
+    n->ty = (n->val == (int)n->val) ? ty_int() : ty_long();
+    return;
   case ND_ADD:
   case ND_SUB:
   case ND_MUL:
   case ND_DIV:
-  case ND_NEG:
-  case ND_CAST:
+    usual_arith_conv(&n->lhs, &n->rhs);
     n->ty = n->lhs->ty;
     return;
+  case ND_NEG: {
+    Type *ty = get_common_type(ty_int(), n->lhs->ty);
+    n->lhs = new_cast(n->lhs, ty, n->lhs->token);
+    n->ty = ty;
+    return;
+  }
   case ND_ASSIGN:
     if (n->lhs->ty->kind == TY_ARRAY) {
       error("%s", "left variable is array");
     }
+
+    if (n->lhs->ty->kind != TY_STRUCT) {
+      n->rhs = new_cast(n->rhs, n->lhs->ty, n->rhs->token);
+    }
+
     n->ty = n->lhs->ty;
+
     return;
   case ND_COMMA:
     n->ty = n->rhs->ty;
@@ -97,8 +131,10 @@ void add_type(Node *n) {
   case ND_NEQ:
   case ND_LT:
   case ND_LE:
+    usual_arith_conv(&n->lhs, &n->rhs);
+    n->ty = ty_int();
+    return;
   case ND_FUNC:
-  case ND_NUM:
     n->ty = ty_long();
     return;
   case ND_VAR:

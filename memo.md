@@ -91,3 +91,17 @@ ret
 そのアドレスにジャンプ
 ```
 
+# AT&T記法とIntel記法
+
+AT&T記法
+
+```
+movsbl (%%rax), %%eax
+```
+
+
+Intel記法
+
+```
+movsx eax, byte ptr [rax]
+```

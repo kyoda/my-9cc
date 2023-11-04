@@ -43,6 +43,13 @@ static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs, Token *token) 
   return n;
 }
 
+static Node *new_long(int64_t val, Token *token) {
+  Node *n = new_node(ND_NUM, token);
+  n->val = val;
+  n->ty = ty_long();
+  return n;
+}
+
 static Node *new_node_num(int64_t val, Token *token) {
   Node *n = new_node(ND_NUM, token);
   n->val = val;
@@ -52,6 +59,13 @@ static Node *new_node_num(int64_t val, Token *token) {
 static Node *new_node_var(Obj *var, Token *token) {
   Node *n = new_node(ND_VAR, token);
   n->var = var;
+  return n;
+}
+
+Node *new_cast(Node *lhs, Type *ty, Token *token) {
+  add_type(lhs);
+  Node *n = new_node_unary(ND_CAST, lhs, token);
+  n->ty = ty;
   return n;
 }
 
@@ -1010,7 +1024,7 @@ static Node *new_add(Node *lhs, Node *rhs, Token *token) {
   
   // pointer + num * ty->size
   // int -> 4byte
-  n = new_node_binary(ND_ADD, lhs, new_node_binary(ND_MUL, rhs, new_node_num(lhs->ty->base->size, token), token), token);
+  n = new_node_binary(ND_ADD, lhs, new_node_binary(ND_MUL, rhs, new_long(lhs->ty->base->size, token), token), token);
 
   return n;
 }
@@ -1030,7 +1044,7 @@ static Node *new_sub(Node *lhs, Node *rhs, Token *token) {
   // pointer - num * ty->size 
   // int -> 4byte
   if (lhs->ty->base && !rhs->ty->base) {
-    n = new_node_binary(ND_SUB, lhs, new_node_binary(ND_MUL, rhs, new_node_num(lhs->ty->size, token), token), token);
+    n = new_node_binary(ND_SUB, lhs, new_node_binary(ND_MUL, rhs, new_long(lhs->ty->size, token), token), token);
     return n;
   }
 
@@ -1091,12 +1105,9 @@ static Node *cast(Token **rest, Token *token) {
     expect(&token, token, ")");
 
     Node *nc = cast(&token, token);
-    add_type(nc);
-    Node *n = new_node_unary(ND_CAST, nc, start);
-    n->ty = ty;
 
     *rest = token;
-    return n;
+    return new_cast(nc, ty, start);
   }
 
   return unary(rest, token);

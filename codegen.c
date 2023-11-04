@@ -29,10 +29,10 @@ static void load(Type *ty) {
 
   switch(ty->size) {
   case 1:
-    println("  movzx rax, BYTE PTR [rax]");
+    println("  movsx eax, BYTE PTR [rax]");
     break;
   case 2:
-    println("  movsx rax, WORD PTR [rax]");
+    println("  movsx eax, WORD PTR [rax]");
     break;
   case 4:
     println("  movsxd rax, DWORD PTR [rax]");

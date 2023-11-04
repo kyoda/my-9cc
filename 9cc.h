@@ -181,3 +181,5 @@ struct Scope {
 typedef struct {
   bool is_typedef;
 } VarAttr;
+
+Node *new_cast(Node *lhs, Type *ty, Token *token);

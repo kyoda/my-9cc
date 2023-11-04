@@ -13,10 +13,13 @@ int main() {
   //ASSERT(3, ({ int *p; alloc3(&p, 7, 11, 3); *(p+2);}));
   //ASSERT(11, ({ int *p; alloc3add2(&p, 7, 11, 3); *(p-1);}));
   //ASSERT(2, ({ int *p; alloc3(&p, 7, 11, 3); (p+2)-p;}));
-  ASSERT(8, ({ sizeof 8;})); // gcc -> 4
+  ASSERT(4, ({ sizeof 8;})); // gcc -> 4
   ASSERT(8, ({ int *p; sizeof p;}));
   ASSERT(4, ({ int *p; sizeof *p;}));
-  ASSERT(10, ({ sizeof sizeof sizeof (8+3-2) + 2;}));
+  ASSERT(4, ({ sizeof (8+3-2);}));
+  ASSERT(4, ({ sizeof sizeof (8+3-2);})); //gcc error
+  ASSERT(4, ({ sizeof sizeof sizeof (8+3-2);})); //gcc error
+  ASSERT(6, ({ sizeof sizeof sizeof (8+3-2) + 2;})); //gcc error
   ASSERT(0, ({ int a[3]; 0;}));
   ASSERT(3, ({ int a[3]; *a = 3; }));
   ASSERT(99, ({ 2["abcd"]; }));
