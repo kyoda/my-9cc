@@ -78,8 +78,9 @@ struct Node {
   Node *body; 
   Node *next;
 
-  //function
+  //function call
   char *funcname;
+  Type *func_ty;
   Node *args;
 
   int64_t val;
@@ -112,7 +113,7 @@ struct Type {
   int array_len; // array length
 
   // function
-  Type *return_type;
+  Type *return_ty;
   Type *params;
   Type *next; //params
 

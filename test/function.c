@@ -13,6 +13,8 @@ int sub_short(long a, long b, long c) { return a - b - c;}
 int g1;
 int *g1_ptr() { return &g1; }
 char int_to_char(int x) { return x; }
+int div_long(long a, long b) { return a / b;}
+int arg_char(char a) { return a; }
 
 int main() {
   ASSERT(8, add2(5, 3));
@@ -31,6 +33,9 @@ int main() {
   g1 = 1;
   ASSERT(1, *g1_ptr());
   ASSERT(0, int_to_char(256));
+  ASSERT(-5, div_long(-10, 2));
+  ASSERT(1, arg_char(513));
+
 
 
 

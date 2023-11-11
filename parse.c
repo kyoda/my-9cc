@@ -857,7 +857,7 @@ static Node *stmt(Token **rest, Token *token) {
     expect(&token, token, ";");
 
     add_type(exp);
-    n->lhs = new_cast(exp, current_fn->ty->return_type, token);
+    n->lhs = new_cast(exp, current_fn->ty->return_ty, token);
 
     *rest = token;
     return n;
@@ -1271,7 +1271,8 @@ static Node *funcall(Token **rest, Token *token) {
     error_at(token->loc, "%s", "not function");
   }
 
-  Type *ty = vs->var->ty->return_type;
+  Type *ty = vs->var->ty;
+  Type *param_ty = ty->params;
 
   Node head = {};
   Node *cur = &head;
@@ -1283,14 +1284,27 @@ static Node *funcall(Token **rest, Token *token) {
   while (!equal(token, ")")) {
     if (cur != &head)
       expect(&token, token, ",");
-    cur = cur->next = assign(&token, token);
-    add_type(cur);
+
+    Node *arg = assign(&token, token);
+    add_type(arg);
+
+    if (param_ty) {
+      if (param_ty->kind == TY_STRUCT || param_ty->kind == TY_UNION) {
+        error_at(token->loc, "%s", "struct or union is not permitted");
+      }
+
+      arg = new_cast(arg, param_ty, token);
+      param_ty = param_ty->next;
+    }
+
+    cur = cur->next = arg;
   }
 
   expect(&token, token, ")");
 
   Node *n = new_node(ND_FUNC, token);
-  n->ty = ty;
+  n->func_ty = ty;
+  n->ty = ty->return_ty;
   n->funcname = strndup(start->loc, start->len);
   n->args = head.next;
 
@@ -1313,7 +1327,12 @@ static Node *primary(Token **rest, Token *token) {
 
     Node head = {};
     Node *cur = &head;
-    // ({stmt+})のstmtの中でreturnがあるのを許してしまっている。
+    /*
+      add_type()のND_STMT_EXPRで下記を除外
+
+      + ({stmt+})のstmtの中でreturn
+      + empty block
+    */
     while (!equal(token, "}")) {
       cur->next = stmt(&token, token);
       cur = cur->next;
@@ -1324,10 +1343,6 @@ static Node *primary(Token **rest, Token *token) {
     leave_scope();
 
     Node *n = new_node(ND_STMT_EXPR, token);
-    if (!head.next) {
-      // add_type()でtypeを設定せずにここでエラーにしている
-      error_at(token->loc, "%s", "empty block");
-    }
     n->body = head.next;
 
     expect(&token, token, ")");

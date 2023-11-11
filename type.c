@@ -46,7 +46,7 @@ Type *ty_array(Type *base, int len) {
 Type *ty_func(Type *base) {
   Type *ty = calloc(1, sizeof(Type));
   ty->kind = TY_FUNC;
-  ty->return_type = base;
+  ty->return_ty = base;
 
   return ty;
 }
@@ -153,6 +153,28 @@ void add_type(Node *n) {
     }
 
     n->ty = n->lhs->ty->base;
+    return;
+  case ND_STMT_EXPR:
+    if (n->body) {
+      /*
+        bodyの最後がND_EXPR_STMTであることを確認し、そのlhsの型を割り当てる
+        そのためbodyの最後は、「expr ";"」
+        下記のようなパターンは許可しない
+          + ({})
+          + ({return 0;})
+      */
+      Node *stmt = n->body;
+      while (stmt->next) {
+        stmt = stmt->next;
+      }
+
+      if (stmt->kind == ND_EXPR_STMT) {
+        n->ty = stmt->lhs->ty;
+        return;
+      }
+    }
+
+    error("%s", "statement expression returning void is not supported");
     return;
   }
 
