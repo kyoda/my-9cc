@@ -1,4 +1,4 @@
-CFLAGS=-std=c11 -g -static -Wall
+CFLAGS=-std=c11 -g -fno-common -Wall
 # wildcard関数で、testディレクトリの.cを取得
 SRCS=$(wildcard *.c)
 OBJS=$(SRCS:.c=.o)

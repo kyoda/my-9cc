@@ -465,7 +465,7 @@ static void emit_text(Obj *prog) {
   println(".intel_syntax noprefix");
 
   for (Obj *fn = prog; fn; fn = fn->next) {
-    if (!fn->is_function) {
+    if (!fn->is_function || !fn->is_definition) {
       continue;
     }
 

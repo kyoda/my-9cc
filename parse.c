@@ -72,7 +72,7 @@ Node *new_cast(Node *lhs, Type *ty, Token *token) {
 static Type *find_tag_type(Token *t) {
   for (Scope *sc = scope; sc; sc = sc->next) {
     for (TagScope *ts = sc->tags; ts; ts = ts->next) {
-      if (strncmp(t->loc, ts->name, t->len) == 0) {
+      if (equal(t, ts->name)) {
         return ts->ty;
       }
     }
@@ -92,7 +92,7 @@ static void *push_new_tag(Token *token, Type *ty) {
 static VarScope *find_var(Token *t) {
   for (Scope *sc = scope; sc; sc = sc->next) {
     for (VarScope *vs = sc->vars; vs; vs = vs->next) {
-      if (strncmp(t->loc, vs->name, t->len) == 0) {
+      if (equal(t, vs->name)) {
         return vs;
       }
     }
@@ -160,10 +160,10 @@ static Obj *new_lvar(char *name, Type *ty) {
 }
 
 static Obj *new_gvar(char *name, Type *ty) {
-  VarScope *vs = find_var_by_name(name);
-  if (vs) {
-    error("%s: defined variable", name);
-  }
+  //VarScope *vs = find_var_by_name(name);
+  //if (vs) {
+  //  error("%s: defined variable", name);
+  //}
 
   Obj *gvar = new_var(name, ty);
   gvar->next = globals;
@@ -219,7 +219,7 @@ static Type *find_typedef(Token *t) {
 
 static Member *find_member(Type *ty, Token *token) {
   for (Member *m = ty->members; m; m = m->next) {
-    if (strncmp(token->loc, m->name, token->len) == 0) {
+    if (equal(token, m->name)) {
       return m;
     }
   }
@@ -236,9 +236,7 @@ static char *get_ident_name(Token *t) {
 }
 
 bool consume(Token **rest, Token *token, char *op) {
-  if (token->kind == TK_PUNCT && 
-      token->len == strlen(op) &&
-      strncmp(token->loc, op, token->len) == 0) {
+  if (token->kind == TK_PUNCT && equal(token, op)) {
     *rest = token->next;
     return true;
   }
@@ -247,9 +245,7 @@ bool consume(Token **rest, Token *token, char *op) {
 }
 
 bool expect(Token **rest, Token *token, char *op) {
-  if (token->kind == TK_PUNCT && 
-      token->len == strlen(op) &&
-      strncmp(token->loc, op, token->len) == 0) {
+  if (token->kind == TK_PUNCT && equal(token, op)) {
     *rest = token->next;
   } else {
     error_at(token->loc, "no op: %s", op);
@@ -300,10 +296,11 @@ static void create_params(Type *param) {
 // function ::= declspec declarator ( stmt? | ";")
 static void *function (Token **rest, Token *token, Type *basety) {
   Type *ty = declarator(&token, token, basety);
-  Obj *fn = new_gvar(get_ident_name(ty->token), basety);
+  Obj *fn = new_gvar(get_ident_name(ty->token), ty);
   fn->is_function = true;
   fn->is_definition = !consume(&token, token, ";");
   if (!fn->is_definition) {
+    *rest = token;
     return;
   }
 
@@ -1259,8 +1256,17 @@ static Node *postfix(Token **rest, Token *token) {
 }
 
 static Node *funcall(Token **rest, Token *token) {
-
   Token *start = token;
+
+  VarScope *vs = find_var(token);
+  if (!vs) {
+    error_at(token->loc, "%s", "this function not definded");
+  }
+  if (!vs->var || vs->var->ty->kind != TY_FUNC) {
+    error_at(token->loc, "%s", "not function");
+  }
+
+  Type *ty = vs->var->ty->return_type;
 
   Node head = {};
   Node *cur = &head;
@@ -1273,11 +1279,13 @@ static Node *funcall(Token **rest, Token *token) {
     if (cur != &head)
       expect(&token, token, ",");
     cur = cur->next = assign(&token, token);
+    add_type(cur);
   }
 
   expect(&token, token, ")");
 
   Node *n = new_node(ND_FUNC, token);
+  n->ty = ty;
   n->funcname = strndup(start->loc, start->len);
   n->args = head.next;
 
