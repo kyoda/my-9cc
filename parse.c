@@ -2,6 +2,7 @@
 
 static Obj *locals;
 static Obj *globals;
+static Obj *current_fn;
 static Scope *scope = &(Scope){};
 
 static Type *declspec(Token **rest, Token *token, VarAttr *attr);
@@ -160,10 +161,10 @@ static Obj *new_lvar(char *name, Type *ty) {
 }
 
 static Obj *new_gvar(char *name, Type *ty) {
-  //VarScope *vs = find_var_by_name(name);
-  //if (vs) {
-  //  error("%s: defined variable", name);
-  //}
+  VarScope *vs = find_var_by_name(name);
+  if (vs) {
+    error("%s: defined variable", name);
+  }
 
   Obj *gvar = new_var(name, ty);
   gvar->next = globals;
@@ -304,6 +305,7 @@ static void *function (Token **rest, Token *token, Type *basety) {
     return;
   }
 
+  current_fn = fn;
   enter_scope();
 
   locals = NULL;
@@ -851,8 +853,11 @@ static Node *stmt(Token **rest, Token *token) {
   if (equal(token, "return")) {
     n = new_node(ND_RETURN, token);
     token = token->next;
-    n->lhs = expr(&token, token);
+    Node *exp = expr(&token, token);
     expect(&token, token, ";");
+
+    add_type(exp);
+    n->lhs = new_cast(exp, current_fn->ty->return_type, token);
 
     *rest = token;
     return n;
