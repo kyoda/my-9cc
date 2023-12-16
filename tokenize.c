@@ -151,6 +151,8 @@ static int read_escaped_char(char **new_pos, char *p) {
     return c;
   }
 
+  *new_pos = p + 1;
+
   switch (*p) {
     case 'a':
       return '\a';
@@ -171,6 +173,34 @@ static int read_escaped_char(char **new_pos, char *p) {
     default:
       return *p;
   }
+}
+
+static Token *read_char_literal(char *p) {
+  // start -> '
+  char *start = p++;
+  char *end;
+
+  char c;
+  if (*p == '\\') {
+    c = read_escaped_char(&p, ++p);
+  } else {
+    c = *p;
+    p++;
+  }
+
+  if (*p != '\'') {
+    error_at(p, "unclosed char literal");
+  }
+  // end -> '
+  end = p;
+
+  Token *t = calloc(1, sizeof(Token));
+  t->kind = TK_NUM;
+  t->loc = start;
+  t->len = end + 1 - start;
+  t->val = c;
+  
+  return t;
 }
 
 static Token *read_string_literal(char *start) {
@@ -291,6 +321,13 @@ Token *tokenize(char* p, char *file) {
     if (isdigit(*p)) {
       cur = new_token(TK_NUM, cur, p, 0);
       cur->val = strtol(p, &p, 10);
+      continue;
+    }
+
+    //char literal
+    if (*p == '\'') {
+      cur = cur->next = read_char_literal(p);
+      p += cur->len;
       continue;
     }
 
