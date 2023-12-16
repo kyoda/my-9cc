@@ -276,7 +276,7 @@ static bool is_function(Token *token) {
 
 static bool is_type(Token *token) {
   char *kw[] = {
-    "void", "char", "short", "int", "long", "struct", "union", "typedef"
+    "_Bool", "void", "char", "short", "int", "long", "struct", "union", "typedef"
   };
   for (int i = 0; i < sizeof(kw) / sizeof(*kw); i++) {
     if (equal(token, kw[i])) {
@@ -549,18 +549,19 @@ static Type *union_decl(Token **rest, Token *token) {
 }
 
 /*
-  declspec ::= ("char" || "short" || "int" || "long"
+  declspec ::= ("_Bool" || "void" || "char" || "short" || "int" || "long"
             || "struct-decl" || "union-decl"
             || "typedef" || typedef-name)+
 */
 static Type *declspec(Token **rest, Token *token, VarAttr *attr) {
   enum {
     VOID = 1 << 0,
-    CHAR = 1 << 2,
-    SHORT = 1 << 4,
-    INT = 1 << 6,
-    LONG = 1 << 8,
-    OTHER = 1 << 10
+    BOOL = 1 << 2,
+    CHAR = 1 << 4,
+    SHORT = 1 << 6,
+    INT = 1 << 8,
+    LONG = 1 << 10,
+    OTHER = 1 << 12
   };
 
   Type *ty = ty_int();
@@ -602,6 +603,8 @@ static Type *declspec(Token **rest, Token *token, VarAttr *attr) {
 
     if (equal(token, "void")) {
       counter += VOID;
+    } else if (equal(token, "_Bool")) {
+      counter += BOOL;
     } else if (equal(token, "char")) {
       counter += CHAR;
     } else if (equal(token, "short")) {
@@ -617,6 +620,9 @@ static Type *declspec(Token **rest, Token *token, VarAttr *attr) {
     switch(counter) {
     case VOID:
       ty = ty_void();
+      break;
+    case BOOL:
+      ty = ty_bool();
       break;
     case CHAR:
       ty = ty_char();

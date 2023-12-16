@@ -16,6 +16,9 @@ char int_to_char(int x) { return x; }
 int div_long(long a, long b) { return a / b;}
 int arg_char(char a) { return a; }
 
+_Bool add_bool(_Bool a) { return a + 1; }
+_Bool sub_bool(_Bool a) { return a - 1; }
+
 int main() {
   ASSERT(8, add2(5, 3));
   ASSERT(3, ret3());
@@ -35,6 +38,12 @@ int main() {
   ASSERT(0, int_to_char(256));
   ASSERT(-5, div_long(-10, 2));
   ASSERT(1, arg_char(513));
+
+  ASSERT(1, add_bool(3));
+  ASSERT(1, add_bool(-1));
+  ASSERT(1, sub_bool(0));
+  ASSERT(0, sub_bool(1));
+  ASSERT(0, sub_bool(5));
 
 
 

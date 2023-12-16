@@ -94,6 +94,7 @@ struct Node {
 
 typedef enum {
   TY_VOID,
+  TY_BOOL,
   TY_CHAR,
   TY_SHORT,
   TY_INT,
@@ -184,3 +185,4 @@ typedef struct {
 } VarAttr;
 
 Node *new_cast(Node *lhs, Type *ty, Token *token);
+bool is_integer(Type *ty);

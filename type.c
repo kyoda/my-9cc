@@ -12,6 +12,10 @@ Type *ty_void() {
   return new_type(TY_VOID, 1, 1);
 }
 
+Type *ty_bool() {
+  return new_type(TY_BOOL, 1, 1);
+}
+
 Type *ty_char() {
   return new_type(TY_CHAR, 1, 1);
 }
@@ -69,6 +73,11 @@ static void usual_arith_conv(Node **lhs, Node **rhs) {
 
   *lhs = new_cast(*lhs, ty, (*lhs)->token);
   *rhs = new_cast(*rhs, ty, (*rhs)->token);
+}
+
+bool is_integer(Type *ty) {
+  TypeKind kind = ty->kind;
+  return kind == TY_BOOL || kind == TY_CHAR || kind == TY_SHORT || kind == TY_INT || kind == TY_LONG;
 }
 
 void add_type(Node *n) {

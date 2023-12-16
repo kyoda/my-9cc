@@ -145,6 +145,18 @@ static void cast(Type *from, Type *to) {
     return;
   }
 
+  if (to->kind == TY_BOOL) {
+    if (is_integer(from) && from->size <= 4) {
+      println("  cmp eax, 0");
+    } else {
+      println("  cmp rax, 0");
+    }
+
+    println("  setne al");
+    println("  movzb eax, al");
+    return;
+  }
+
   int t1 = getTypeId(from);
   int t2 = getTypeId(to);
   if (cast_table[t1][t2]) {
