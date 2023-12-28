@@ -228,6 +228,14 @@ static Member *find_member(Type *ty, Token *token) {
   error_at(token->loc, "no member: %.*s", token->len, token->loc);
 }
 
+static long get_number(Token *t) {
+  if (t->kind != TK_NUM) {
+    error_at(t->loc, "%s", "expected an number");
+  }
+
+  return t->val;
+}
+
 static char *get_ident_name(Token *t) {
   if (t->kind != TK_IDENT) {
     error_at(t->loc, "%s", "expected an identifier");
@@ -276,7 +284,7 @@ static bool is_function(Token *token) {
 
 static bool is_type(Token *token) {
   char *kw[] = {
-    "_Bool", "void", "char", "short", "int", "long", "struct", "union", "typedef"
+    "_Bool", "void", "char", "short", "int", "long", "struct", "union", "enum", "typedef"
   };
   for (int i = 0; i < sizeof(kw) / sizeof(*kw); i++) {
     if (equal(token, kw[i])) {
@@ -470,7 +478,7 @@ static Type *struct_union_decl(Token **rest, Token *token) {
 
   Token *token_tag = NULL;
   if (token->kind == TK_IDENT) {
-    //tokenだけ保持しておき、後でstructのtypeを作成した後にtagを追加する
+    //tokenだけ保持しておき、structのtypeを作成した後にtagを追加する
     token_tag = token;
     token = token->next;
   }
@@ -549,8 +557,75 @@ static Type *union_decl(Token **rest, Token *token) {
 }
 
 /*
+  enum-specifier ::= "enum" ident? "{" enum-list? "}"
+                  || "enum" ident ("{" enum-list? "}")?
+  enmu-list ::= ident ("=" num)? ("," ident ("=" num)?)* 
+*/
+static Type *enum_specifier(Token **rest, Token *token) {
+  Type *ty = ty_enum();
+  // enum
+  token = token->next;
+
+  Token *token_tag = NULL;
+  if (token->kind == TK_IDENT) {
+    //tokenだけ保持しておき、enumのtypeを作成した後にtagを追加する
+    token_tag = token;
+    token = token->next;
+  }
+
+  // enum tag x; といったtagによるenumの宣言
+  if (token_tag && !equal(token, "{")) {
+    Type *ty = find_tag_type(token_tag);
+    if (!ty) {
+      error_at(token_tag->loc, "%s", "undefined enum tag");
+    }
+
+    if (ty->kind != TY_ENUM) {
+      error_at(token_tag->loc, "%s", "not enum tag");
+    }
+
+    *rest = token;
+    return ty;
+  }
+
+
+  expect(&token, token, "{");
+
+  //enum-list
+  int i = 0;
+  int val = 0;
+  while (!equal(token, "}")) {
+    if (i++ > 0) {
+      expect(&token, token, ",");
+    }
+
+    char *name = get_ident_name(token);
+    token = token->next;
+
+    if (equal(token, "=")) {
+      token = token->next;
+      val = get_number(token);
+      token = token->next;
+    }
+
+    VarScope *vs = push_scope(name);
+    vs->enum_ty = ty;
+    vs->enum_val = val++;
+  }
+
+  expect(&token, token, "}");
+
+  if (token_tag) {
+    push_new_tag(token_tag, ty);
+  }
+
+  *rest = token;
+  return ty;
+}
+
+/*
   declspec ::= ("_Bool" || "void" || "char" || "short" || "int" || "long"
-            || "struct-decl" || "union-decl"
+            || "struct-decl" || "union-decl" || "enum-specifier"
             || "typedef" || typedef-name)+
 */
 static Type *declspec(Token **rest, Token *token, VarAttr *attr) {
@@ -579,10 +654,11 @@ static Type *declspec(Token **rest, Token *token, VarAttr *attr) {
       continue;
     }
     
-    //"struct" "union" typedef-name
+    //"struct" "union" "enum" typedef-name
     Type *ty2 = find_typedef(token);
-    if (equal(token, "struct") || equal(token, "union") || ty2) {
-      // struct や union, typedefで定義された型は、重複した定義はない
+    if (equal(token, "struct") || equal(token, "union") 
+        || equal(token, "enum") || ty2) {
+      // struct, union, enum, typedefで定義された型は、重複した定義はない
       if (counter) {
         break;
       }
@@ -591,6 +667,8 @@ static Type *declspec(Token **rest, Token *token, VarAttr *attr) {
         ty = struct_decl(&token, token);
       } else if (equal(token, "union")) {
         ty = union_decl(&token, token);
+      } else if (equal(token, "enum")) {
+        ty = enum_specifier(&token, token);
       } else {
         //t x; (typedef int t;)
         ty = ty2;
@@ -1370,13 +1448,18 @@ static Node *primary(Token **rest, Token *token) {
       return funcall(rest, token);
 
     //var
-    Node *n = new_node(ND_VAR, token);
     VarScope *vs = find_var(token);
-    if (!vs || !vs->var) {
+    if (!vs || (!vs->var && !vs->enum_ty)) {
       error_at(token->loc, "%s", "variable not definded");
     }
 
-    n->var = vs->var;
+    Node *n;
+    if (vs->var) {
+      n = new_node_var(vs->var, token);
+    } else {
+      n = new_node_num(vs->enum_val, token);
+    }
+
     token = token->next;
     *rest = token;
     return n;

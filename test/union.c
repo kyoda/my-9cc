@@ -6,7 +6,7 @@ int main() {
   ASSERT(256, ({ union {int a; char b[2];} y; y.b[0] = 0; y.b[1] = 1; y.a;}));
   ASSERT(1, ({ union {int a; char b[4];} y; y.a = 300; y.b[1];}));
 
-  ASSERT(3, ({ union t {int a;} x; int *y = x; x.a = 3; *y;})); //gcc error
+  //ASSERT(3, ({ union t {int a;} x; int *y = x; x.a = 3; *y;})); //gcc error
 
   printf("OK\n");
   return 0;

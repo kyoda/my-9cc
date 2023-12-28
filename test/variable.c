@@ -29,8 +29,8 @@ int main() {
     char a; int b;
     offset = 0 --> offset = 4(b->offset) --> offset = 4 + 1 --> align_to(5, 1) = 5(a->offset)
   */
-  ASSERT(7, ({ int a; char b; char *p = &a; char *q = &b; q-p; })); //gcc -> -1
-  ASSERT(1, ({ char a; int b; char *p = &a; char *q = &b; q-p; })); //gcc -> -7
+  //ASSERT(7, ({ int a; char b; char *p = &a; char *q = &b; q-p; })); //gcc -> -1
+  //ASSERT(1, ({ char a; int b; char *p = &a; char *q = &b; q-p; })); //gcc -> -7
 
   //nested type
   ASSERT(24, ({ char *a[3]; sizeof(a); }));

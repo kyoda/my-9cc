@@ -17,9 +17,9 @@ int main() {
   ASSERT(8, ({ int *p; sizeof p;}));
   ASSERT(4, ({ int *p; sizeof *p;}));
   ASSERT(4, ({ sizeof (8+3-2);}));
-  ASSERT(4, ({ sizeof sizeof (8+3-2);})); //gcc error
-  ASSERT(4, ({ sizeof sizeof sizeof (8+3-2);})); //gcc error
-  ASSERT(6, ({ sizeof sizeof sizeof (8+3-2) + 2;})); //gcc error
+  //ASSERT(4, ({ sizeof sizeof (8+3-2);})); //gcc error
+  //ASSERT(4, ({ sizeof sizeof sizeof (8+3-2);})); //gcc error
+  //ASSERT(6, ({ sizeof sizeof sizeof (8+3-2) + 2;})); //gcc error
   ASSERT(0, ({ int a[3]; 0;}));
   ASSERT(3, ({ int a[3]; *a = 3; }));
   ASSERT(99, ({ 2["abcd"]; }));

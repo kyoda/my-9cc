@@ -76,7 +76,7 @@ Token *skip(Token *t, char *op) {
 static int keyword_len(char *p) {
   char *key[] = {"return", "if", "else", "for", "while", 
                 "_Bool", "void", "char", "short", "int", "long", "sizeof",
-                "struct", "union", "typedef"};
+                "struct", "union", "enum", "typedef"};
   int key_len;
   for (int i = 0; i < sizeof(key) / sizeof(*key); i++) {
     key_len = strlen(key[i]);
@@ -244,7 +244,7 @@ static void add_lines(Token *token) {
   }
 }
 
-Token *tokenize(char* p, char *file) {
+Token *tokenize(char *p, char *file) {
   user_input = p;
   infile = file;
 
@@ -255,11 +255,6 @@ Token *tokenize(char* p, char *file) {
   char *start;
 
   while (*p) {
-    if (isspace(*p)) {
-      p++;
-      continue;
-    }
-
     //skip line comments
     if (strncmp(p, "//", 2) == 0) {
       p += 2;
@@ -279,11 +274,50 @@ Token *tokenize(char* p, char *file) {
       continue;
     }
 
+    if (isspace(*p)) {
+      p++;
+      continue;
+    }
+
+    if (isdigit(*p)) {
+      cur = new_token(TK_NUM, cur, p, 0);
+      char *start = p;
+      cur->val = strtol(p, &p, 10);
+      cur->len = p - start;
+      continue;
+    }
+
+    //string literal
+    if (*p == '"') {
+      cur = cur->next = read_string_literal(p);
+      p += cur->len;
+      continue;
+    }
+
+    //char literal
+    if (*p == '\'') {
+      cur = cur->next = read_char_literal(p);
+      p += cur->len;
+      continue;
+    }
+
     //KEYWORDS
     int kl = keyword_len(p);
     if (kl) {
       cur = new_token(TK_KEYWORD, cur, p, kl);
       p += kl;
+      continue;
+    }
+
+    if (is_ident1(*p)) {
+      start = p;
+      p++;
+
+      while (is_ident2(*p)) {
+        p++;
+      }
+
+      cur = new_token(TK_IDENT, cur, start, p - start);
       continue;
     }
 
@@ -306,38 +340,6 @@ Token *tokenize(char* p, char *file) {
       continue;
     }
     
-    if (is_ident1(*p)) {
-      start = p;
-      p++;
-
-      while (is_ident2(*p)) {
-        p++;
-      }
-
-      cur = new_token(TK_IDENT, cur, start, p - start);
-      continue;
-    }
-
-    if (isdigit(*p)) {
-      cur = new_token(TK_NUM, cur, p, 0);
-      cur->val = strtol(p, &p, 10);
-      continue;
-    }
-
-    //char literal
-    if (*p == '\'') {
-      cur = cur->next = read_char_literal(p);
-      p += cur->len;
-      continue;
-    }
-
-    //string literal
-    if (*p == '"') {
-      cur = cur->next = read_string_literal(p);
-      p += cur->len;
-      continue;
-    }
-
     error_at(p, "%s", "can't tokenize");
   }
 

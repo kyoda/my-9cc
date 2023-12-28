@@ -99,6 +99,7 @@ typedef enum {
   TY_SHORT,
   TY_INT,
   TY_LONG,
+  TY_ENUM,
   TY_PTR,
   TY_ARRAY,
   TY_FUNC,
@@ -156,16 +157,18 @@ struct Member {
   Token *token;
 };
 
-// scope local, global variable, typedef
+// scope local, global variable, typedef, enum
 typedef struct VarScope VarScope;
 struct VarScope {
   char *name;
   Obj *var;
   VarScope *next;
   Type *type_def;
+  Type *enum_ty;
+  long enum_val;
 };
 
-// struct tag
+// struct, union, enmu tag
 typedef struct TagScope TagScope;
 struct TagScope {
   char *name;
