@@ -19,6 +19,8 @@ int arg_char(char a) { return a; }
 _Bool add_bool(_Bool a) { return a + 1; }
 _Bool sub_bool(_Bool a) { return a - 1; }
 
+static int static_func() { return 1; }
+
 int main() {
   ASSERT(8, add2(5, 3));
   ASSERT(3, ret3());
@@ -45,8 +47,7 @@ int main() {
   ASSERT(0, sub_bool(1));
   ASSERT(0, sub_bool(5));
 
-
-
+  ASSERT(1, static_func());
 
   printf("OK\n");
   return 0;

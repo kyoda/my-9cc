@@ -284,7 +284,7 @@ static bool is_function(Token *token) {
 
 static bool is_type(Token *token) {
   char *kw[] = {
-    "_Bool", "void", "char", "short", "int", "long", "struct", "union", "enum", "typedef"
+    "_Bool", "void", "char", "short", "int", "long", "struct", "union", "enum", "typedef", "static"
   };
   for (int i = 0; i < sizeof(kw) / sizeof(*kw); i++) {
     if (equal(token, kw[i])) {
@@ -303,11 +303,13 @@ static void create_params(Type *param) {
 }
 
 // function ::= declspec declarator ( stmt? | ";")
-static void *function (Token **rest, Token *token, Type *basety) {
+static void *function (Token **rest, Token *token, Type *basety, VarAttr *attr) {
   Type *ty = declarator(&token, token, basety);
   Obj *fn = new_gvar(get_ident_name(ty->token), ty);
   fn->is_function = true;
   fn->is_definition = !consume(&token, token, ";");
+  fn->is_static = attr->is_static;
+
   if (!fn->is_definition) {
     *rest = token;
     return;
@@ -396,7 +398,7 @@ Obj *parse(Token *token) {
     }
 
     if (is_function(token)) {
-      function(&token, token, basety);
+      function(&token, token, basety, &attr);
       continue;
     }
 
@@ -626,7 +628,7 @@ static Type *enum_specifier(Token **rest, Token *token) {
 /*
   declspec ::= ("_Bool" || "void" || "char" || "short" || "int" || "long"
             || "struct-decl" || "union-decl" || "enum-specifier"
-            || "typedef" || typedef-name)+
+            || "typedef" || "static" || typedef-name)+
 */
 static Type *declspec(Token **rest, Token *token, VarAttr *attr) {
   enum {
@@ -643,13 +645,22 @@ static Type *declspec(Token **rest, Token *token, VarAttr *attr) {
   int counter = 0; 
 
   while (is_type(token)) {
-    //"typedef"
-    if (equal(token, "typedef")) {
+    //"typedef" or "static"
+    if (equal(token, "typedef") || equal(token, "static")) {
       if (!attr) {
-        error(token->loc, "%s", "typedef is not allowed");
+        error(token->loc, "%s", "typedef or static is not allowed");
       }
 
-      attr->is_typedef = true;
+      if (equal(token, "typedef")) {
+        attr->is_typedef = true;
+      } else if (equal(token, "static")) {
+        attr->is_static = true;
+      }
+
+      if (attr->is_typedef && attr->is_static) {
+        error(token->loc, "%s", "typedef and static may not be used together ");
+      }
+
       token = token->next;
       continue;
     }

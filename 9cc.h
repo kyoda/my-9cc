@@ -137,6 +137,7 @@ struct Obj {
   // function or global variable
   bool is_function;
   bool is_definition;
+  bool is_static;
 
   // global variable
   char *init_data;
@@ -185,6 +186,7 @@ struct Scope {
 
 typedef struct {
   bool is_typedef;
+  bool is_static;
 } VarAttr;
 
 Node *new_cast(Node *lhs, Type *ty, Token *token);
