@@ -357,7 +357,7 @@ static void gen_stmt(Node *n) {
     c = count();
 
     if (n->init) {
-      gen_expr(n->init);
+      gen_stmt(n->init);
     }
     println(".Lbegin%03d:", c);
     if (n->cond) {

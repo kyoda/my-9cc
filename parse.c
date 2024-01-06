@@ -102,6 +102,19 @@ static VarScope *find_var(Token *t) {
   return NULL;
 }
 
+/*
+  同じスコープでの再定義はエラー
+*/
+static VarScope *find_var_in_current_scope(Token *t) {
+  for (VarScope *vs = scope->vars; vs; vs = vs->next) {
+    if (equal(t, vs->name)) {
+      return vs;
+    }
+  }
+
+  return NULL;
+}
+
 //search only global variable
 static VarScope *find_var_by_name(char *name) {
   for (Scope *sc = scope; sc; sc = sc->next) {
@@ -772,7 +785,7 @@ static Node *declaration(Token **rest, Token *token) {
         error_at(token->loc, "%s", "void type variable");
       }
 
-      VarScope *vs = find_var(ty->token);
+      VarScope *vs = find_var_in_current_scope(ty->token);
       if (vs) {
         error_at(ty->token->loc, "%s", "defined variable");
       }
@@ -992,10 +1005,13 @@ static Node *stmt(Token **rest, Token *token) {
     token = token->next;
     expect(&token, token, "(");
 
-    if(!equal(token, ";")) {
-      n->init = expr(&token, token); 
+    enter_scope();
+
+    if (is_type(token)) {
+      n->init = declaration(&token, token);
+    } else {
+      n->init = expr_stmt(&token, token);
     }
-    expect(&token, token, ";");
 
     if(!equal(token, ";")) {
       n->cond = expr(&token, token); 
@@ -1007,6 +1023,8 @@ static Node *stmt(Token **rest, Token *token) {
     }
     expect(&token, token, ")");
     n->then = stmt(&token, token);
+
+    leave_scope();
 
     *rest = token;
     return n;
@@ -1021,6 +1039,7 @@ static Node *stmt(Token **rest, Token *token) {
 // expr-stmt = expr ";"?
 static Node *expr_stmt(Token **rest, Token *token) {
   if (consume(&token, token, ";")) {
+    *rest = token;
     return new_node(ND_BLOCK, token);
   }
 

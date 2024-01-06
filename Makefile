@@ -1,4 +1,4 @@
-CFLAGS=-std=c11 -g -fno-common -Wall
+CFLAGS=-std=c99 -g -fno-common -Wall
 # wildcard関数で、testディレクトリの.cを取得
 SRCS=$(wildcard *.c)
 OBJS=$(SRCS:.c=.o)
@@ -9,7 +9,7 @@ TEST_OBJS=$(TEST_SRCS:.c=.o)
 TEST_AS=$(TEST_SRCS:.c=.s)
 
 9cc: $(OBJS)
-		$(CC) -o 9cc $(OBJS) $(LDFLAGS)
+		$(CC) ${CFLAGS} -o 9cc $(OBJS) $(LDFLAGS)
 
 $(OBJS): 9cc.h
 
@@ -29,7 +29,7 @@ test: $(TEST_OBJS)
 CCTEST_OBJS=$(TEST_SRCS:.c=.out)
 
 test/%.out: test/%.c
-	$(CC) -o test/$*.out test/$*.c -xc test/common
+	$(CC) ${CFLAGS} -o test/$*.out test/$*.c -xc test/common
 
 cctest: $(CCTEST_OBJS)
 	for i in $^; do echo $$i; ./$$i || exit 1; echo; done

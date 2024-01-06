@@ -6,6 +6,10 @@ int main() {
   ASSERT(0, ({ int flag = 9; int a; if (flag) a =0; else a = 4; a;}));
   ASSERT(3, ({ int i; i=0; while (i<3) {i = i + 1;} i; }));
   ASSERT(3, ({ int a = 0; int i; for (i=0; i<3; i=i+1) {a = a + i;} a; }));
+  ASSERT(4, ({ int i; for (i=0; i<3; i=i+1) i = i + 1; i;}));
+
+  ASSERT(0, ({ int i = 0; { int i = 4; } i; }));
+  ASSERT(7, ({ int i = 7; int j = 3; for (int i=0; i<3; i=i+1) {j = i + 1;} i; }));
 
   ASSERT(2, ({ 1; 2; 2; }));
   ASSERT(2, ({;; ; 2;}));
@@ -21,6 +25,7 @@ int main() {
   //assert(2, ({ {{};; ; 2; }{}}));
   //assert(0, ({; }));
   ASSERT(2, ({return 2;}));
+  ASSERT(4, ({ int i = 0; int i = 4; i; })); //compile error
   */
 
   printf("OK\n");
