@@ -19,6 +19,19 @@ int main() {
   ASSERT(1, 3 <= 3);
   ASSERT(0, 2 + 3 * 2 / 2 <= 3 == 0 < 1);
 
+  ASSERT(5, ({ int a = 2; a += 3; }));
+  ASSERT(5, ({ int a = 2; a += 3; a; }));
+  ASSERT(5, ({ int a = 2; a += 3; a; }));
+  ASSERT(0, ({ int a = 2; a -= 2; }));
+  ASSERT(0, ({ int a = 2; a -= 2; a; }));
+  ASSERT(1, ({ int a = 2; a -= a == 2; a; }));
+  ASSERT(16, ({ int a = 8; a *= 2; }));
+  ASSERT(16, ({ int a = 8; a *= 2; a; }));
+  ASSERT(2, ({ int a = 2; a *= a == 2; a; }));
+  ASSERT(4, ({ int a = 8; a /= 2; }));
+  ASSERT(4, ({ int a = 8; a /= 2; a; }));
+  ASSERT(2, ({ int a = 2; a /= a == 2; a; }));
+
   printf("OK\n");
   return 0;
 }

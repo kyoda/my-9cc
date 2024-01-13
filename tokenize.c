@@ -244,6 +244,17 @@ static void add_lines(Token *token) {
   }
 }
 
+static int read_punct(char *p) {
+  char *key[] = {"==", "!=", "<=", ">=", "->", "+=", "-=", "*=", "/="};
+  for (int i = 0; i < sizeof(key) / sizeof(*key); i++) {
+    if (strncmp(p, key[i], strlen(key[i])) == 0) {
+      return strlen(key[i]);
+    }
+  }
+
+  return ispunct(*p) ? 1 : 0;
+}
+
 Token *tokenize(char *p, char *file) {
   user_input = p;
   infile = file;
@@ -322,21 +333,10 @@ Token *tokenize(char *p, char *file) {
     }
 
     //PUNCTUATORS
-    if (
-        strncmp("==", p, 2) == 0 || 
-        strncmp("!=", p, 2) == 0 || 
-        strncmp("<=", p, 2) == 0 ||
-        strncmp(">=", p, 2) == 0 ||
-        strncmp("->", p, 2) == 0
-    ) {
-      cur = new_token(TK_PUNCT, cur, p, 2);
-      p += 2;
-      continue;
-    }
-
-    if (strchr("+-*/()<>=;{},&[].", *p)) {
-      cur = new_token(TK_PUNCT, cur, p, 1);
-      p++;
+    int pl = read_punct(p);
+    if (pl) {
+      cur = new_token(TK_PUNCT, cur, p, pl);
+      p += pl;
       continue;
     }
     
