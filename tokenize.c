@@ -245,7 +245,7 @@ static void add_lines(Token *token) {
 }
 
 static int read_punct(char *p) {
-  char *key[] = {"==", "!=", "<=", ">=", "->", "+=", "-=", "*=", "/="};
+  char *key[] = {"==", "!=", "<=", ">=", "->", "+=", "-=", "*=", "/=", "++", "--"};
   for (int i = 0; i < sizeof(key) / sizeof(*key); i++) {
     if (strncmp(p, key[i], strlen(key[i])) == 0) {
       return strlen(key[i]);

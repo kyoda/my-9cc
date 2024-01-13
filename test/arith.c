@@ -32,6 +32,14 @@ int main() {
   ASSERT(4, ({ int a = 8; a /= 2; a; }));
   ASSERT(2, ({ int a = 2; a /= a == 2; a; }));
 
+  ASSERT(3, ({ int a = 2; ++a; }));
+  ASSERT(3, ({ int a[2]; a[0] = 1; a[1] = 3; int *p = a; *(++p); }));
+  ASSERT(3, ({ int a[2]; a[0] = 1; a[1] = 3; int *p = a; *(++p); }));
+  ASSERT(2, ({ int a[2]; a[0] = 1; a[1] = 3; int *p = a; ++*p; }));
+  ASSERT(1, ({ int a = 2; --a; }));
+  ASSERT(1, ({ int a[2]; a[0] = 1; a[1] = 3; int *p = a + 1; *(--p); }));
+  ASSERT(2, ({ int a[2]; a[0] = 1; a[1] = 3; int *p = a + 1; --*p; }));
+
   printf("OK\n");
   return 0;
 }

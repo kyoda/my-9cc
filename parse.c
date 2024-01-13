@@ -1291,6 +1291,7 @@ static Type *typename(Token **rest , Token *token) {
 /*
   unary = "sizeof" "(" typename ")"
         | ("sizeof" | "+" | "-" | "*" | "&") cast
+        | ("++" | "+-") unary
         | postfix
 */
 static Node *unary(Token **rest, Token *token) {
@@ -1343,6 +1344,20 @@ static Node *unary(Token **rest, Token *token) {
 
     *rest = token;
     return n;
+  }
+
+  /*
+    ++a -> a = a + 1
+    --a -> a = a - 1
+  */
+  if (consume(&token, token, "++")) {
+    n = unary(rest, token);
+    return new_node_binary(ND_ASSIGN, n, new_add(n, new_node_num(1, token), token), token);
+  }
+
+  if (consume(&token, token, "--")) {
+    n = unary(rest, token);
+    return new_node_binary(ND_ASSIGN, n, new_sub(n, new_node_num(1, token), token), token);
   }
 
   n = postfix(&token, token);
