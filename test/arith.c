@@ -40,6 +40,11 @@ int main() {
   ASSERT(1, ({ int a[2]; a[0] = 1; a[1] = 3; int *p = a + 1; *(--p); }));
   ASSERT(2, ({ int a[2]; a[0] = 1; a[1] = 3; int *p = a + 1; --*p; }));
 
+  ASSERT(1, ({ int a = 1; a++; }));
+  ASSERT(2, ({ int a = 1; a++; a;}));
+  ASSERT(1, ({ int a = 1; a--; }));
+  ASSERT(0, ({ int a = 1; a--; a;}));
+
   printf("OK\n");
   return 0;
 }

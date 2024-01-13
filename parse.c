@@ -14,7 +14,7 @@ static Node *stmt(Token **rest, Token *token);
 static Node *expr_stmt(Token **rest, Token *token);
 static Node *expr(Token **rest, Token *token);
 static Node *assign(Token **rest, Token *token);
-static Node *to_assign(Node *n);
+static Node *to_assign(Node *lhs, Node *rhs, Token *token);
 static Node *equality(Token **rest, Token *token);
 static Node *new_add(Node *lhs, Node *rhs, Token *token);
 static Node *new_sub(Node *lhs, Node *rhs, Token *token);
@@ -1064,6 +1064,10 @@ static Node *expr(Token **rest, Token *token) {
   return n;
 }
 
+static Node *to_assign(Node *lhs, Node *rhs, Token *token) {
+  return new_node_binary(ND_ASSIGN, lhs, rhs, token);
+}
+
 /*
  assign = equality (assign-op assign)?
  assign-op = "=" | "+=" | "-=" | "*=" | "/="
@@ -1083,20 +1087,19 @@ static Node *assign(Token **rest, Token *token) {
         n        assign
   */
   if (consume(&token, token, "+=")) {
-    //return to_assign(new_add(n, assign(rest, token), token));
-    return new_node_binary(ND_ASSIGN, n, new_add(n, assign(rest, token), token), token);
+    return to_assign(n, new_add(n, assign(rest, token), token), token);
   }
 
   if (consume(&token, token, "-=")) {
-    return new_node_binary(ND_ASSIGN, n, new_sub(n, assign(rest, token), token), token);
+    return to_assign(n, new_sub(n, assign(rest, token), token), token);
   }
 
   if (consume(&token, token, "*=")) {
-    return new_node_binary(ND_ASSIGN, n, new_node_binary(ND_MUL, n, assign(rest, token), token), token);
+    return to_assign(n, new_node_binary(ND_MUL, n, assign(rest, token), token), token);
   }
 
   if (consume(&token, token, "/=")) {
-    return new_node_binary(ND_ASSIGN, n, new_node_binary(ND_DIV, n, assign(rest, token), token), token);
+    return to_assign(n, new_node_binary(ND_DIV, n, assign(rest, token), token), token);
   }
 
   *rest = token;
@@ -1291,7 +1294,7 @@ static Type *typename(Token **rest , Token *token) {
 /*
   unary = "sizeof" "(" typename ")"
         | ("sizeof" | "+" | "-" | "*" | "&") cast
-        | ("++" | "+-") unary
+        | ("++" | "--") unary
         | postfix
 */
 static Node *unary(Token **rest, Token *token) {
@@ -1379,7 +1382,7 @@ static Node *struct_ref(Token *token, Node *lhs) {
   return n;
 }
 
-// postfix = primary ("[" expr "]" | "." ident | "->" ident)*
+// postfix = primary ("[" expr "]" | "." ident | "->" ident | "++" | "--")*
 static Node *postfix(Token **rest, Token *token) {
   Node *n = primary(&token, token);
 
@@ -1412,6 +1415,30 @@ static Node *postfix(Token **rest, Token *token) {
       n = struct_ref(token, new_node_unary(ND_DEREF, n, token));
       token = token->next->next;
 
+      continue;
+    }
+
+    // a++ -> (typeof a)( (a += 1) - 1)
+    if (equal(token, "++")) {
+      n = to_assign(n, new_add(n, new_node_num(1, token), token), token);
+      n = new_sub(n, new_node_num(1, token), token);
+
+      add_type(n);
+      n = new_cast(n, n->ty, token);
+
+      token = token->next;
+      continue;
+    }
+
+    // a-- -> (typeof a)( (a -= 1) + 1)
+    if (equal(token, "--")) {
+      n = to_assign(n, new_sub(n, new_node_num(1, token), token), token);
+      n = new_sub(n, new_node_num(-1, token), token);
+
+      add_type(n);
+      n = new_cast(n, n->ty, token);
+
+      token = token->next;
       continue;
     }
 
