@@ -170,6 +170,9 @@ void add_type(Node *n) {
   case ND_NOT:
     n->ty = ty_int();
     return;
+  case ND_BITNOT:
+    n->ty = n->lhs->ty;
+    return;
   case ND_STMT_EXPR:
     if (n->body) {
       /*

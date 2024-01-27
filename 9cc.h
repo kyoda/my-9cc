@@ -45,6 +45,7 @@ typedef enum {
   ND_ADDR, // &
   ND_DEREF, // unary *
   ND_NOT, // unary !
+  ND_BITNOT, // unary ~
   ND_EQ, // ==
   ND_NEQ, // !=
   ND_LT, // <

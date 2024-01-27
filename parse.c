@@ -1357,6 +1357,14 @@ static Node *unary(Token **rest, Token *token) {
     return n;
   }
 
+  if (consume(&token, token, "~")) {
+    n = new_node(ND_BITNOT, token);
+    n->lhs = cast(&token, token);
+
+    *rest = token;
+    return n;
+  }
+
   /*
     ++a -> a = a + 1
     --a -> a = a - 1

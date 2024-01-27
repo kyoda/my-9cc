@@ -245,6 +245,11 @@ static void gen_expr(Node *n) {
     println("  movzb rax, al");
 
     return;
+  case ND_BITNOT:
+    gen_expr(n->lhs);
+    println("  not rax");
+
+    return;
   default:
     break;
   }
