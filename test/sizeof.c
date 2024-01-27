@@ -33,14 +33,16 @@ int main() {
   ASSERT(8, ({ sizeof((long)-3 * 3);}));
   ASSERT(8, ({ sizeof((long)-3 / 3);}));
 
-  ASSERT(4, ({ sizeof(++3);}));
+  //ASSERT(4, ({ sizeof(++3);})); //gcc error
   ASSERT(4, ({ int i = 0; sizeof(++i);}));
   ASSERT(8, ({ int a[2]; a[0] = 0; a[1] = 1; int *p = a; sizeof(++p);}));
   ASSERT(4, ({ int i = 0; sizeof(--i);}));
   ASSERT(8, ({ int a[2]; a[0] = 0; a[1] = 1; int *p = a + 1; sizeof(--p);}));
 
-  ASSERT(4, ({ sizeof(3++);}));
-  ASSERT(4, ({ sizeof(3--);}));
+  ASSERT(4, ({ int i = 3; sizeof(i++);}));
+  ASSERT(4, ({ int i = 3; sizeof(i--);}));
+  //ASSERT(4, ({ sizeof(3++);})); //gcc error
+  //ASSERT(4, ({ sizeof(3--);})); //gcc error
 
 
   printf("OK\n");
