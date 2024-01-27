@@ -1293,7 +1293,7 @@ static Type *typename(Token **rest , Token *token) {
 
 /*
   unary = "sizeof" "(" typename ")"
-        | ("sizeof" | "+" | "-" | "*" | "&") cast
+        | ("sizeof" | "+" | "-" | "*" | "&" | "!") cast
         | ("++" | "--") unary
         | postfix
 */
@@ -1343,6 +1343,14 @@ static Node *unary(Token **rest, Token *token) {
 
   if (consume(&token, token, "&")) {
     n = new_node(ND_ADDR, token);
+    n->lhs = cast(&token, token);
+
+    *rest = token;
+    return n;
+  }
+
+  if (consume(&token, token, "!")) {
+    n = new_node(ND_NOT, token);
     n->lhs = cast(&token, token);
 
     *rest = token;

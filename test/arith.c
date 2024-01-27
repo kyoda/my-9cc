@@ -45,6 +45,16 @@ int main() {
   ASSERT(1, ({ int a = 1; a--; }));
   ASSERT(0, ({ int a = 1; a--; a;}));
 
+  ASSERT(1, (!0));
+  ASSERT(0, (!1));
+  ASSERT(0, (!2));
+  ASSERT(0, (!-3));
+  ASSERT(0, (!(char)4));
+  ASSERT(0, (!(long)5));
+  ASSERT(4, (sizeof(!-7)));
+  ASSERT(4, (sizeof(!(char)-8)));
+  ASSERT(4, (sizeof(!(long)9)));
+
   printf("OK\n");
   return 0;
 }

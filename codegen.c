@@ -237,6 +237,14 @@ static void gen_expr(Node *n) {
     gen_addr(n->lhs);
 
     return;
+  case ND_NOT:
+    gen_expr(n->lhs);
+    println("  cmp rax, 0");
+
+    println("  sete al");
+    println("  movzb rax, al");
+
+    return;
   default:
     break;
   }

@@ -167,6 +167,9 @@ void add_type(Node *n) {
 
     n->ty = n->lhs->ty->base;
     return;
+  case ND_NOT:
+    n->ty = ty_int();
+    return;
   case ND_STMT_EXPR:
     if (n->body) {
       /*
