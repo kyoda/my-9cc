@@ -164,7 +164,7 @@ static Obj *new_var(char *name, Type *ty) {
   };
 
   リストは下記となる
-  f -> e -> d -> c -> a -> b -> c
+  f -> e -> d -> a -> b -> c
   params部分は、順番が逆としている
   
 */
@@ -1418,7 +1418,7 @@ static Node *postfix(Token **rest, Token *token) {
       continue;
     }
 
-    // a++ -> (typeof a)( (a += 1) - 1)
+    // a++ -> (typeof a)((a += 1) - 1)
     if (equal(token, "++")) {
       n = to_assign(n, new_add(n, new_node_num(1, token), token), token);
       n = new_sub(n, new_node_num(1, token), token);
@@ -1430,7 +1430,7 @@ static Node *postfix(Token **rest, Token *token) {
       continue;
     }
 
-    // a-- -> (typeof a)( (a -= 1) + 1)
+    // a-- -> (typeof a)((a -= 1) + 1)
     if (equal(token, "--")) {
       n = to_assign(n, new_sub(n, new_node_num(1, token), token), token);
       n = new_sub(n, new_node_num(-1, token), token);

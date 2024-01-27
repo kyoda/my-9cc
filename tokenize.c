@@ -42,12 +42,11 @@ void error_at(char *loc, char *fmt, ...) {
   exit(1);
 }
 
-static Token *new_token(TokenKind kind, Token *cur, char *loc , int len) {
+static Token *new_token(TokenKind kind, char *start, char *end) {
   Token *t = calloc(1, sizeof(Token));
   t->kind = kind;
-  t->loc = loc;
-  t->len = len;
-  cur->next = t;
+  t->loc = start;
+  t->len = end - start;
   return t;
 }
 
@@ -194,12 +193,32 @@ static Token *read_char_literal(char *p) {
   // end -> '
   end = p;
 
-  Token *t = calloc(1, sizeof(Token));
-  t->kind = TK_NUM;
-  t->loc = start;
-  t->len = end + 1 - start;
+  Token *t = new_token(TK_NUM, start, end + 1);
   t->val = c;
   
+  return t;
+}
+
+static Token *read_int_literal(char *p) {
+  char *start = p;
+
+  long val;
+  if (strncasecmp(p, "0x", 2) == 0 && isalnum(p[2])) {
+    p += 2;
+    val = strtoul(p, &p, 16);
+  } else if (strncasecmp(p, "0b", 2) == 0 && isdigit(p[2])) {
+    p += 2;
+    val = strtoul(p, &p, 2);
+  } else if (*p == '0' && isdigit(p[1])) {
+    p += 1;
+    val = strtoul(p, &p, 8);
+  } else {
+    val = strtol(p, &p, 10);
+  }
+
+  Token *t = new_token(TK_NUM, start, p);
+  t->val = val;
+
   return t;
 }
 
@@ -216,10 +235,7 @@ static Token *read_string_literal(char *start) {
     }
   }
 
-  Token *t = calloc(1, sizeof(Token));
-  t->kind = TK_STR;
-  t->loc = start;
-  t->len = end + 1 - start;
+  Token *t = new_token(TK_STR, start, end + 1);
   t->ty = ty_array(ty_char(), len + 1);
   t->str = buf;
 
@@ -291,10 +307,8 @@ Token *tokenize(char *p, char *file) {
     }
 
     if (isdigit(*p)) {
-      cur = new_token(TK_NUM, cur, p, 0);
-      char *start = p;
-      cur->val = strtol(p, &p, 10);
-      cur->len = p - start;
+      cur = cur->next = read_int_literal(p);
+      p += cur->len;
       continue;
     }
 
@@ -315,7 +329,7 @@ Token *tokenize(char *p, char *file) {
     //KEYWORDS
     int kl = keyword_len(p);
     if (kl) {
-      cur = new_token(TK_KEYWORD, cur, p, kl);
+      cur = cur->next = new_token(TK_KEYWORD, p, p + kl);
       p += kl;
       continue;
     }
@@ -328,14 +342,14 @@ Token *tokenize(char *p, char *file) {
         p++;
       }
 
-      cur = new_token(TK_IDENT, cur, start, p - start);
+      cur = cur->next = new_token(TK_IDENT, start, p);
       continue;
     }
 
     //PUNCTUATORS
     int pl = read_punct(p);
     if (pl) {
-      cur = new_token(TK_PUNCT, cur, p, pl);
+      cur = cur->next = new_token(TK_PUNCT, p, p + pl);
       p += pl;
       continue;
     }
@@ -343,7 +357,7 @@ Token *tokenize(char *p, char *file) {
     error_at(p, "%s", "can't tokenize");
   }
 
-  new_token(TK_EOF, cur, NULL, 0);
+  cur = cur->next = new_token(TK_EOF, p, p);
   add_lines(head.next);
   return head.next;
 
