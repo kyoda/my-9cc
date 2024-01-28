@@ -285,6 +285,7 @@ static void gen_expr(Node *n) {
     println("  imul %s, %s", ax, di);
     break;
   case ND_DIV:
+  case ND_MOD:
     if (n->lhs->ty->size == 8) {
       println("  cqo");
     } else {
@@ -292,6 +293,11 @@ static void gen_expr(Node *n) {
     }
 
     println("  idiv %s", di);
+
+    if (n->kind == ND_MOD) {
+      println("  mov rax, rdx");
+    }
+
     break;
   case ND_EQ:
   case ND_NEQ:

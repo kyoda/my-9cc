@@ -113,6 +113,7 @@ void add_type(Node *n) {
   case ND_SUB:
   case ND_MUL:
   case ND_DIV:
+  case ND_MOD:
     usual_arith_conv(&n->lhs, &n->rhs);
     n->ty = n->lhs->ty;
     return;
