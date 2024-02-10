@@ -40,6 +40,9 @@ typedef enum {
   ND_MUL, // *
   ND_DIV, // /
   ND_MOD, // %
+  ND_OR, // |
+  ND_XOR, // ^
+  ND_AND, // &
   ND_NEG, // unary -
   ND_ASSIGN, // =
   ND_COMMA, // ,

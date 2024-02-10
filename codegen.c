@@ -299,6 +299,15 @@ static void gen_expr(Node *n) {
     }
 
     break;
+  case ND_OR:
+    println("  or %s, %s", ax, di);
+    break;
+  case ND_XOR:
+    println("  xor %s, %s", ax, di);
+    break;
+  case ND_AND:
+    println("  and %s, %s", ax, di);
+    break;
   case ND_EQ:
   case ND_NEQ:
   case ND_LT:
