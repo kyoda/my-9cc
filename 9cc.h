@@ -44,6 +44,8 @@ typedef enum {
   ND_XOR, // ^
   ND_AND, // &
   ND_NEG, // unary -
+  ND_LOGICALOR, // ||
+  ND_LOGICALAND, // &&
   ND_ASSIGN, // =
   ND_COMMA, // ,
   ND_ADDR, // &

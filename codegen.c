@@ -223,6 +223,40 @@ static void gen_expr(Node *n) {
     store(n->ty);
 
     return;
+  case ND_LOGICALOR: {
+    int c = count();
+    // 左辺の評価 0でなければ、右辺を見ずにtrueとして終了
+    gen_expr(n->lhs);
+    println("  cmp rax, 0");
+    println("  jne .Ltrue.%d", c);
+
+    gen_expr(n->rhs);
+    println("  cmp rax, 0");
+    println("  jne .Ltrue.%d", c);
+    println("  mov rax, 0");
+    println("  jmp .Lend.%d", c);
+    println(".Ltrue.%d:", c);
+    println("  mov rax, 1");
+    println(".Lend.%d:", c);
+    return;
+  }
+  case ND_LOGICALAND: {
+    int c = count();
+    // 左辺の評価 0であれば、右辺を見ずにfalseとして終了
+    gen_expr(n->lhs);
+    println("  cmp rax, 0");
+    println("  je .Lfalse.%d", c);
+
+    gen_expr(n->rhs);
+    println("  cmp rax, 0");
+    println("  je .Lfalse.%d", c);
+    println("  mov rax, 1");
+    println("  jmp .Lend.%d", c);
+    println(".Lfalse.%d:", c);
+    println("  mov rax, 0");
+    println(".Lend.%d:", c);
+    return;
+  }
   case ND_COMMA:
     gen_expr(n->lhs);
     gen_expr(n->rhs);

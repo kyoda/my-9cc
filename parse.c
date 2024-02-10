@@ -15,6 +15,8 @@ static Node *expr_stmt(Token **rest, Token *token);
 static Node *expr(Token **rest, Token *token);
 static Node *assign(Token **rest, Token *token);
 static Node *to_assign(Node *lhs, Node *rhs, Token *token);
+static Node *logicalor(Token **rest, Token *token);
+static Node *logicaland(Token **rest, Token *token);
 static Node *bitor(Token **rest, Token *token);
 static Node *bitxor(Token **rest, Token *token);
 static Node *bitand(Token **rest, Token *token);
@@ -1076,7 +1078,7 @@ static Node *to_assign(Node *lhs, Node *rhs, Token *token) {
  assign-op = "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "|=" | "^=" | "&="
 */
 static Node *assign(Token **rest, Token *token) {
-  Node *n = bitor(&token, token);
+  Node *n = logicalor(&token, token);
   if (consume(&token, token, "=")) {
     return new_node_binary(ND_ASSIGN, n, assign(rest, token), token);
   }
@@ -1119,6 +1121,32 @@ static Node *assign(Token **rest, Token *token) {
 
   if (consume(&token, token, "&=")) {
     return to_assign(n, new_node_binary(ND_AND, n, assign(rest, token), token), token);
+  }
+
+  *rest = token;
+  return n;
+}
+
+// logicalor = logicaland ("||" logicaland)*
+static Node *logicalor(Token **rest, Token *token) {
+  Node *n = logicaland(&token, token);
+
+  while (equal(token, "||")) {
+    Token *start = token;
+    n = new_node_binary(ND_LOGICALOR, n, logicaland(&token, token->next), start);
+  }
+
+  *rest = token;
+  return n;
+}
+
+// logicaland = bitor ("&&" bitor)*
+static Node *logicaland(Token **rest, Token *token) {
+  Node *n = bitor(&token, token);
+
+  while (equal(token, "&&")) {
+    Token *start = token;
+    n = new_node_binary(ND_LOGICALAND, n, bitor(&token, token->next), start);
   }
 
   *rest = token;

@@ -14,6 +14,26 @@ int main() {
   ASSERT(2, ({ 1; 2; 2; }));
   ASSERT(2, ({;; ; 2;}));
 
+  ASSERT(0, 0||0);
+  ASSERT(1, 0||1);
+  ASSERT(1, 1||0);
+  ASSERT(1, 1||1);
+  ASSERT(1, 3||1);
+  ASSERT(1, 3||8);
+  ASSERT(1, -1||8);
+  ASSERT(1, (3-3)||8);
+  ASSERT(1, (3-3)||0||3);
+
+  ASSERT(0, 0&&0);
+  ASSERT(0, 0&&1);
+  ASSERT(0, 1&&0);
+  ASSERT(1, 1&&1);
+  ASSERT(1, 3&&1);
+  ASSERT(1, 3&&8);
+  ASSERT(1, -1&&8);
+  ASSERT(0, (3-3)&&8);
+  ASSERT(0, (3-2)&&8&&(2-2));
+
   /* error
   //ASSERT(0, ({ int a=0; for (;;) {a;} }));
   //ASSERT(2, ({ int i=0,j=3; (i=2, j) = 4; i;}));

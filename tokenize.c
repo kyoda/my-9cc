@@ -264,7 +264,8 @@ static int read_punct(char *p) {
   char *key[] = {
                   "==", "!=", "<=", ">=", "->", 
                   "+=", "-=", "*=", "/=", "%=", 
-                  "++", "--", "|=", "^=", "&="
+                  "++", "--", "|=", "^=", "&=",
+                  "&&", "||"
                 };
   for (int i = 0; i < sizeof(key) / sizeof(*key); i++) {
     if (strncmp(p, key[i], strlen(key[i])) == 0) {
