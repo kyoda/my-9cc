@@ -909,6 +909,15 @@ static Type *func_params(Token **rest, Token *token, Type *ty) {
 
     Type *basety = declspec(&token, token, NULL);
     Type *ty2 = declarator(&token, token, basety);
+
+    // func(int a[])
+    // a[] -> *a
+    if (ty2->kind == TY_ARRAY) {
+      Token *ty2_token = ty2->token;
+      ty2 = pointer_to(ty2->base);
+      ty2->token = ty2_token;
+    }
+
     cur = cur->next = ty2;
   }
 

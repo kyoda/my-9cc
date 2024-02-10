@@ -21,6 +21,8 @@ _Bool sub_bool(_Bool a) { return a - 1; }
 
 static int static_func() { return 1; }
 
+int param_decay(int a[]) { return a[0]; }
+
 int main() {
   ASSERT(8, add2(5, 3));
   ASSERT(3, ret3());
@@ -48,6 +50,8 @@ int main() {
   ASSERT(0, sub_bool(5));
 
   ASSERT(1, static_func());
+
+  ASSERT(3, ({ int b[2]; b[0] = 3; param_decay(b); }));
 
   printf("OK\n");
   return 0;
