@@ -44,6 +44,12 @@ int main() {
   //ASSERT(4, ({ sizeof(3++);})); //gcc error
   //ASSERT(4, ({ sizeof(3--);})); //gcc error
 
+  ASSERT(8, ({ sizeof(int (*)[][3]);}));
+
+  /* error
+    ASSERT(8, ({ sizeof(int (*)[3][]);})); //gcc error
+    ASSERT(8, ({ sizeof(int [][3]);}));
+  */
 
   printf("OK\n");
   return 0;

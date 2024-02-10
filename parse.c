@@ -789,6 +789,10 @@ static Node *declaration(Token **rest, Token *token) {
 
       Type *ty = declarator(&token, token, basety);
 
+      if (ty->size < 0) {
+        error_at(token->loc, "%s", "incomplete array type");
+      }
+
       if (ty->kind == TY_VOID) {
         error_at(token->loc, "%s", "void type variable");
       }
@@ -858,7 +862,7 @@ static Type *declarator(Token **rest, Token *token, Type *ty) {
 
 /*
   type-suffix ::= "(" func-params ")"
-                | "[" num "]" type-suffix
+                | "[" num? "]" type-suffix
                 | ε
 */
 static Type *type_suffix(Token **rest, Token *token, Type *ty) {
@@ -868,6 +872,12 @@ static Type *type_suffix(Token **rest, Token *token, Type *ty) {
 
   if (equal(token, "[")) {
     token = token->next;
+
+    //incomplete array
+    if (equal(token, "]")) {
+      ty = type_suffix(rest, token->next, ty);
+      return ty_array(ty, -1);
+    }
 
     if (token->kind != TK_NUM) {
       error_at(token->loc, "%s", "expect TK_NUM");
@@ -1393,6 +1403,11 @@ static Node *unary(Token **rest, Token *token) {
     token = token->next->next;
 
     Type *ty = typename(&token, token);
+
+    if (ty->kind == TY_ARRAY && ty->size < 0) {
+      error_at(token->loc, "%s", "incomplete array type");
+    }
+
     n = new_node_num(ty->size, start);
     expect(&token, token, ")");
 
