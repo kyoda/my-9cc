@@ -63,6 +63,8 @@ typedef enum {
   ND_IF, // if
   ND_WHILE, // while
   ND_FOR, // for
+  ND_GOTO, // goto
+  ND_LABEL, // goto labeled statement
   ND_EXPR_STMT,
   ND_STMT_EXPR,
   ND_BLOCK, // { ... }
@@ -81,6 +83,11 @@ struct Node {
   Node *inc;
   Node *then;
   Node *els;
+
+  //goto
+  Node *goto_next;
+  char *label;
+  char *unique_label;
 
   //block
   Node *body; 

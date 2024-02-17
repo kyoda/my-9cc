@@ -34,6 +34,10 @@ int main() {
   ASSERT(0, (3-3)&&8);
   ASSERT(0, (3-2)&&8&&(2-2));
 
+  ASSERT(3, ({int i = 0; goto i; i: ++i; j: ++i; k: ++i; i;}));
+  ASSERT(2, ({int i = 0; goto j; i: ++i; j: ++i; k: ++i; i;}));
+  ASSERT(1, ({int i = 0; goto k; i: ++i; j: ++i; k: ++i; i;}));
+
   /* error
   //ASSERT(0, ({ int a=0; for (;;) {a;} }));
   //ASSERT(2, ({ int i=0,j=3; (i=2, j) = 4; i;}));

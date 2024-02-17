@@ -378,6 +378,13 @@ static void gen_stmt(Node *n) {
     }
 
     return;
+  case ND_GOTO:
+    println("  jmp %s", n->unique_label);
+    return;
+  case ND_LABEL:
+    println("%s:", n->unique_label);
+    gen_stmt(n->lhs);
+    return;
   case ND_EXPR_STMT:
     // statement to expression
     gen_expr(n->lhs);

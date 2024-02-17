@@ -5,6 +5,9 @@ static Obj *globals;
 static Obj *current_fn;
 static Scope *scope = &(Scope){};
 
+static Node *gotos;
+static Node *labels;
+
 static Type *declspec(Token **rest, Token *token, VarAttr *attr);
 static Node *declaration(Token **rest, Token *token);
 static Type *declarator(Token **rest, Token *token, Type *ty);
@@ -323,6 +326,24 @@ static void create_params(Type *param) {
   }
 }
 
+/*
+  labelは後から定義されるため、gotoのjmp先のラベル解決は後で行う
+*/
+static void resolve_goto_labels() {
+  for (Node *x = gotos; x; x = x->goto_next) {
+    for (Node *y = labels; y; y = y->goto_next) {
+      if (strcmp(x->label, y->label) == 0) {
+        x->unique_label = y->unique_label;
+        break;
+      }
+    }
+
+    if (!x->unique_label) {
+      error_at(x->token->loc, "undefined label: %s", x->label);
+    }
+  }
+}
+
 // function ::= declspec declarator ( stmt? | ";")
 static void *function (Token **rest, Token *token, Type *basety, VarAttr *attr) {
   Type *ty = declarator(&token, token, basety);
@@ -350,6 +371,8 @@ static void *function (Token **rest, Token *token, Type *basety, VarAttr *attr) 
   fn->locals = locals;
 
   leave_scope();
+
+  resolve_goto_labels();
 
   *rest = token;
 }
@@ -967,6 +990,8 @@ static Type *func_params(Token **rest, Token *token, Type *ty) {
        | "if" "(" expr ")" stmt ("else" stmt)?
        | "while" "(" expr ")" stmt
        | "for" "(" expr? ";" expr? ";" expr? ";"  ")" stmt
+       | "goto" ident ";"
+       | ident ":" stmt
        | expr-stmt
 */
 static Node *stmt(Token **rest, Token *token) {
@@ -1077,6 +1102,29 @@ static Node *stmt(Token **rest, Token *token) {
     leave_scope();
 
     *rest = token;
+    return n;
+  }
+
+  if (equal(token, "goto")) {
+    n = new_node(ND_GOTO, token);
+    n->label = get_ident_name(token->next);
+    n->goto_next = gotos;
+    gotos = n;
+    token = token->next->next;
+    
+    expect(rest, token, ";");
+    return n;
+  }
+
+  if (token->kind == TK_IDENT && equal(token->next, ":")) {
+    n = new_node(ND_LABEL, token);
+    n->label = get_ident_name(token);
+    n->unique_label = new_unique_name();
+    n->goto_next = labels;
+    labels = n;
+    token = token->next->next;
+    n->lhs = stmt(rest, token);
+    
     return n;
   }
 
