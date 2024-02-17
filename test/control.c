@@ -38,6 +38,8 @@ int main() {
   ASSERT(2, ({int i = 0; goto j; i: ++i; j: ++i; k: ++i; i;}));
   ASSERT(1, ({int i = 0; goto k; i: ++i; j: ++i; k: ++i; i;}));
 
+  ASSERT(0, ({ typedef int l; goto l; l:; 0;}));
+
   /* error
   //ASSERT(0, ({ int a=0; for (;;) {a;} }));
   //ASSERT(2, ({ int i=0,j=3; (i=2, j) = 4; i;}));

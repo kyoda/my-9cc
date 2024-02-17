@@ -1026,7 +1026,8 @@ static Node *stmt(Token **rest, Token *token) {
     return n;
   }
 
-  if (is_type(token)) {
+  // type (exclude label ":")
+  if (is_type(token) && !equal(token->next, ":")) {
     n = declaration(&token, token);
     add_type(n);
     *rest = token;
@@ -1116,6 +1117,7 @@ static Node *stmt(Token **rest, Token *token) {
     return n;
   }
 
+  // label statement
   if (token->kind == TK_IDENT && equal(token->next, ":")) {
     n = new_node(ND_LABEL, token);
     n->label = get_ident_name(token);
