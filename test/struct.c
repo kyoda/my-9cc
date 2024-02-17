@@ -46,6 +46,18 @@ int main() {
   ASSERT(16, ({ struct {long a; char b;} x; sizeof(x);}));
   ASSERT(4, ({ struct {short a; char b;} x; sizeof(x);}));
 
+  ASSERT(0, ({ struct stag; 0;}));
+  ASSERT(8, ({ struct stag *st; sizeof(st);}));
+  ASSERT(4, ({ struct stag *st; struct stag { int x; }; sizeof(struct stag);}));
+  ASSERT(3, ({ struct stag { struct stag *p; int a; } b; struct stag c; c.a = 3; b.p = &c; b.p->a;}));
+  ASSERT(4, ({ typedef struct stag mytype; struct stag { int a; }; sizeof(struct stag);})); //stagは不完全のため上書き
+  ASSERT(4, ({ typedef struct stag mytype; struct stag { int a; }; sizeof(mytype);}));
+  ASSERT(4, ({ typedef struct T T; struct T { int a; }; sizeof(T);}));
+
+  /* error
+    ASSERT(-1, ({ typedef struct stag val; sizeof(val);})); //gcc error
+  */
+
   printf("OK\n");
   return 0;
 }

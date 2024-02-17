@@ -36,6 +36,10 @@ Type *ty_enum() {
   return new_type(TY_ENUM, 4, 4);
 }
 
+Type *ty_struct() {
+  return new_type(TY_STRUCT, 0, 1);
+}
+
 Type *pointer_to(Type *base) {
   Type *ty = new_type(TY_PTR, 8, 8);
   ty->base = base;

@@ -494,7 +494,7 @@ static void struct_member(Token **rest, Token *token, Type *ty) {
   *rest = token;
 }
 
-// struct-union-decl ::= "struct" ident "{" struct-member "}"
+// struct-union-decl ::= "struct" ident? ("{" struct-member "}")?
 static Type *struct_union_decl(Token **rest, Token *token) {
   // "struct"
   token = token->next;
@@ -506,30 +506,45 @@ static Type *struct_union_decl(Token **rest, Token *token) {
     token = token->next;
   }
 
-  // struct tag x; といったtagによるstructの宣言
+  /*
+    struct tag x; といったtagによるstructの宣言
+    struct tag; も不完全なtagとして扱い、上書き可能
+  */
   if (token_tag && !equal(token, "{")) {
+    *rest = token;
+
     Type *ty = find_tag_type(token_tag);
-    if (!ty) {
-      error_at(token_tag->loc, "%s", "undefined struct tag");
+    if (ty) {
+      return ty;
     }
 
-    *rest = token;
+    // incomplete struct type for sizeof()
+    ty = ty_struct();
+    ty->size = -1;
+    push_new_tag(token_tag, ty);
+
     return ty;
   }
 
   expect(&token, token, "{");
 
-  Type *ty = calloc(1, sizeof(Type));
-  ty->align = 1;
-
+  Type *ty = ty_struct();
   struct_member(&token, token, ty);
-  expect(&token, token, "}");
+  expect(rest, token, "}");
 
   if (token_tag) {
+    // tagがすでにあれば、typeの中身を上書きする
+    for (TagScope *ts = scope->tags; ts; ts = ts->next) {
+      if (equal(token_tag, ts->name)) {
+        //ts->ty = ty; としてポインタを変更してしまうと、他で参照している場合に問題が発生する
+        *ts->ty = *ty;
+        return ts->ty;
+      }
+    }
+
     push_new_tag(token_tag, ty);
   }
 
-  *rest = token;
   return ty;
 }
 
@@ -537,6 +552,10 @@ static Type *struct_union_decl(Token **rest, Token *token) {
 static Type *struct_decl(Token **rest, Token *token) {
   Type *ty = struct_union_decl(rest, token);
   ty->kind = TY_STRUCT;
+
+  if (ty->size < 0) {
+    return ty;
+  }
 
   int offset = 0;
   for (Member *m = ty->members; m; m = m->next) {
@@ -561,6 +580,10 @@ static Type *struct_decl(Token **rest, Token *token) {
 static Type *union_decl(Token **rest, Token *token) {
   Type *ty = struct_union_decl(rest, token);
   ty->kind = TY_UNION;
+
+  if (ty->size < 0) {
+    return ty;
+  }
 
   int offset = 0;
   for (Member *m = ty->members; m; m = m->next) {
@@ -790,7 +813,7 @@ static Node *declaration(Token **rest, Token *token) {
       Type *ty = declarator(&token, token, basety);
 
       if (ty->size < 0) {
-        error_at(token->loc, "%s", "incomplete array type");
+        error_at(token->loc, "%s", "incomplete type");
       }
 
       if (ty->kind == TY_VOID) {
