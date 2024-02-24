@@ -410,18 +410,6 @@ static void gen_stmt(Node *n) {
     println(".Lend%03d:", c);
 
     return;
-  case ND_WHILE:
-    c = count();
-
-    println(".Lbegin%03d:", c);
-    gen_expr(n->cond);
-    println("  cmp rax, 0");
-    println("  je %s", n->break_label);
-    gen_stmt(n->then);
-    println("  jmp .Lbegin%03d", c);
-    println("%s:", n->break_label);
-
-    return;
   case ND_FOR:
     c = count();
 

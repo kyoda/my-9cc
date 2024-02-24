@@ -1068,7 +1068,7 @@ static Node *stmt(Token **rest, Token *token) {
   }
 
   if (equal(token, "while")) {
-    n = new_node(ND_WHILE, token);
+    n = new_node(ND_FOR, token);
     token = token->next;
     expect(&token, token, "(");
     n->cond = expr(&token, token);
