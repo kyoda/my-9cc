@@ -62,6 +62,8 @@ typedef enum {
   ND_RETURN, // return
   ND_IF, // if
   ND_FOR, // for or while
+  ND_SWITCH, // switch
+  ND_CASE, // case
   ND_GOTO, // goto
   ND_LABEL, // goto labeled statement
   ND_EXPR_STMT,
@@ -76,7 +78,7 @@ struct Node {
   Node *lhs;
   Node *rhs;
 
-  //if or for or while
+  //if or for or while or switch
   Node *cond;
   Node *init;
   Node *inc;
@@ -90,6 +92,10 @@ struct Node {
 
   char *break_label; // "break" label
   char *continue_label; // "continue" label
+
+  //switch-case
+  Node *case_next;
+  Node *default_case;
 
   //block
   Node *body; 

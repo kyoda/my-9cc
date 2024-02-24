@@ -432,6 +432,30 @@ static void gen_stmt(Node *n) {
     println("%s:", n->break_label);
 
     return;
+  case ND_SWITCH:
+    gen_expr(n->cond);
+
+    char *reg = n->cond->ty->size == 8 ? "rax" : "eax";
+    for (Node *c = n->case_next; c; c = c->case_next) {
+      println("  cmp %s, %ld", reg, c->val);
+      println("  je %s", c->unique_label);
+    }
+
+    if (n->default_case) {
+      println("  jmp %s", n->default_case->unique_label); 
+    }
+
+    println("  jmp %s", n->break_label);
+
+    gen_stmt(n->then);
+    println("%s:", n->break_label);
+
+    return;
+  case ND_CASE:
+    println("%s:", n->unique_label);
+    gen_stmt(n->lhs);
+
+    return;
   default:
     break;
   }

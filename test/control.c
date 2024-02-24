@@ -53,6 +53,16 @@ int main() {
   ASSERT(3, ({ int i = 0, j = 0; while (i++<10) { if (i > 3) continue; ++j;} j; }));
   ASSERT(1, ({ int i = 0, j = 0; while (!i) {for(;j<10;j++) continue; if (i++ < 10) break; } i; }));
   ASSERT(10, ({ int i = 0, j = 0; while (!i) {for(;j<10;j++) continue; if (i++ < 10) break; } j; }));
+  ASSERT(10, ({ int i = 0, j = 0; while (!i) {for(;j<10;j++) continue; if (i++ < 10) break; } j; }));
+
+  ASSERT(2, ({ int i = 0, j = 1; switch (j) { case 0: i = 1; break; case 1: i = 2; break; default: i = 3; break; } i; }));
+  ASSERT(7, ({ int i = 0; switch (2+3) { case 0: i = 1; break; case 1: i = 2; break; default: i = 7; break; } i; }));
+  ASSERT(3, ({ int i = 0; switch (3) { case 0: i = 1; case 1: i = 2; default: i = 3; } i; }));
+  ASSERT(1, ({ int i = 0; switch (-1) { case 0xffffffff: i = 1; break; default: i = 5; } i; }));
+
+  ASSERT(0, ({ int i = 0; switch (0) ; i; }));
+  ASSERT(0, ({ int i = 0; switch (1) break; i; }));
+  ASSERT(0, ({ int i = 0; switch (1) case 0:; i; }));
 
   /* error
   //ASSERT(0, ({ int a=0; for (;;) {a;} }));
@@ -66,6 +76,10 @@ int main() {
   //assert(0, ({; }));
   ASSERT(2, ({return 2;}));
   ASSERT(4, ({ int i = 0; int i = 4; i; })); //compile error
+
+  //ASSERT(0, ({ int i = 0; switch (0) int j = 3; i; })); gcc error
+  //ASSERT(0, ({ int i = 0; switch (1) case 0: break; i; }));
+  //ASSERT(0, ({ int i = 0; switch (1) case 0: i = 3; break; i; }));
   */
 
   printf("OK\n");

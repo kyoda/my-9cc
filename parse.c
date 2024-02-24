@@ -11,6 +11,8 @@ static Node *labels;
 static char *break_label;
 static char *continue_label;
 
+static Node *current_switch;
+
 static Type *declspec(Token **rest, Token *token, VarAttr *attr);
 static Node *declaration(Token **rest, Token *token);
 static Type *declarator(Token **rest, Token *token, Type *ty);
@@ -993,8 +995,12 @@ static Type *func_params(Token **rest, Token *token, Type *ty) {
        | "if" "(" expr ")" stmt ("else" stmt)?
        | "while" "(" expr ")" stmt
        | "for" "(" expr? ";" expr? ";" expr? ";"  ")" stmt
+       | "switch" "(" expr ")" stmt
+       | "case" num ":" stmt
+       | "default" ":" stmt
        | "goto" ident ";"
        | "break" ";"
+       | "continue" ";"
        | ident ":" stmt
        | expr-stmt
 */
@@ -1129,6 +1135,66 @@ static Node *stmt(Token **rest, Token *token) {
     //1個前のbreak, continueのlabelを復元
     break_label = tmp_break;
     continue_label = tmp_continue;
+
+    *rest = token;
+    return n;
+  }
+
+  if (equal(token, "switch")) {
+    n = new_node(ND_SWITCH, token);
+    token = token->next;
+    expect(&token, token, "(");
+    n->cond = expr(&token, token);
+    expect(&token, token, ")");
+
+    Node *tmp_switch = current_switch;
+    current_switch = n;
+
+    char *tmp_break = break_label;
+    break_label = n->break_label = new_unique_name();
+
+    n->then = stmt(&token, token);
+
+    current_switch = tmp_switch;
+    break_label = tmp_break;
+
+    *rest = token;
+    return n;
+  }
+
+  if (equal(token, "case")) {
+    if (!current_switch) {
+      error_at(token->loc, "%s", "stray case");
+    }
+
+    n = new_node(ND_CASE, token);
+    token = token->next;
+    int val = get_number(token);
+    token = token->next;
+    expect(&token, token, ":");
+
+    n->unique_label = new_unique_name();
+    n->lhs = stmt(&token, token);
+    n->val = val;
+    n->case_next = current_switch->case_next;
+    current_switch->case_next = n;
+
+    *rest = token;
+    return n;
+  }
+
+  if (equal(token, "default")) {
+    if (!current_switch) {
+      error_at(token->loc, "%s", "stray default");
+    }
+    n = new_node(ND_CASE, token);
+    token = token->next;
+    expect(&token, token, ":");
+
+    n->unique_label = new_unique_name();
+    n->lhs = stmt(&token, token);
+
+    current_switch->default_case = n;
 
     *rest = token;
     return n;
