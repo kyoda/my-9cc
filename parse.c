@@ -7,6 +7,8 @@ static Scope *scope = &(Scope){};
 
 static Node *gotos;
 static Node *labels;
+// current goto jump target for break
+static char *break_label;
 
 static Type *declspec(Token **rest, Token *token, VarAttr *attr);
 static Node *declaration(Token **rest, Token *token);
@@ -991,6 +993,7 @@ static Type *func_params(Token **rest, Token *token, Type *ty) {
        | "while" "(" expr ")" stmt
        | "for" "(" expr? ";" expr? ";" expr? ";"  ")" stmt
        | "goto" ident ";"
+       | "break" ";"
        | ident ":" stmt
        | expr-stmt
 */
@@ -1070,7 +1073,16 @@ static Node *stmt(Token **rest, Token *token) {
     expect(&token, token, "(");
     n->cond = expr(&token, token);
     expect(&token, token, ")");
+
+    //1個前のbreak_labelを保持
+    char *tmp_break = break_label;
+    //n->then内でbreakがあった場合のbreak_labelを設定する
+    break_label = n->break_label = new_unique_name();
+
     n->then = stmt(&token, token);
+
+    //1個前のbreak_labelを復元
+    break_label = tmp_break;
 
     *rest = token;
     return n;
@@ -1098,9 +1110,18 @@ static Node *stmt(Token **rest, Token *token) {
       n->inc = expr(&token, token); 
     }
     expect(&token, token, ")");
+
+    //1個前のbreak_labelを保持
+    char *tmp_break = break_label;
+    //n->then内でbreakがあった場合のbreak_labelを設定する
+    break_label = n->break_label = new_unique_name();
+
     n->then = stmt(&token, token);
 
     leave_scope();
+
+    //1個前のbreak_labelを復元
+    break_label = tmp_break;
 
     *rest = token;
     return n;
@@ -1127,6 +1148,18 @@ static Node *stmt(Token **rest, Token *token) {
     token = token->next->next;
     n->lhs = stmt(rest, token);
     
+    return n;
+  }
+
+  if (equal(token, "break")) {
+    if (!break_label) {
+      error_at(token->loc, "%s", "stray break");
+    }
+
+    n = new_node(ND_GOTO, token);
+    n->unique_label = break_label;
+    token = token->next;
+    expect(rest, token, ";");
     return n;
   }
 

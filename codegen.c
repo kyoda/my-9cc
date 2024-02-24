@@ -416,10 +416,10 @@ static void gen_stmt(Node *n) {
     println(".Lbegin%03d:", c);
     gen_expr(n->cond);
     println("  cmp rax, 0");
-    println("  je .Lend%03d", c);
+    println("  je %s", n->break_label);
     gen_stmt(n->then);
     println("  jmp .Lbegin%03d", c);
-    println(".Lend%03d:", c);
+    println("%s:", n->break_label);
 
     return;
   case ND_FOR:
@@ -433,13 +433,13 @@ static void gen_stmt(Node *n) {
       gen_expr(n->cond);
     }
     println("  cmp rax, 0");
-    println("  je .Lend%03d", c);
+    println("  je %s", n->break_label);
     gen_stmt(n->then);
     if (n->inc) {
       gen_expr(n->inc);
     }
     println("  jmp .Lbegin%03d", c);
-    println(".Lend%03d:", c);
+    println("%s:", n->break_label);
 
     return;
   default:

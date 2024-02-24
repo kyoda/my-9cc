@@ -89,6 +89,9 @@ struct Node {
   char *label;
   char *unique_label;
 
+  // "break" label
+  char *break_label;
+
   //block
   Node *body; 
   Node *next;
