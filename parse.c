@@ -9,6 +9,7 @@ static Node *gotos;
 static Node *labels;
 // current goto jump target for break
 static char *break_label;
+static char *continue_label;
 
 static Type *declspec(Token **rest, Token *token, VarAttr *attr);
 static Node *declaration(Token **rest, Token *token);
@@ -1074,15 +1075,18 @@ static Node *stmt(Token **rest, Token *token) {
     n->cond = expr(&token, token);
     expect(&token, token, ")");
 
-    //1個前のbreak_labelを保持
+    //1個前のbreak, continueのlabelを保持
     char *tmp_break = break_label;
-    //n->then内でbreakがあった場合のbreak_labelを設定する
+    char *tmp_continue = continue_label;
+    //n->then内でbreak, continueがあった場合のlabelを設定する
     break_label = n->break_label = new_unique_name();
+    continue_label = n->continue_label = new_unique_name();
 
     n->then = stmt(&token, token);
 
-    //1個前のbreak_labelを復元
+    //1個前のbreak, continueのlabelを復元
     break_label = tmp_break;
+    continue_label = tmp_continue;
 
     *rest = token;
     return n;
@@ -1111,17 +1115,20 @@ static Node *stmt(Token **rest, Token *token) {
     }
     expect(&token, token, ")");
 
-    //1個前のbreak_labelを保持
+    //1個前のbreak, continueのlabelを保持
     char *tmp_break = break_label;
-    //n->then内でbreakがあった場合のbreak_labelを設定する
+    char *tmp_continue = continue_label;
+    //n->then内でbreak, continueがあった場合のlabelを設定する
     break_label = n->break_label = new_unique_name();
+    continue_label = n->continue_label = new_unique_name();
 
     n->then = stmt(&token, token);
 
     leave_scope();
 
-    //1個前のbreak_labelを復元
+    //1個前のbreak, continueのlabelを復元
     break_label = tmp_break;
+    continue_label = tmp_continue;
 
     *rest = token;
     return n;
@@ -1158,6 +1165,18 @@ static Node *stmt(Token **rest, Token *token) {
 
     n = new_node(ND_GOTO, token);
     n->unique_label = break_label;
+    token = token->next;
+    expect(rest, token, ";");
+    return n;
+  }
+
+  if (equal(token, "continue")) {
+    if (!continue_label) {
+      error_at(token->loc, "%s", "stray continue");
+    }
+
+    n = new_node(ND_GOTO, token);
+    n->unique_label = continue_label;
     token = token->next;
     expect(rest, token, ";");
     return n;

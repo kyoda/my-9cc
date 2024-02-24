@@ -417,12 +417,14 @@ static void gen_stmt(Node *n) {
       gen_stmt(n->init);
     }
     println(".Lbegin%03d:", c);
+
     if (n->cond) {
       gen_expr(n->cond);
     }
     println("  cmp rax, 0");
     println("  je %s", n->break_label);
     gen_stmt(n->then);
+    println("%s:", n->continue_label);
     if (n->inc) {
       gen_expr(n->inc);
     }

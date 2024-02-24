@@ -45,6 +45,15 @@ int main() {
   ASSERT(3, ({ int i = 0; while (i<10) { if (++i == 3) break; } i; }));
   ASSERT(3, ({ int i = 0; while (1) { while (1) break; if (++i == 3) break; } i; }));
 
+  ASSERT(10, ({ int i = 0, j = 0; for (;i<10;i++) { if (i > 3) continue; ++j;} i; }));
+  ASSERT(4, ({ int i = 0, j = 0; for (;i<10;i++) { if (i > 3) continue; ++j;} j; }));
+  ASSERT(0, ({ int i = 0, j = 0; for (;!i;i++) {for(;j<10;j++) continue; if (i < 10) break; } i; }));
+  ASSERT(10, ({ int i = 0, j = 0; for (;!i;i++) {for(;j<10;j++) continue; if (i < 10) break; } j; }));
+  ASSERT(11, ({ int i = 0, j = 0; while (i++<10) { if (i > 3) continue; ++j;} i; }));
+  ASSERT(3, ({ int i = 0, j = 0; while (i++<10) { if (i > 3) continue; ++j;} j; }));
+  ASSERT(1, ({ int i = 0, j = 0; while (!i) {for(;j<10;j++) continue; if (i++ < 10) break; } i; }));
+  ASSERT(10, ({ int i = 0, j = 0; while (!i) {for(;j<10;j++) continue; if (i++ < 10) break; } j; }));
+
   /* error
   //ASSERT(0, ({ int a=0; for (;;) {a;} }));
   //ASSERT(2, ({ int i=0,j=3; (i=2, j) = 4; i;}));
