@@ -181,6 +181,8 @@ void add_type(Node *n) {
     n->ty = ty_int();
     return;
   case ND_BITNOT:
+  case ND_SHL:
+  case ND_SHR:
     n->ty = n->lhs->ty;
     return;
   case ND_STMT_EXPR:

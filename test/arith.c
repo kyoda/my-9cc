@@ -115,6 +115,17 @@ int main() {
   ASSERT(10, 0b11111111111111111111111111111010&0b00000000000000000000000000001010);
   ASSERT(10, 0xffffffff&00000000012);
 
+  ASSERT(1, 1<<0);
+  ASSERT(2, 1<<1);
+  ASSERT(-2, -1<<1);
+  ASSERT(2, 2>>0);
+  ASSERT(1, 2>>1);
+  ASSERT(-1, -1>>1);
+  ASSERT(2, ({ int a = 1; a <<= 1; a; }));
+  ASSERT(-2, ({ int a = -1; a <<= 1; a; }));
+  ASSERT(1, ({ int a = 2; a >>= 1; a; }));
+  ASSERT(-1, ({ int a = -1; a >>= 1; a; }));
+
   printf("OK\n");
   return 0;
 }

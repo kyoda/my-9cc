@@ -309,6 +309,16 @@ static void gen_expr(Node *n) {
   //println("  pop %s", ax);
 
   switch(n->kind) {
+  // レジスタでシフト量を指定するためにはCLレジスタしか使えない
+  // RCX, ECXレジスタは、シフト演算時には使わない
+  case ND_SHL:
+    println("  mov rcx, rdi");
+    println("  shl %s, cl", ax);
+    break;
+  case ND_SHR:
+    println("  mov rcx, rdi");
+    println("  sar %s, cl", ax);
+    break;
   case ND_ADD:
     println("  add %s, %s", ax, di);
     break;

@@ -32,6 +32,7 @@ static Node *equality(Token **rest, Token *token);
 static Node *new_add(Node *lhs, Node *rhs, Token *token);
 static Node *new_sub(Node *lhs, Node *rhs, Token *token);
 static Node *relational(Token **rest, Token *token);
+static Node *shift(Token **rest, Token *token);
 static Node *add(Token **rest, Token *token);
 static Node *mul(Token **rest, Token *token);
 static Node *cast(Token **rest, Token *token);
@@ -1333,6 +1334,14 @@ static Node *assign(Token **rest, Token *token) {
     return to_assign(n, new_node_binary(ND_AND, n, assign(rest, token), token), token);
   }
 
+  if (consume(&token, token, "<<=")) {
+    return to_assign(n, new_node_binary(ND_SHL, n, assign(rest, token), token), token);
+  }
+
+  if (consume(&token, token, ">>=")) {
+    return to_assign(n, new_node_binary(ND_SHR, n, assign(rest, token), token), token);
+  }
+
   *rest = token;
   return n;
 }
@@ -1421,9 +1430,9 @@ static Node *equality(Token **rest, Token *token) {
   return n;
 }
 
-// relational = add ("<" add | "<=" add | ">" add | ">=" add)*
+// relational = shift ("<" shift | "<=" shift | ">" shift | ">=" shift)*
 static Node *relational(Token **rest, Token *token) {
-  Node *n = add(&token, token);
+  Node *n = shift(&token, token);
 
   for (;;) {
     if (consume(&token, token, "<")) {
@@ -1434,6 +1443,25 @@ static Node *relational(Token **rest, Token *token) {
       n = new_node_binary(ND_LE, n, add(&token, token), token);
     } else if (consume(&token, token, ">=")) {
       n = new_node_binary(ND_LE, add(&token, token), n, token);
+    } else {
+      *rest = token;
+      return n;
+    }
+  }
+
+  *rest = token;
+  return n;
+}
+
+// shift = add ("<<" add | ">>" add)*
+static Node *shift(Token **rest, Token *token) {
+  Node *n = add(&token, token);
+
+  for (;;) {
+    if (consume(&token, token, "<<")) {
+      n = new_node_binary(ND_SHL, n, add(&token, token), token);
+    } else if (consume(&token, token, ">>")) {
+      n = new_node_binary(ND_SHR, n, add(&token, token), token);
     } else {
       *rest = token;
       return n;
