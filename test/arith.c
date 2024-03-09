@@ -126,6 +126,14 @@ int main() {
   ASSERT(1, ({ int a = 2; a >>= 1; a; }));
   ASSERT(-1, ({ int a = -1; a >>= 1; a; }));
 
+  ASSERT(1, 0 ? 3 : 1);
+  ASSERT(3, 1 ? 3 : 1);
+  ASSERT(-1, 1?-1:1);
+  ASSERT(4, sizeof(-2 ? 3 : -1));
+  ASSERT(8, sizeof(0 ? (long)3 : 1));
+  ASSERT(8, sizeof(1 ? (long)3 : 1));
+  1 ? 0 : (void)-2;
+
   printf("OK\n");
   return 0;
 }

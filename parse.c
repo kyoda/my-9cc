@@ -23,6 +23,7 @@ static Node *expr_stmt(Token **rest, Token *token);
 static Node *expr(Token **rest, Token *token);
 static Node *assign(Token **rest, Token *token);
 static Node *to_assign(Node *lhs, Node *rhs, Token *token);
+static Node *conditional(Token **rest, Token *token);
 static Node *logicalor(Token **rest, Token *token);
 static Node *logicaland(Token **rest, Token *token);
 static Node *bitor(Token **rest, Token *token);
@@ -1289,7 +1290,7 @@ static Node *to_assign(Node *lhs, Node *rhs, Token *token) {
  assign-op = "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "|=" | "^=" | "&="
 */
 static Node *assign(Token **rest, Token *token) {
-  Node *n = logicalor(&token, token);
+  Node *n = conditional(&token, token);
   if (consume(&token, token, "=")) {
     return new_node_binary(ND_ASSIGN, n, assign(rest, token), token);
   }
@@ -1340,6 +1341,26 @@ static Node *assign(Token **rest, Token *token) {
 
   if (consume(&token, token, ">>=")) {
     return to_assign(n, new_node_binary(ND_SHR, n, assign(rest, token), token), token);
+  }
+
+  *rest = token;
+  return n;
+}
+
+// conditional = logicalor ("?" expr ":" conditional)?
+static Node *conditional(Token **rest, Token *token) {
+  Node *n = logicalor(&token, token);
+
+  if (equal(token, "?")) {
+    Node *cond = new_node(ND_COND, token);
+    cond->cond = n;
+    token = token->next;
+    cond->then = expr(&token, token);
+    expect(&token, token, ":");
+    cond->els = conditional(&token, token);
+
+    *rest = token;
+    return cond;
   }
 
   *rest = token;

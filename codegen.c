@@ -223,6 +223,21 @@ static void gen_expr(Node *n) {
     store(n->ty);
 
     return;
+  case ND_COND: {
+    int c = count();
+
+    gen_expr(n->cond);
+    println("  cmp rax, 0");
+    println("  je .Lelse%03d", c);
+    gen_expr(n->then);
+    println("  jmp .Lend%03d", c);
+
+    println(".Lelse%03d:", c);
+    gen_expr(n->els);
+    println(".Lend%03d:", c);
+
+    return;
+  }
   case ND_LOGICALOR: {
     int c = count();
     // 左辺の評価 0でなければ、右辺を見ずにtrueとして終了

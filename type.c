@@ -175,6 +175,15 @@ void add_type(Node *n) {
 
     n->ty = n->lhs->ty->base;
     return;
+  case ND_COND:
+    if (n->then->ty->kind == TY_VOID || n->els->ty->kind == TY_VOID) {
+      n->ty = ty_void();
+    } else {
+      usual_arith_conv(&n->then, &n->els);
+      n->ty = n->then->ty;
+    }
+
+    return;
   case ND_NOT:
   case ND_LOGICALOR:
   case ND_LOGICALAND:
