@@ -22,6 +22,7 @@ static Node *stmt(Token **rest, Token *token);
 static Node *expr_stmt(Token **rest, Token *token);
 static Node *expr(Token **rest, Token *token);
 static Node *assign(Token **rest, Token *token);
+static int64_t const_expr(Token **rest, Token *token);
 static Node *to_assign(Node *lhs, Node *rhs, Token *token);
 static Node *conditional(Token **rest, Token *token);
 static Node *logicalor(Token **rest, Token *token);
@@ -257,14 +258,6 @@ static Member *find_member(Type *ty, Token *token) {
   }
 
   error_at(token->loc, "no member: %.*s", token->len, token->loc);
-}
-
-static long get_number(Token *t) {
-  if (t->kind != TK_NUM) {
-    error_at(t->loc, "%s", "expected an number");
-  }
-
-  return t->val;
 }
 
 static char *get_ident_name(Token *t) {
@@ -669,7 +662,7 @@ static Type *enum_specifier(Token **rest, Token *token) {
 
   //enum-list
   int i = 0;
-  int val = 0;
+  int64_t val = 0;
   while (!equal(token, "}")) {
     if (i++ > 0) {
       expect(&token, token, ",");
@@ -680,8 +673,7 @@ static Type *enum_specifier(Token **rest, Token *token) {
 
     if (equal(token, "=")) {
       token = token->next;
-      val = get_number(token);
-      token = token->next;
+      val = const_expr(&token, token);
     }
 
     VarScope *vs = push_scope(name);
@@ -932,12 +924,7 @@ static Type *type_suffix(Token **rest, Token *token, Type *ty) {
       return ty_array(ty, -1);
     }
 
-    if (token->kind != TK_NUM) {
-      error_at(token->loc, "%s", "expect TK_NUM");
-    }
-
-    int size = token->val;
-    token = token->next;
+    int64_t size = const_expr(&token, token);
     expect(&token, token, "]");
     ty = type_suffix(&token, token, ty);
     *rest = token;
@@ -1171,8 +1158,7 @@ static Node *stmt(Token **rest, Token *token) {
 
     n = new_node(ND_CASE, token);
     token = token->next;
-    int val = get_number(token);
-    token = token->next;
+    int64_t val = const_expr(&token, token);
     expect(&token, token, ":");
 
     n->unique_label = new_unique_name();
@@ -1279,6 +1265,77 @@ static Node *expr(Token **rest, Token *token) {
 
   *rest = token;
   return n;
+}
+
+static int64_t eval(Node *n) {
+  add_type(n);
+
+  switch (n->kind) {
+  case ND_ADD:
+    return eval(n->lhs) + eval(n->rhs);
+  case ND_SUB:
+    return eval(n->lhs) - eval(n->rhs);
+  case ND_MUL:
+    return eval(n->lhs) * eval(n->rhs);
+  case ND_DIV:
+    return eval(n->lhs) / eval(n->rhs);
+  case ND_MOD:
+    return eval(n->lhs) % eval(n->rhs);
+  case ND_OR:
+    return eval(n->lhs) | eval(n->rhs);
+  case ND_XOR:
+    return eval(n->lhs) ^ eval(n->rhs);
+  case ND_AND:
+    return eval(n->lhs) & eval(n->rhs);
+  case ND_NEG:
+    return -eval(n->lhs);
+  case ND_COND:
+    return eval(n->cond) ? eval(n->then) : eval(n->els);
+  case ND_LOGICALOR:
+    return eval(n->lhs) || eval(n->rhs);
+  case ND_LOGICALAND:
+    return eval(n->lhs) && eval(n->rhs);
+  case ND_COMMA:
+    return eval(n->rhs);
+  case ND_NOT:
+    return !eval(n->lhs);
+  case ND_BITNOT:
+    return ~eval(n->lhs);
+  case ND_SHL:
+    return eval(n->lhs) << eval(n->rhs);
+  case ND_SHR:
+    return eval(n->lhs) >> eval(n->rhs);
+  case ND_EQ:
+    return eval(n->lhs) == eval(n->rhs);
+  case ND_NEQ:
+    return eval(n->lhs) != eval(n->rhs);
+  case ND_LT:
+    return eval(n->lhs) < eval(n->rhs);
+  case ND_LE:
+    return eval(n->lhs) <= eval(n->rhs);
+  case ND_CAST:
+    if (is_integer(n->ty)) {
+      switch (n->ty->size) {
+      case 1:
+        return (int8_t)eval(n->lhs);
+      case 2:
+        return (int16_t)eval(n->lhs);
+      case 4:
+        return (int32_t)eval(n->lhs);
+      }
+    }
+
+    return eval(n->lhs);
+  case ND_NUM:
+    return n->val;
+  }
+
+  error_at(n->token->loc, "%s", "not a constant expression"); 
+}
+
+static int64_t const_expr(Token **rest, Token *token) {
+  Node *n = conditional(rest, token);
+  return eval(n);
 }
 
 static Node *to_assign(Node *lhs, Node *rhs, Token *token) {

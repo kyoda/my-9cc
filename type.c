@@ -85,7 +85,12 @@ static void usual_arith_conv(Node **lhs, Node **rhs) {
 
 bool is_integer(Type *ty) {
   TypeKind kind = ty->kind;
-  return kind == TY_BOOL || kind == TY_CHAR || kind == TY_SHORT || kind == TY_INT || kind == TY_LONG;
+  return kind == TY_BOOL || 
+         kind == TY_CHAR ||
+         kind == TY_SHORT ||
+         kind == TY_INT ||
+         kind == TY_ENUM ||
+         kind == TY_LONG;
 }
 
 void add_type(Node *n) {
