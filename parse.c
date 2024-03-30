@@ -1333,6 +1333,10 @@ static int64_t eval(Node *n) {
   error_at(n->token->loc, "%s", "not a constant expression"); 
 }
 
+/*
+  値が決まる箇所の計算
+  enum { two = 1+1 };, x[3+3], case 1+2: など
+*/
 static int64_t const_expr(Token **rest, Token *token) {
   Node *n = conditional(rest, token);
   return eval(n);
@@ -1596,7 +1600,7 @@ static Node *new_sub(Node *lhs, Node *rhs, Token *token) {
   // pointer - num * ty->size 
   // int -> 4byte
   if (lhs->ty->base && !rhs->ty->base) {
-    n = new_node_binary(ND_SUB, lhs, new_node_binary(ND_MUL, rhs, new_long(lhs->ty->size, token), token), token);
+    n = new_node_binary(ND_SUB, lhs, new_node_binary(ND_MUL, rhs, new_long(lhs->ty->base->size, token), token), token);
     return n;
   }
 

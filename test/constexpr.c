@@ -20,11 +20,18 @@ int main() {
   ASSERT(1, ({ char x[2!=1]; sizeof(x); }));
   ASSERT(0, ({ char x[2<1]; sizeof(x); }));
   ASSERT(0, ({ char x[2<=1]; sizeof(x); }));
+  ASSERT(15, ({ char x[(char)0xffffff0f]; sizeof(x); }));
+  ASSERT(0x100f, ({ char x[(short)0xffff100f]; sizeof(x); }));
+  ASSERT(1, ({ char x[(int)0xffffffff+2]; sizeof(x); }));
   ASSERT(2, ({ char x[(int)0+2]; sizeof(x); }));
-  // ポインタの足し算, 0 + 2 * intのサイズ
-  ASSERT(8, ({ char x[(int*)0+2]; sizeof(x); }));
-  ASSERT(12, ({ char x[(int*)16-1]; sizeof(x); }));
   ASSERT(3, ({ char x[(int*)16-(int*)4]; sizeof(x); }));
+
+  /* error
+  // ポインタの足し算, 0 + 2 * intのサイズ
+  ASSERT(8, ({ char x[(int*)0+2]; sizeof(x); })); //gcc error
+  ASSERT(12, ({ char x[(int*)16-1]; sizeof(x); })); //gcc error
+
+  */
 
   printf("OK\n");
   return 0;
