@@ -183,6 +183,8 @@ static void gen_expr(Node *n) {
     load(n->ty);
 
     return;
+  case ND_NULL_EXPR:
+    return;
   case ND_STMT_EXPR: {
     //expresion to statement
     for (Node *nb = n->body; nb; nb = nb->next) {

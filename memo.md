@@ -17,6 +17,7 @@ EBNF (Extended BNF)
 被演算子 (Operand)  
 デリファレンス演算子（dereference operator）
 ニーモニック（mnemonic）
+ストレージクラス指定子 -> static, extern
 
 # 生成文法
 

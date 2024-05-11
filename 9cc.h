@@ -69,6 +69,7 @@ typedef enum {
   ND_CASE, // case
   ND_GOTO, // goto
   ND_LABEL, // goto labeled statement
+  ND_NULL_EXPR, // Do nothing
   ND_EXPR_STMT,
   ND_STMT_EXPR,
   ND_BLOCK, // { ... }

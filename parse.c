@@ -13,7 +13,28 @@ static char *continue_label;
 
 static Node *current_switch;
 
+typedef struct Initializer Initializer;
+struct Initializer {
+  Initializer *next;
+  Type *ty;
+  Token *token;
+  Node *expr; // initialization expression
+  Initializer **children; // array or struct initializer
+};
+
+/*
+  配列を初期化する際に、要素ごとにnew_add()をしassign()するが、
+  そのnew_add()のindexを保持している
+*/
+typedef struct InitDesignator InitDesignator;
+struct InitDesignator {
+  InitDesignator *next;
+  int idx;
+  Obj *var;
+};
+
 static Type *declspec(Token **rest, Token *token, VarAttr *attr);
+static Node *lvar_initializer(Token **rest, Token *token, Obj *var);
 static Node *declaration(Token **rest, Token *token);
 static Type *declarator(Token **rest, Token *token, Type *ty);
 static Type *type_suffix(Token **rest, Token *token, Type *ty);
@@ -156,6 +177,20 @@ static VarScope *push_scope(char *name) {
   return v;
 }
 
+static Initializer *new_initializer(Type *ty) {
+  Initializer *init = calloc(1, sizeof(Initializer));
+  init->ty = ty;
+
+  if (ty->kind == TY_ARRAY) {
+    init->children = calloc(ty->array_len, sizeof(Initializer *));
+    for (int i = 0; i < ty->array_len; i++) {
+      init->children[i] = new_initializer(ty->base);
+    }
+  }
+
+  return init;
+}
+
 static Obj *new_var(char *name, Type *ty) {
   Obj *var;
   var = calloc(1, sizeof(Obj));
@@ -296,6 +331,114 @@ bool expect_ident(Token **rest, Token *token) {
 
 bool at_eof(Token *token) {
   return token->kind == TK_EOF;
+}
+
+/*
+  initializer ::= "{" initializer ("," initializer)* "}"
+                | assign
+*/
+static void *initializer(Token **rest, Token *token, Initializer *init) {
+  if (init->ty->kind == TY_ARRAY) {
+    expect(&token, token, "{");
+
+    for (int i = 0; i < init->ty->array_len; i++) {
+      if (i > 0) {
+        expect(&token, token, ",");
+      }
+
+      initializer(&token, token, init->children[i]);
+    }
+
+    expect(&token, token, "}");
+    *rest = token;
+    return;
+  }
+
+  /*
+    上記のforループ内で配列のそれぞれの要素に対して再帰的に初期化を行う
+    配列でない場合でもそのままassignが成り立つ
+  */
+  init->expr = assign(rest, token);
+}
+
+static Node *init_desg_expr(InitDesignator *desg, Token *token) {
+  if (desg->var) {
+    return new_node_var(desg->var, token);
+  }
+
+  /*
+    変数の頭からindex分進める
+      ND_DEREF
+          |
+        ND_ADD
+      |           |
+     desg_expr   num
+        |
+      ND_DEREF
+          |
+        ND_ADD
+      |          |
+     desg_var  num
+  */
+  Node *lhs = init_desg_expr(desg->next, token);
+  Node *rhs = new_node_num(desg->idx, token);
+
+  // postfixのarrayの場合の値代入の構文木と同じ
+  return new_node_unary(ND_DEREF, new_add(lhs, rhs, token), token);
+}
+
+/*
+  配列の初期化
+  int a[2][3] = {{1, 2, 3}, {4, 5, 6}};
+  の場合、
+  a[0][0] = 1
+  a[0][1] = 2
+  a[0][2] = 3
+  a[1][0] = 4
+  a[1][1] = 5
+  a[1][2] = 6
+  をそのまま処理する。
+  例えば、a[1][2] = 6の場合、
+  init_desg_exprでa[1]を取得し、ポインタを4の位置に進める
+  次のinit_desg_exprでa[1][2]を取得し、create_lvar_initでexprの結果として6を代入する
+
+*/
+static Node *create_lvar_init(Initializer *init, Type *ty, InitDesignator *desg, Token *token) {
+  if (ty->kind == TY_ARRAY) {
+    //空の配列の場合、初期化は不要
+    Node *node = new_node(ND_NULL_EXPR, token);
+
+    for (int i = 0; i < ty->array_len; i++) {
+      InitDesignator desg2 = {desg, i};
+      Node *rhs = create_lvar_init(init->children[i], ty->base, &desg2, token);
+      node = new_node_binary(ND_COMMA, node, rhs, token);
+    }
+
+    return node;
+  }
+
+  /*
+    初期化するポインタを取得
+    int a[3][2]
+    desg {next, 0, NULL} -> desg {next, 0, NULL} -> desg {NULL, 0, var}
+    desg {next, 1, NULL}
+    desg {next, 0, NULL} -> desg {next, 1, NULL} -> desg {NULL, 0, var}
+    desg {next, 1, NULL}
+    desg {next, 0, NULL} -> desg {next, 2, NULL} -> desg {NULL, 0, var}
+    desg {next, 1, NULL}
+  */
+  Node *lhs = init_desg_expr(desg, token);
+  Node *rhs = init->expr;
+  return new_node_binary(ND_ASSIGN, lhs, rhs, token);
+}
+
+//declaration内でassign時に呼び出される
+static Node *lvar_initializer(Token **rest, Token *token, Obj *var) {
+  Initializer *init = new_initializer(var->ty);
+  initializer(rest, token, init);
+
+  InitDesignator desg = {NULL, 0, var};
+  return create_lvar_init(init, var->ty, &desg, token);
 }
 
 static bool is_function(Token *token) {
@@ -852,8 +995,8 @@ static Node *declaration(Token **rest, Token *token) {
       Node *lhs = new_node_var(lvar, token);
 
       if (equal(token, "=")) {
-        Node *node = new_node_binary(ND_ASSIGN, lhs, assign(&token, token->next), token);
-        cur = cur->next = new_node_unary(ND_EXPR_STMT, node, token);
+        Node *expr = lvar_initializer(&token, token->next, lvar);
+        cur = cur->next = new_node_unary(ND_EXPR_STMT, expr, token);
       } else {
         cur = cur->next = lhs;
       }
