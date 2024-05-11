@@ -224,8 +224,13 @@ static Token *read_int_literal(char *p) {
   return t;
 }
 
+/*
+  start -> 最初の"
+  end -> 最後の"
+*/
 static Token *read_string_literal(char *start) {
   char *end = string_literal_end(start + 1);
+  // callocの際に終端文字の0を含めている
   char *buf = calloc(1, end - start);
 
   int len = 0;
