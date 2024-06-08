@@ -1,7 +1,10 @@
 #include "test.h"
 
+int x;
+
 int main() {
   ASSERT(0, 0);
+  ASSERT(0, ({ char a[0]; 0; }));
   ASSERT(0, ({ int a[0] = {}; 0; }));
   //ASSERT(0, ({ int a[] = {}; 0; })); gcc ok
   ASSERT(1, ({ int a[3][3] = {{1, 2, 3}, {4, 5, 6}, {7, 8, 9}}; a[0][0]; }));
@@ -23,6 +26,14 @@ int main() {
   ASSERT(0, ({ char a[3] = {}; a[2]; }));
   ASSERT(3, ({ int a[3][3] = {{1, 2, 3}, {4, 5, 6}}; a[0][2]; }));
   ASSERT(0, ({ int a[3][3] = {{1, 2, 3}, {4, 5, 6}}; a[2][2]; }));
+
+  //過剰な要素はスキップ
+  ASSERT(1, ({ char a[1] = {1, 2, 3}; a[0]; }));
+  ASSERT(5, ({ int b = 5; char a[1] = {1, 2, b = 3, 4}; b; }));
+  ASSERT(5, ({ int b = 5; char a[1] = {1, 2, ++b, 4}; b; }));
+  ASSERT(6, ({ x = 6; char a[1] = {1, 2, x = 3, 4}; x; }));
+  ASSERT(3, ({ int b = 5; char a[1] = {b = 3, 4}; a[0]; }));
+  ASSERT(3, ({ int b = 5; char a[1] = {b = 3, 4}; b; }));
 
   printf("OK\n");
   return 0;

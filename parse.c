@@ -333,6 +333,19 @@ bool at_eof(Token *token) {
   return token->kind == TK_EOF;
 }
 
+Token *skip_excess_elements(Token *token) {
+  if (equal(token, "{")) {
+    token = skip_excess_elements(token->next);
+    expect(&token, token, "}");
+
+    return token;
+  }
+
+  //下記のassign()はASTには反映しない。tokenを進めるのみ。
+  assign(&token, token);
+  return token;
+}
+
 /*
   initializer ::= "{" initializer ("," initializer)* "}"
                 | assign
@@ -341,20 +354,20 @@ static void *initializer(Token **rest, Token *token, Initializer *init) {
   if (init->ty->kind == TY_ARRAY) {
     expect(&token, token, "{");
 
-    /*
-      int a[2] = {};
-      のようなarrayのlenはあるが、初期化がない場合のために `!equal(token, "}"`を判定している
-    */
-    for (int i = 0; i < init->ty->array_len && !equal(token, "}"); i++) {
-    //for (int i = 0; i < init->ty->array_len; i++) {
+    for (int i = 0; !consume(&token, token, "}"); i++) {
       if (i > 0) {
         expect(&token, token, ",");
       }
 
-      initializer(&token, token, init->children[i]);
+      if (i < init->ty->array_len) {
+        initializer(&token, token, init->children[i]);
+      } else {
+        // a[1] = {1, 2, 3}のように、配列の要素数を超える初期化の場合はスキップ
+        token = skip_excess_elements(token);
+      }
+
     }
 
-    expect(&token, token, "}");
     *rest = token;
     return;
   }
