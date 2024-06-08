@@ -35,6 +35,7 @@ struct InitDesignator {
 
 static Type *declspec(Token **rest, Token *token, VarAttr *attr);
 static Node *lvar_initializer(Token **rest, Token *token, Obj *var);
+static void initializer(Token **rest, Token *token, Initializer *init);
 static Node *declaration(Token **rest, Token *token);
 static Type *declarator(Token **rest, Token *token, Type *ty);
 static Type *type_suffix(Token **rest, Token *token, Type *ty);
@@ -347,28 +348,54 @@ Token *skip_excess_elements(Token *token) {
 }
 
 /*
-  initializer ::= "{" initializer ("," initializer)* "}"
-                | assign
+  array-initializer ::= "{" initializer ("," initializer)* "}"
+                      | assign
 */
-static void *initializer(Token **rest, Token *token, Initializer *init) {
-  if (init->ty->kind == TY_ARRAY) {
-    expect(&token, token, "{");
+static void array_initializer(Token **rest, Token *token, Initializer *init) {
+  expect(&token, token, "{");
 
-    for (int i = 0; !consume(&token, token, "}"); i++) {
-      if (i > 0) {
-        expect(&token, token, ",");
-      }
-
-      if (i < init->ty->array_len) {
-        initializer(&token, token, init->children[i]);
-      } else {
-        // a[1] = {1, 2, 3}のように、配列の要素数を超える初期化の場合はスキップ
-        token = skip_excess_elements(token);
-      }
-
+  for (int i = 0; !consume(&token, token, "}"); i++) {
+    if (i > 0) {
+      expect(&token, token, ",");
     }
 
-    *rest = token;
+    if (i < init->ty->array_len) {
+      initializer(&token, token, init->children[i]);
+    } else {
+      // a[1] = {1, 2, 3}のように、配列の要素数を超える初期化の場合はスキップ
+      token = skip_excess_elements(token);
+    }
+
+  }
+
+  *rest = token;
+}
+
+/*
+  string-initializer ::= string-literal
+*/
+static void string_initializer(Token **rest, Token *token, Initializer *init) {
+  int len = MIN(token->len, init->ty->array_len);
+
+  for (int i = 0; i < len; i++) {
+    init->children[i]->expr = new_node_num(token->str[i], token);
+  }
+
+  *rest = token->next;
+}
+
+/*
+  initializer ::= string-initializer | array-initializer
+                | assign
+*/
+static void initializer(Token **rest, Token *token, Initializer *init) {
+  if (init->ty->kind == TY_ARRAY && token->kind == TK_STR) {
+    string_initializer(rest, token, init);
+    return;
+  }
+
+  if (init->ty->kind == TY_ARRAY) {
+    array_initializer(rest, token, init);
     return;
   }
 

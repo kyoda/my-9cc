@@ -35,6 +35,13 @@ int main() {
   ASSERT(3, ({ int b = 5; char a[1] = {b = 3, 4}; a[0]; }));
   ASSERT(3, ({ int b = 5; char a[1] = {b = 3, 4}; b; }));
 
+  ASSERT('a', ({ char a[4] = "abc"; a[0]; }));
+  ASSERT('b', ({ char a[4] = "abc"; a[1]; }));
+  ASSERT('c', ({ char a[4] = "abc"; a[2]; }));
+  ASSERT(0, ({ char a[4] = "abc"; a[3]; }));
+  ASSERT('b', ({ char a[4][4] = {"abc", "def"}; a[0][1]; }));
+  ASSERT('e', ({ char a[4][4] = {"abc", "def"}; a[1][1]; }));
+
   printf("OK\n");
   return 0;
 }
