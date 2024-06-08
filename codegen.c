@@ -225,6 +225,14 @@ static void gen_expr(Node *n) {
     store(n->ty);
 
     return;
+  case ND_MEMZERO:
+    println("  mov rcx, %d", n->var->ty->size); //size分repしstosbを繰り返す
+    println("  lea rdi, [rbp - %d]", n->var->offset); //offsetの場所から書き込む
+    println("  mov al, 0"); //alの値をrdiにコピーする
+    println("  cld"); //dfを0にし、repをインクリメントする設定にする
+    println("  rep stosb"); //rdiの位置にalの値を書き込み、rdiをインクリメントし、それをrcx回繰り返す
+
+    return;
   case ND_COND: {
     int c = count();
 

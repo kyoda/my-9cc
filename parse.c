@@ -341,7 +341,12 @@ static void *initializer(Token **rest, Token *token, Initializer *init) {
   if (init->ty->kind == TY_ARRAY) {
     expect(&token, token, "{");
 
-    for (int i = 0; i < init->ty->array_len; i++) {
+    /*
+      int a[2] = {};
+      のようなarrayのlenはあるが、初期化がない場合のために `!equal(token, "}"`を判定している
+    */
+    for (int i = 0; i < init->ty->array_len && !equal(token, "}"); i++) {
+    //for (int i = 0; i < init->ty->array_len; i++) {
       if (i > 0) {
         expect(&token, token, ",");
       }
@@ -405,7 +410,7 @@ static Node *init_desg_expr(InitDesignator *desg, Token *token) {
 */
 static Node *create_lvar_init(Initializer *init, Type *ty, InitDesignator *desg, Token *token) {
   if (ty->kind == TY_ARRAY) {
-    //空の配列の場合、初期化は不要
+    //空の配列（次のforループで何もしない）の場合、初期化は不要
     Node *node = new_node(ND_NULL_EXPR, token);
 
     for (int i = 0; i < ty->array_len; i++) {
@@ -427,6 +432,12 @@ static Node *create_lvar_init(Initializer *init, Type *ty, InitDesignator *desg,
     desg {next, 0, NULL} -> desg {next, 2, NULL} -> desg {NULL, 0, var}
     desg {next, 1, NULL}
   */
+
+  //exprがない場合はスキップ(0で初期化済み)
+  if (!init->expr) {
+    return new_node(ND_NULL_EXPR, token);
+  } 
+
   Node *lhs = init_desg_expr(desg, token);
   Node *rhs = init->expr;
   return new_node_binary(ND_ASSIGN, lhs, rhs, token);
@@ -436,9 +447,14 @@ static Node *create_lvar_init(Initializer *init, Type *ty, InitDesignator *desg,
 static Node *lvar_initializer(Token **rest, Token *token, Obj *var) {
   Initializer *init = new_initializer(var->ty);
   initializer(rest, token, init);
-
   InitDesignator desg = {NULL, 0, var};
-  return create_lvar_init(init, var->ty, &desg, token);
+
+  //ユーザ指定の初期値を入れる前に、0で初期化
+  Node *lhs = new_node(ND_MEMZERO, token);
+  lhs->var = var;
+  Node *rhs = create_lvar_init(init, var->ty, &desg, token);
+
+  return new_node_binary(ND_COMMA, lhs, rhs, token);
 }
 
 static bool is_function(Token *token) {

@@ -41,6 +41,7 @@ int main() {
   ASSERT(1, ({ int a=1; (long)a;}));
   ASSERT(1, (long)1);
   ASSERT(0, (long)&*(int *)0);
+
   /* 
     int x=512 --> 00000000 00000000 00000010 00000000
     ポインタのchar型にしてデリファレンスするのでload時に1byte目のみの操作(movzx rax, BYTE PTR [rax])となっている

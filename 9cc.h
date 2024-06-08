@@ -74,7 +74,8 @@ typedef enum {
   ND_STMT_EXPR,
   ND_BLOCK, // { ... }
   ND_MEMBER, // struct member
-  ND_CAST // type cast
+  ND_CAST, // type cast
+  ND_MEMZERO // zell-clear a stack variable
 } NodeKind;
 
 struct Node {
