@@ -42,6 +42,14 @@ int main() {
   ASSERT('b', ({ char a[4][4] = {"abc", "def"}; a[0][1]; }));
   ASSERT('e', ({ char a[4][4] = {"abc", "def"}; a[1][1]; }));
 
+  ASSERT(2, ({ int a[] = {1, 2}; a[1]; }));
+  ASSERT(8, ({ int a[] = {1, 2}; sizeof(a); }));
+  ASSERT(3, ({ char a[] = {1, 2, 3}; sizeof(a); }));
+  ASSERT(5, ({ char a[] = "abcd"; sizeof(a); }));
+  ASSERT(8, ({ char *a = "abcd"; sizeof(a); }));
+  ASSERT(12, ({ char a[][6] = {"abc", "defgh"}; sizeof(a); }));
+  ASSERT(6, ({ typedef char T[]; T a = "hello"; sizeof(a); }));
+
   printf("OK\n");
   return 0;
 }

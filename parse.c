@@ -20,6 +20,7 @@ struct Initializer {
   Token *token;
   Node *expr; // initialization expression
   Initializer **children; // array or struct initializer
+  bool is_flexible;
 };
 
 /*
@@ -178,14 +179,19 @@ static VarScope *push_scope(char *name) {
   return v;
 }
 
-static Initializer *new_initializer(Type *ty) {
+static Initializer *new_initializer(Type *ty, bool is_flexible) {
   Initializer *init = calloc(1, sizeof(Initializer));
   init->ty = ty;
 
   if (ty->kind == TY_ARRAY) {
+    if (is_flexible && ty->size < 0) {
+      init->is_flexible = true;
+      return init;
+    }
+
     init->children = calloc(ty->array_len, sizeof(Initializer *));
     for (int i = 0; i < ty->array_len; i++) {
-      init->children[i] = new_initializer(ty->base);
+      init->children[i] = new_initializer(ty->base, false);
     }
   }
 
@@ -347,12 +353,31 @@ Token *skip_excess_elements(Token *token) {
   return token;
 }
 
+static int count_array_elements(Token *token, Type *ty) {
+  Initializer *dummy = new_initializer(ty, false);
+
+  int i = 0;
+  for (; !equal(token, "}"); i++) {
+    if (i > 0) {
+      expect(&token, token, ",");
+    }
+    initializer(&token, token, dummy);
+  }
+
+  return i;
+}
+
 /*
   array-initializer ::= "{" initializer ("," initializer)* "}"
                       | assign
 */
 static void array_initializer(Token **rest, Token *token, Initializer *init) {
   expect(&token, token, "{");
+
+  if (init->is_flexible) {
+    int len = count_array_elements(token, init->ty->base);
+    *init = *new_initializer(ty_array(init->ty->base, len), false);
+  }
 
   for (int i = 0; !consume(&token, token, "}"); i++) {
     if (i > 0) {
@@ -375,6 +400,15 @@ static void array_initializer(Token **rest, Token *token, Initializer *init) {
   string-initializer ::= string-literal
 */
 static void string_initializer(Token **rest, Token *token, Initializer *init) {
+  if (init->is_flexible) {
+    /*
+      "abc"の場合
+      token->lenは、5
+      token->ty->array_lenは、4
+    */
+    *init = *new_initializer(ty_array(init->ty->base, token->ty->array_len), false);
+  }
+
   int len = MIN(token->len, init->ty->array_len);
 
   for (int i = 0; i < len; i++) {
@@ -400,7 +434,7 @@ static void initializer(Token **rest, Token *token, Initializer *init) {
   }
 
   /*
-    上記のforループ内で配列のそれぞれの要素に対して再帰的に初期化を行う
+    上記のarray_initializer()内のforループで配列のそれぞれの要素に対して再帰的に初期化を行う
     配列でない場合でもそのままassignが成り立つ
   */
   init->expr = assign(rest, token);
@@ -485,8 +519,9 @@ static Node *create_lvar_init(Initializer *init, Type *ty, InitDesignator *desg,
 
 //declaration内でassign時に呼び出される
 static Node *lvar_initializer(Token **rest, Token *token, Obj *var) {
-  Initializer *init = new_initializer(var->ty);
+  Initializer *init = new_initializer(var->ty, true);
   initializer(rest, token, init);
+  var->ty = init->ty;
   InitDesignator desg = {NULL, 0, var};
 
   //ユーザ指定の初期値を入れる前に、0で初期化
@@ -1033,10 +1068,6 @@ static Node *declaration(Token **rest, Token *token) {
 
       Type *ty = declarator(&token, token, basety);
 
-      if (ty->size < 0) {
-        error_at(token->loc, "%s", "incomplete type");
-      }
-
       if (ty->kind == TY_VOID) {
         error_at(token->loc, "%s", "void type variable");
       }
@@ -1055,6 +1086,10 @@ static Node *declaration(Token **rest, Token *token) {
         cur = cur->next = new_node_unary(ND_EXPR_STMT, expr, token);
       } else {
         cur = cur->next = lhs;
+      }
+
+      if (lvar->ty->size < 0) {
+        error_at(token->loc, "%s", "incomplete type");
       }
 
     }

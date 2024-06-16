@@ -6,7 +6,7 @@
         {
             "label": "build_9cc",
             "type": "shell",
-            "command": "make",
+            "command": "make && gcc -o- -E -P -C test/debug.c > /tmp/debug.c",
             "args": [
             ]
         },

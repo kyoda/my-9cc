@@ -40,3 +40,5 @@ clean:
 
 .PHONY: test clean
 
+# この書き方だと、すべての .o ファイルがすべての .c ファイルに依存することになる
+# $(OBJS): $(SRCS)

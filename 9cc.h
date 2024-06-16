@@ -30,7 +30,7 @@ struct Token {
   Token *next;
   int64_t val;
   char *loc;
-  int len;
+  int len; //not array_len but length of token
   int line; //for .loc directive
   // str
   Type *ty;
