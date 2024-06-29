@@ -2,6 +2,7 @@
 
 static Obj *current_fn;
 static FILE *out;
+static int depth;
 static void gen_stmt(Node *n);
 static void gen_expr(Node *n);
 static char *argreg64[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
@@ -20,6 +21,16 @@ static void println(char *fmt, ...) {
 static int count() {
   static int i = 1;
   return i++;
+}
+
+static void push(void) {
+  println("  push rax");
+  depth++;
+}
+
+static void pop(char *arg) {
+  println("  pop %s", arg);
+  depth--;
 }
 
 static void load(Type *ty) {
@@ -45,8 +56,8 @@ static void load(Type *ty) {
 }
 
 static void store(Type *ty) {
-  println("  pop rdi"); //rhs
-  println("  pop rax"); //lhs
+  pop("rdi"); //rhs
+  pop("rax"); //lhs
 
   if (ty->kind == TY_STRUCT || ty->kind == TY_UNION) {
     for (int i = 0; i < ty->size; i++) {
@@ -198,12 +209,12 @@ static void gen_expr(Node *n) {
 
     for (Node *arg = n->args; arg; arg = arg->next) {
       gen_expr(arg);
-      println("  push rax");
+      push();
       nargs++;
     }
 
     for (int i = nargs - 1; i >= 0; i--) {
-      println("  pop %s", argreg64[i]);
+      pop(argreg64[i]);
     }
 
     println("  mov rax, 0");
@@ -218,9 +229,9 @@ static void gen_expr(Node *n) {
     return;
   case ND_ASSIGN:
     gen_addr(n->lhs);
-    println("  push rax");
+    push();
     gen_expr(n->rhs);
-    println("  push rax");
+    push();
 
     store(n->ty);
 
@@ -314,12 +325,12 @@ static void gen_expr(Node *n) {
   }
 
   gen_expr(n->lhs);
-  println("  push rax");
+  push();
   gen_expr(n->rhs);
-  println("  push rax");
+  push();
 
-  println("  pop rdi");
-  println("  pop rax");
+  pop("rdi");
+  pop("rax");
 
   // パフォーマンスの最適化？？32bit計算時の一貫性？？
   char *ax, *di;
@@ -330,8 +341,6 @@ static void gen_expr(Node *n) {
     ax = "eax";
     di = "edi";
   }
-  //println("  pop %s", di);
-  //println("  pop %s", ax);
 
   switch(n->kind) {
   // レジスタでシフト量を指定するためにはCLレジスタしか使えない
@@ -638,6 +647,7 @@ static void emit_text(Obj *prog) {
     }
 
     gen_stmt(fn->body);
+    assert(depth == 0);
 
     //epilogue
     println(".Lreturn.%s:", fn->name);
