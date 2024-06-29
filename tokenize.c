@@ -169,8 +169,6 @@ static int read_escaped_char(char **new_pos, char *p) {
       return '\f';
     case 'r':
       return '\r';
-    case '"':
-      return '\"';
     default:
       return *p;
   }
@@ -234,11 +232,11 @@ static Token *read_string_literal(char *start) {
   char *buf = calloc(1, end - start);
 
   int len = 0;
-  for (char *p = start + 1; p < end; p++) {
+  for (char *p = start + 1; p < end;) {
     if (*p == '\\') {
       buf[len++] = read_escaped_char(&p, ++p);
     } else {
-      buf[len++] = *p;
+      buf[len++] = *p++;
     }
   }
 
