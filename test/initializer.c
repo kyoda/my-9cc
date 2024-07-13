@@ -66,10 +66,7 @@ int main() {
   ASSERT(0, ({ struct {int a; int b; } x[2] = {}; x[0].b; }));
   ASSERT(4, ({ typedef struct {int a, b, c, d, e, f; } T; T x = {1, 2, 3, 4, 5, 6}; x.d; }));
   ASSERT(0, ({ typedef struct {int a, b, c, d, e, f; } T; T x = {1, 2, 3, 4, 5}; T y; T z; z = y = x; z.f;}));
-
-  /* error 
-    ASSERT(0, ({ typedef struct {int a, b, c, d, e, f; } T; T x = {1, 2, 3, 4, 5}; T y; T z = y = x; z.f;})); //gcc ok
-  */
+  ASSERT(0, ({ typedef struct {int a, b, c, d, e, f; } T; T x = {1, 2, 3, 4, 5}; T y; T z = y = x; z.f;}));
 
   printf("OK\n");
   return 0;

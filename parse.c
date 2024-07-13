@@ -357,6 +357,120 @@ bool at_eof(Token *token) {
   return token->kind == TK_EOF;
 }
 
+// ND_ASSIGNの左辺の準備
+static Node *init_desg_expr(InitDesignator *desg, Token *token) {
+  if (desg->var) {
+    return new_node_var(desg->var, token);
+  }
+
+  /*
+                          ND_ASSIGN  -------> create_lvar_init()
+                             |
+                          |        |
+    init_desg_expr() <-- ND_MEMBER  ND_EXPR
+                           |
+    init_desg_expr() <--  ND_DEREF
+                           |
+                           new_add()
+                           |        |
+                        ND_VAR    desg->idx
+  */
+  if (desg->member) {
+    Node *lhs = init_desg_expr(desg->next, token);
+    Node *n = new_node_unary(ND_MEMBER, lhs, token);
+    n->member = desg->member;
+    return n;
+  }
+
+  /*
+    変数の頭からindex分進める
+                              ND_ASSIGN  -------> create_lvar_init()
+                              |        |
+    init_desg_expr() <--  ND_DEREF    ND_EXPR
+                              |
+                            ND_ADD
+                            |       |
+    init_desg_expr() <-- ND_DEREF   desg->idx
+                          |
+                         ND_ADD
+                          |     |
+                      ND_VAR   desg->idx
+  */
+  Node *lhs = init_desg_expr(desg->next, token);
+  Node *rhs = new_node_num(desg->idx, token);
+
+  // postfixのarrayの場合の値代入の構文木と同じ
+  return new_node_unary(ND_DEREF, new_add(lhs, rhs, token), token);
+}
+
+/*
+  配列の初期化
+  int a[2][3] = {{1, 2, 3}, {4, 5, 6}};
+  の場合、
+  a[0][0] = 1
+  a[0][1] = 2
+  a[0][2] = 3
+  a[1][0] = 4
+  a[1][1] = 5
+  a[1][2] = 6
+  をそのまま処理する。
+  例えば、a[1][2] = 6の場合、
+  init_desg_exprでa[1]を取得し、ポインタを4の位置に進める
+  次のinit_desg_exprでa[1][2]を取得し、create_lvar_initでexprの結果として6を代入する
+
+*/
+static Node *create_lvar_init(Initializer *init, Type *ty, InitDesignator *desg, Token *token) {
+  if (ty->kind == TY_ARRAY) {
+    //空の配列（次のforループで何もしない）の場合、初期化は不要
+    Node *node = new_node(ND_NULL_EXPR, token);
+
+    for (int i = 0; i < ty->array_len; i++) {
+      InitDesignator desg2 = {desg, i};
+      Node *rhs = create_lvar_init(init->children[i], ty->base, &desg2, token);
+      node = new_node_binary(ND_COMMA, node, rhs, token);
+    }
+
+    return node;
+  }
+
+  if (ty->kind == TY_STRUCT && !init->expr) {
+    //空の配列（次のforループで何もしない）の場合、初期化は不要
+    Node *node = new_node(ND_NULL_EXPR, token);
+
+    
+    for (Member *mem = ty->members; mem; mem = mem->next) {
+      // 2番目の引数は、arrayでのみ使用するためここでは常に0とする。childrenにはmemberのidxを使う。
+      InitDesignator desg2 = {desg, 0, mem};
+      Node *rhs = create_lvar_init(init->children[mem->idx], mem->ty, &desg2, token);
+      node = new_node_binary(ND_COMMA, node, rhs, token);
+    }
+
+    return node;
+  }
+
+  /*
+    初期化するポインタを取得
+    int a[3][2]
+    a[0][0]: desg {next, 0, NULL} -> desg {next, 0, NULL} -> desg {NULL, 0, var}
+    a[0][1]: desg {next, 1, NULL} -> desg {next, 0, NULL} -> desg {NULL, 0, var}
+    a[1][0]: desg {next, 0, NULL} -> desg {next, 1, NULL} -> desg {NULL, 0, var}
+    a[1][1]: desg {next, 1, NULL} -> desg {next, 1, NULL} -> desg {NULL, 0, var}
+    a[2][0]: desg {next, 0, NULL} -> desg {next, 2, NULL} -> desg {NULL, 0, var}
+    a[2][1]: desg {next, 1, NULL} -> desg {next, 2, NULL} -> desg {NULL, 0, var}
+
+    例えばa[2][1]の場合、リストの最後のvarから遡ってnew_add()でpointerを2進め, 次にnew_add()でpointerを1進めるnodeを作成する
+  */
+
+  //exprがない場合はスキップ(0で初期化済み)
+  if (!init->expr) {
+    return new_node(ND_NULL_EXPR, token);
+  } 
+
+  Node *lhs = init_desg_expr(desg, token);
+  Node *rhs = init->expr;
+  return new_node_binary(ND_ASSIGN, lhs, rhs, token);
+}
+
 Token *skip_excess_elements(Token *token) {
   if (equal(token, "{")) {
     token = skip_excess_elements(token->next);
@@ -473,6 +587,16 @@ static void initializer(Token **rest, Token *token, Initializer *init) {
   }
 
   if (init->ty->kind == TY_STRUCT) {
+    // type struct T; T y; T x = y;
+    if (!equal(token, "{")) {
+      Node *expr = assign(rest, token);
+      add_type(expr);
+      if (expr->ty->kind == TY_STRUCT) {
+        init->expr = expr;
+        return;
+      }
+    }
+
     struct_initializer(rest, token, init);
     return;
   }
@@ -482,120 +606,6 @@ static void initializer(Token **rest, Token *token, Initializer *init) {
     配列でない場合でもそのままassignが成り立つ
   */
   init->expr = assign(rest, token);
-}
-
-// ND_ASSIGNの左辺の準備
-static Node *init_desg_expr(InitDesignator *desg, Token *token) {
-  if (desg->var) {
-    return new_node_var(desg->var, token);
-  }
-
-  /*
-                          ND_ASSIGN  -------> create_lvar_init()
-                             |
-                          |        |
-    init_desg_expr() <-- ND_MEMBER  ND_EXPR
-                           |
-    init_desg_expr() <--  ND_DEREF
-                           |
-                           new_add()
-                           |        |
-                        ND_VAR    desg->idx
-  */
-  if (desg->member) {
-    Node *lhs = init_desg_expr(desg->next, token);
-    Node *n = new_node_unary(ND_MEMBER, lhs, token);
-    n->member = desg->member;
-    return n;
-  }
-
-  /*
-    変数の頭からindex分進める
-                              ND_ASSIGN  -------> create_lvar_init()
-                              |        |
-    init_desg_expr() <--  ND_DEREF    ND_EXPR
-                              |
-                            ND_ADD
-                            |       |
-    init_desg_expr() <-- ND_DEREF   desg->idx
-                          |
-                         ND_ADD
-                          |     |
-                      ND_VAR   desg->idx
-  */
-  Node *lhs = init_desg_expr(desg->next, token);
-  Node *rhs = new_node_num(desg->idx, token);
-
-  // postfixのarrayの場合の値代入の構文木と同じ
-  return new_node_unary(ND_DEREF, new_add(lhs, rhs, token), token);
-}
-
-/*
-  配列の初期化
-  int a[2][3] = {{1, 2, 3}, {4, 5, 6}};
-  の場合、
-  a[0][0] = 1
-  a[0][1] = 2
-  a[0][2] = 3
-  a[1][0] = 4
-  a[1][1] = 5
-  a[1][2] = 6
-  をそのまま処理する。
-  例えば、a[1][2] = 6の場合、
-  init_desg_exprでa[1]を取得し、ポインタを4の位置に進める
-  次のinit_desg_exprでa[1][2]を取得し、create_lvar_initでexprの結果として6を代入する
-
-*/
-static Node *create_lvar_init(Initializer *init, Type *ty, InitDesignator *desg, Token *token) {
-  if (ty->kind == TY_ARRAY) {
-    //空の配列（次のforループで何もしない）の場合、初期化は不要
-    Node *node = new_node(ND_NULL_EXPR, token);
-
-    for (int i = 0; i < ty->array_len; i++) {
-      InitDesignator desg2 = {desg, i};
-      Node *rhs = create_lvar_init(init->children[i], ty->base, &desg2, token);
-      node = new_node_binary(ND_COMMA, node, rhs, token);
-    }
-
-    return node;
-  }
-
-  if (ty->kind == TY_STRUCT) {
-    //空の配列（次のforループで何もしない）の場合、初期化は不要
-    Node *node = new_node(ND_NULL_EXPR, token);
-
-    
-    for (Member *mem = ty->members; mem; mem = mem->next) {
-      // 2番目の引数は、arrayでのみ使用するためここでは常に0とする。childrenにはmemberのidxを使う。
-      InitDesignator desg2 = {desg, 0, mem};
-      Node *rhs = create_lvar_init(init->children[mem->idx], mem->ty, &desg2, token);
-      node = new_node_binary(ND_COMMA, node, rhs, token);
-    }
-
-    return node;
-  }
-
-  /*
-    初期化するポインタを取得
-    int a[3][2]
-    a[0][0]: desg {next, 0, NULL} -> desg {next, 0, NULL} -> desg {NULL, 0, var}
-    a[0][1]: desg {next, 1, NULL} -> desg {next, 0, NULL} -> desg {NULL, 0, var}
-    a[1][0]: desg {next, 0, NULL} -> desg {next, 1, NULL} -> desg {NULL, 0, var}
-    a[1][1]: desg {next, 1, NULL} -> desg {next, 1, NULL} -> desg {NULL, 0, var}
-    a[2][0]: desg {next, 0, NULL} -> desg {next, 2, NULL} -> desg {NULL, 0, var}
-    a[2][1]: desg {next, 1, NULL} -> desg {next, 2, NULL} -> desg {NULL, 0, var}
-
-    例えばa[2][1]の場合、リストの最後のvarから遡ってnew_add()でpointerを2進め, 次にnew_add()でpointerを1進めるnodeを作成する
-  */
-
-  //exprがない場合はスキップ(0で初期化済み)
-  if (!init->expr) {
-    return new_node(ND_NULL_EXPR, token);
-  } 
-
-  Node *lhs = init_desg_expr(desg, token);
-  Node *rhs = init->expr;
-  return new_node_binary(ND_ASSIGN, lhs, rhs, token);
 }
 
 //declaration内でassign時に呼び出される
