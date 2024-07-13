@@ -31,6 +31,7 @@ typedef struct InitDesignator InitDesignator;
 struct InitDesignator {
   InitDesignator *next;
   int idx;
+  Member *member;
   Obj *var;
 };
 
@@ -193,6 +194,22 @@ static Initializer *new_initializer(Type *ty, bool is_flexible) {
     for (int i = 0; i < ty->array_len; i++) {
       init->children[i] = new_initializer(ty->base, false);
     }
+    return init;
+  }
+
+  if (ty->kind == TY_STRUCT) {
+    int len = 0;
+    for (Member *mem  = ty->members; mem; mem = mem->next) {
+      len++;
+    }
+
+    init->children = calloc(len, sizeof(Initializer *));
+
+    for (Member *mem = ty->members; mem; mem = mem->next) {
+      init->children[mem->idx] = new_initializer(mem->ty, false);
+    }
+
+    return init;
   }
 
   return init;
@@ -368,6 +385,28 @@ static int count_array_elements(Token *token, Type *ty) {
 }
 
 /*
+  string-initializer ::= string-literal
+*/
+static void string_initializer(Token **rest, Token *token, Initializer *init) {
+  if (init->is_flexible) {
+    /*
+      "abc"の場合
+      token->lenは、5
+      token->ty->array_lenは、4
+    */
+    *init = *new_initializer(ty_array(init->ty->base, token->ty->array_len), false);
+  }
+
+  int len = MIN(token->len, init->ty->array_len);
+
+  for (int i = 0; i < len; i++) {
+    init->children[i]->expr = new_node_num(token->str[i], token);
+  }
+
+  *rest = token->next;
+}
+
+/*
   array-initializer ::= "{" initializer ("," initializer)* "}"
                       | assign
 */
@@ -397,25 +436,25 @@ static void array_initializer(Token **rest, Token *token, Initializer *init) {
 }
 
 /*
-  string-initializer ::= string-literal
+  struct-initializer ::= "{" initializer ("," initializer)* "}"
+                      | assign
 */
-static void string_initializer(Token **rest, Token *token, Initializer *init) {
-  if (init->is_flexible) {
-    /*
-      "abc"の場合
-      token->lenは、5
-      token->ty->array_lenは、4
-    */
-    *init = *new_initializer(ty_array(init->ty->base, token->ty->array_len), false);
+static void struct_initializer(Token **rest, Token *token, Initializer *init) {
+  expect(&token, token, "{");
+
+  Member *mem = init->ty->members;
+  while (!consume(rest, token, "}")) {
+    if (mem != init->ty->members) {
+      expect(&token, token, ",");
+    }
+
+    if (mem) {
+      initializer(&token, token, init->children[mem->idx]);
+      mem = mem->next;
+    } else {
+      token = skip_excess_elements(token);
+    }
   }
-
-  int len = MIN(token->len, init->ty->array_len);
-
-  for (int i = 0; i < len; i++) {
-    init->children[i]->expr = new_node_num(token->str[i], token);
-  }
-
-  *rest = token->next;
 }
 
 /*
@@ -433,6 +472,11 @@ static void initializer(Token **rest, Token *token, Initializer *init) {
     return;
   }
 
+  if (init->ty->kind == TY_STRUCT) {
+    struct_initializer(rest, token, init);
+    return;
+  }
+
   /*
     上記のarray_initializer()内のforループで配列のそれぞれの要素に対して再帰的に初期化を行う
     配列でない場合でもそのままassignが成り立つ
@@ -440,24 +484,44 @@ static void initializer(Token **rest, Token *token, Initializer *init) {
   init->expr = assign(rest, token);
 }
 
+// ND_ASSIGNの左辺の準備
 static Node *init_desg_expr(InitDesignator *desg, Token *token) {
   if (desg->var) {
     return new_node_var(desg->var, token);
   }
 
   /*
+                          ND_ASSIGN  -------> create_lvar_init()
+                             |
+                          |        |
+    init_desg_expr() <-- ND_MEMBER  ND_EXPR
+                           |
+    init_desg_expr() <--  ND_DEREF
+                           |
+                           new_add()
+                           |        |
+                        ND_VAR    desg->idx
+  */
+  if (desg->member) {
+    Node *lhs = init_desg_expr(desg->next, token);
+    Node *n = new_node_unary(ND_MEMBER, lhs, token);
+    n->member = desg->member;
+    return n;
+  }
+
+  /*
     変数の頭からindex分進める
-      ND_DEREF
-          |
-        ND_ADD
-      |           |
-     desg_expr   num
-        |
-      ND_DEREF
-          |
-        ND_ADD
-      |          |
-     desg_var  num
+                              ND_ASSIGN  -------> create_lvar_init()
+                              |        |
+    init_desg_expr() <--  ND_DEREF    ND_EXPR
+                              |
+                            ND_ADD
+                            |       |
+    init_desg_expr() <-- ND_DEREF   desg->idx
+                          |
+                         ND_ADD
+                          |     |
+                      ND_VAR   desg->idx
   */
   Node *lhs = init_desg_expr(desg->next, token);
   Node *rhs = new_node_num(desg->idx, token);
@@ -496,15 +560,32 @@ static Node *create_lvar_init(Initializer *init, Type *ty, InitDesignator *desg,
     return node;
   }
 
+  if (ty->kind == TY_STRUCT) {
+    //空の配列（次のforループで何もしない）の場合、初期化は不要
+    Node *node = new_node(ND_NULL_EXPR, token);
+
+    
+    for (Member *mem = ty->members; mem; mem = mem->next) {
+      // 2番目の引数は、arrayでのみ使用するためここでは常に0とする。childrenにはmemberのidxを使う。
+      InitDesignator desg2 = {desg, 0, mem};
+      Node *rhs = create_lvar_init(init->children[mem->idx], mem->ty, &desg2, token);
+      node = new_node_binary(ND_COMMA, node, rhs, token);
+    }
+
+    return node;
+  }
+
   /*
     初期化するポインタを取得
     int a[3][2]
-    desg {next, 0, NULL} -> desg {next, 0, NULL} -> desg {NULL, 0, var}
-    desg {next, 1, NULL}
-    desg {next, 0, NULL} -> desg {next, 1, NULL} -> desg {NULL, 0, var}
-    desg {next, 1, NULL}
-    desg {next, 0, NULL} -> desg {next, 2, NULL} -> desg {NULL, 0, var}
-    desg {next, 1, NULL}
+    a[0][0]: desg {next, 0, NULL} -> desg {next, 0, NULL} -> desg {NULL, 0, var}
+    a[0][1]: desg {next, 1, NULL} -> desg {next, 0, NULL} -> desg {NULL, 0, var}
+    a[1][0]: desg {next, 0, NULL} -> desg {next, 1, NULL} -> desg {NULL, 0, var}
+    a[1][1]: desg {next, 1, NULL} -> desg {next, 1, NULL} -> desg {NULL, 0, var}
+    a[2][0]: desg {next, 0, NULL} -> desg {next, 2, NULL} -> desg {NULL, 0, var}
+    a[2][1]: desg {next, 1, NULL} -> desg {next, 2, NULL} -> desg {NULL, 0, var}
+
+    例えばa[2][1]の場合、リストの最後のvarから遡ってnew_add()でpointerを2進め, 次にnew_add()でpointerを1進めるnodeを作成する
   */
 
   //exprがない場合はスキップ(0で初期化済み)
@@ -522,7 +603,7 @@ static Node *lvar_initializer(Token **rest, Token *token, Obj *var) {
   Initializer *init = new_initializer(var->ty, true);
   initializer(rest, token, init);
   var->ty = init->ty;
-  InitDesignator desg = {NULL, 0, var};
+  InitDesignator desg = {NULL, 0, NULL, var};
 
   //ユーザ指定の初期値を入れる前に、0で初期化
   Node *lhs = new_node(ND_MEMZERO, token);
@@ -727,6 +808,7 @@ static void struct_member(Token **rest, Token *token, Type *ty) {
   Member head = {};
   Member *cur = &head;
 
+  int idx = 0;
   while (!equal(token, "}")) {
     Type *basety = declspec(&token, token, NULL);
 
@@ -740,6 +822,7 @@ static void struct_member(Token **rest, Token *token, Type *ty) {
       Member *mem = calloc(1, sizeof(Member));
       mem->ty = declarator(&token, token, basety);
       mem->name = get_ident_name(mem->ty->token);
+      mem->idx = idx++;
       cur = cur->next = mem;
     }
 

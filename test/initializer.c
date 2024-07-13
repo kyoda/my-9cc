@@ -50,6 +50,27 @@ int main() {
   ASSERT(12, ({ char a[][6] = {"abc", "defgh"}; sizeof(a); }));
   ASSERT(6, ({ typedef char T[]; T a = "hello"; sizeof(a); }));
 
+  ASSERT(0, ({ struct {int a; int b; int c; } x = {0, 1, 2}; x.a; }));
+  ASSERT(1, ({ struct {int a; int b; int c; } x = {0, 1, 2}; x.b; }));
+  ASSERT(2, ({ struct {int a; int b; int c; } x = {0, 1, 2}; x.c; }));
+  ASSERT(3, ({ struct {int a; int b; int c; } x = {3}; x.a; }));
+  ASSERT(0, ({ struct {int a; int b; int c; } x = {3}; x.b; }));
+  ASSERT(0, ({ struct {int a; int b; int c; } x = {3}; x.c; }));
+  ASSERT(1, ({ struct {int a; int b; } x[2] = {{1, 2}, {3, 4}}; x[0].a; }));
+  ASSERT(2, ({ struct {int a; int b; } x[2] = {{1, 2}, {3, 4}}; x[0].b; }));
+  ASSERT(3, ({ struct {int a; int b; } x[2] = {{1, 2}, {3, 4}}; x[1].a; }));
+  ASSERT(4, ({ struct {int a; int b; } x[2] = {{1, 2}, {3, 4}}; x[1].b; }));
+  ASSERT(0, ({ struct {int a; int b; } x[2] = {{3, 4}}; x[1].b; }));
+  ASSERT(4, ({ struct {int a; int b; } x[2] = {{3, 4}}; x[0].b; }));
+  ASSERT(0, ({ struct {int a; int b; } x[2] = {}; x[0].a; }));
+  ASSERT(0, ({ struct {int a; int b; } x[2] = {}; x[0].b; }));
+  ASSERT(4, ({ typedef struct {int a, b, c, d, e, f; } T; T x = {1, 2, 3, 4, 5, 6}; x.d; }));
+  ASSERT(0, ({ typedef struct {int a, b, c, d, e, f; } T; T x = {1, 2, 3, 4, 5}; T y; T z; z = y = x; z.f;}));
+
+  /* error 
+    ASSERT(0, ({ typedef struct {int a, b, c, d, e, f; } T; T x = {1, 2, 3, 4, 5}; T y; T z = y = x; z.f;})); //gcc ok
+  */
+
   printf("OK\n");
   return 0;
 }

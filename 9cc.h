@@ -187,6 +187,7 @@ struct Member {
   char *name;
   int offset;
   Type *ty;
+  int idx;
   Token *token;
 };
 
