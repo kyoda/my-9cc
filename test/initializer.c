@@ -76,6 +76,7 @@ int main() {
   ASSERT(0x123456, ({ union {int a; char b[5]; } x = { 0x123456 }; x.a; }));
   ASSERT(0x56, ({ union {int a; char b[5]; } x = { 0x123456, 0x12345678 }; x.b[0]; }));
   ASSERT(0x0, ({ union {int a; char b[4]; } x = { 0x123456, 0x12345678 }; x.b[3]; }));
+  ASSERT(0x78563412, ({ union { struct { char a, b, c, d; } e; int f; } x = { { 0x12, 0x34, 0x56, 0x78 } }; x.f; }));
   ASSERT(0x56, ({ typedef union {int a; char b[5]; } T; T x = { 0x123456 }; T y = x; y.b[0]; }));
 
   printf("OK\n");
