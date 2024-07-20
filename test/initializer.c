@@ -1,6 +1,12 @@
 #include "test.h"
 
 int x;
+char gchar1 = 1;
+short gshort2 = 2;
+int gint3 = 3;
+long glong4 = 4;
+int gint[3] = {5, 6, 7};
+char gchar[] = "Hello World";
 
 int main() {
   ASSERT(0, 0);
@@ -78,6 +84,16 @@ int main() {
   ASSERT(0x0, ({ union {int a; char b[4]; } x = { 0x123456, 0x12345678 }; x.b[3]; }));
   ASSERT(0x78563412, ({ union { struct { char a, b, c, d; } e; int f; } x = { { 0x12, 0x34, 0x56, 0x78 } }; x.f; }));
   ASSERT(0x56, ({ typedef union {int a; char b[5]; } T; T x = { 0x123456 }; T y = x; y.b[0]; }));
+
+  ASSERT(1, gchar1);
+  ASSERT(2, gshort2);
+  ASSERT(3, gint3);
+  ASSERT(4, glong4);
+  ASSERT(5, gint[0]);
+  ASSERT(6, gint[1]);
+  ASSERT(7, gint[2]);
+  ASSERT('l', gchar[2]);
+  ASSERT('W', gchar[6]);
 
   printf("OK\n");
   return 0;

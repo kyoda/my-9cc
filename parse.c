@@ -38,6 +38,7 @@ struct InitDesignator {
 static Type *declspec(Token **rest, Token *token, VarAttr *attr);
 static Node *lvar_initializer(Token **rest, Token *token, Obj *var);
 static void initializer(Token **rest, Token *token, Initializer *init);
+static int64_t eval(Node *n);
 static Node *declaration(Token **rest, Token *token);
 static Type *declarator(Token **rest, Token *token, Type *ty);
 static Type *type_suffix(Token **rest, Token *token, Type *ty);
@@ -160,11 +161,10 @@ static VarScope *find_var_in_current_scope(Token *t) {
 
 //search only global variable
 static VarScope *find_var_by_name(char *name) {
-  for (Scope *sc = scope; sc; sc = sc->next) {
-    for (VarScope *vs = sc->vars; vs; vs = vs->next) {
-      if (strncmp(name, vs->name, strlen(name)) == 0) {
-        return vs;
-      }
+  for (Obj *var = globals; var; var = var->next) {
+    if (strlen(name) == strlen(var->name)
+      && strncmp(name, var->name, strlen(name)) == 0) {
+      return var;
     }
   }
 
@@ -745,13 +745,51 @@ static void *function (Token **rest, Token *token, Type *basety, VarAttr *attr) 
   *rest = token;
 }
 
-static void *gvar_initializer(Token **rest, Token *token, Obj *gvar) {
-  /*
-  if (gvar->ty->kind == TY_ARRAY) {
-    gvar->init_data = token->str;
-    *rest = token->next;
+static void write_buf(char *buf, uint64_t val, int size) {
+  switch (size) {
+    case 1:
+      *(uint8_t *)buf = val;
+      break;
+    case 2:
+      *(uint16_t *)buf = val;
+      break;
+    case 4:
+      *(uint32_t *)buf = val;
+      break;
+    case 8:
+      *(uint64_t *)buf = val;
+      break;
+    default:
+      error("invalid type size: %d", size);
   }
-  */
+}
+
+static write_gvar_data(Initializer *init, Type *ty, char *buf, int offset) {
+  if (ty->kind == TY_ARRAY) {
+    int size = ty->base->size;
+    for (int i = 0; i < ty->array_len; i++) {
+      write_gvar_data(init->children[i], ty->base, buf, offset + size * i);
+    }
+    return;
+  }
+
+  if (init->expr) {
+    /*
+        eval()はint64_tを返すが、write_buf()内ではuint64_tとして扱う
+        符号拡張を考えずbyte列をそのまま初期化するため
+    */
+    write_buf(buf + offset, eval(init->expr), ty->size);
+  }
+}
+
+static void *gvar_initializer(Token **rest, Token *token, Obj *var) {
+  Initializer *init = new_initializer(var->ty, true);
+  initializer(rest, token, init);
+  var->ty = init->ty;
+
+  char *buf = calloc(1, var->ty->size);
+  write_gvar_data(init, var->ty, buf, 0);
+  var->init_data = buf;
 }
 
 static void *global_variable (Token **rest, Token *token, Type *basety) {
