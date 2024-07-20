@@ -68,6 +68,16 @@ int main() {
   ASSERT(0, ({ typedef struct {int a, b, c, d, e, f; } T; T x = {1, 2, 3, 4, 5}; T y; T z; z = y = x; z.f;}));
   ASSERT(0, ({ typedef struct {int a, b, c, d, e, f; } T; T x = {1, 2, 3, 4, 5}; T y; T z = y = x; z.f;}));
 
+  ASSERT(0x56, ({ union {int a; char b[5]; } x = { 0x123456 }; x.b[0]; }));
+  ASSERT(0x34, ({ union {int a; char b[5]; } x = { 0x123456 }; x.b[1]; }));
+  ASSERT(0x12, ({ union {int a; char b[5]; } x = { 0x123456 }; x.b[2]; }));
+  ASSERT(0, ({ union {int a; char b[5]; } x = { 0x123456 }; x.b[3]; }));
+  ASSERT(0, ({ union {int a; char b[5]; } x = { 0x123456 }; x.b[4]; }));
+  ASSERT(0x123456, ({ union {int a; char b[5]; } x = { 0x123456 }; x.a; }));
+  ASSERT(0x56, ({ union {int a; char b[5]; } x = { 0x123456, 0x12345678 }; x.b[0]; }));
+  ASSERT(0x0, ({ union {int a; char b[4]; } x = { 0x123456, 0x12345678 }; x.b[3]; }));
+  ASSERT(0x56, ({ typedef union {int a; char b[5]; } T; T x = { 0x123456 }; T y = x; y.b[0]; }));
+
   printf("OK\n");
   return 0;
 }

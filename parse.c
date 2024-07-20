@@ -197,7 +197,7 @@ static Initializer *new_initializer(Type *ty, bool is_flexible) {
     return init;
   }
 
-  if (ty->kind == TY_STRUCT) {
+  if (ty->kind == TY_STRUCT || ty->kind == TY_UNION) {
     int len = 0;
     for (Member *mem  = ty->members; mem; mem = mem->next) {
       len++;
@@ -448,6 +448,11 @@ static Node *create_lvar_init(Initializer *init, Type *ty, InitDesignator *desg,
     return node;
   }
 
+  if (ty->kind == TY_UNION && !init->expr) {
+      InitDesignator desg2 = {desg, 0, ty->members};
+      return create_lvar_init(init->children[0], ty->members->ty, &desg2, token);
+  }
+
   /*
     初期化するポインタを取得
     int a[3][2]
@@ -572,7 +577,30 @@ static void struct_initializer(Token **rest, Token *token, Initializer *init) {
 }
 
 /*
-  initializer ::= string-initializer | array-initializer
+  union-initializer ::= "{" initializer ("," initializer)* "}"
+                      | assign
+*/
+static void union_initializer(Token **rest, Token *token, Initializer *init) {
+  expect(&token, token, "{");
+
+  bool first = true;
+  while (!consume(rest, token, "}")) {
+    if (first) {
+      // unionの場合は、最初の要素のみ初期化する
+      initializer(&token, token, init->children[0]);
+      first = false;
+    } else {
+      expect(&token, token, ",");
+      token = skip_excess_elements(token);
+    }
+  }
+}
+
+/*
+  initializer ::= string-initializer
+                | array-initializer
+                | struct-initializer
+                | union-initializer
                 | assign
 */
 static void initializer(Token **rest, Token *token, Initializer *init) {
@@ -598,6 +626,21 @@ static void initializer(Token **rest, Token *token, Initializer *init) {
     }
 
     struct_initializer(rest, token, init);
+    return;
+  }
+
+  if (init->ty->kind == TY_UNION) {
+    // type union T; T y; T x = y;
+    if (!equal(token, "{")) {
+      Node *expr = assign(rest, token);
+      add_type(expr);
+      if (expr->ty->kind == TY_UNION) {
+        init->expr = expr;
+        return;
+      }
+    }
+
+    union_initializer(rest, token, init);
     return;
   }
 
