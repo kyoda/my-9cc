@@ -7,6 +7,8 @@ int gint3 = 3;
 long glong4 = 4;
 int gint[3] = {5, 6, 7};
 char gchar[] = "Hello World";
+struct {int a; char b; char c[2]; } gst = {1, 2, {3, 4}};
+struct {char a; int b;} gst2[2] = {{1, 2}, {3, 4}};
 
 int main() {
   ASSERT(0, 0);
@@ -94,6 +96,15 @@ int main() {
   ASSERT(7, gint[2]);
   ASSERT('l', gchar[2]);
   ASSERT('W', gchar[6]);
+
+  ASSERT(1, gst.a);
+  ASSERT(2, gst.b);
+  ASSERT(3, gst.c[0]);
+  ASSERT(4, gst.c[1]);
+  ASSERT(1, gst2[0].a);
+  ASSERT(2, gst2[0].b);
+  ASSERT(3, gst2[1].a);
+  ASSERT(4, gst2[1].b);
 
   printf("OK\n");
   return 0;
