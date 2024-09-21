@@ -16,6 +16,7 @@ typedef struct Token Token;
 typedef struct Node Node;
 typedef struct Obj Obj;
 typedef struct Member Member;
+typedef struct Relocation Relocation;
 
 typedef enum {
   TK_IDENT, // Identifiers
@@ -173,6 +174,7 @@ struct Obj {
 
   // global variable
   char *init_data;
+  Relocation *rel;
 
   //function
   Obj *params;
@@ -180,6 +182,20 @@ struct Obj {
   Obj *locals;
   int stack_size;
 
+};
+
+/*
+  Global変数初期化時に利用する
+  Local変数の初期化時に利用するdesignatorのような役割
+  int g1 = 1;
+  int *g2 = &g1 + 2;
+         -> label(g1 label address) + addend(num 2) * int size(4)
+*/
+struct Relocation {
+  Relocation *next;
+  int offset;
+  char *label;
+  int addend;
 };
 
 struct Member {

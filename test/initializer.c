@@ -9,12 +9,26 @@ int gint[3] = {5, 6, 7};
 char gchar[] = "Hello World";
 struct {int a; char b; char c[2]; } gst = {1, 2, {3, 4}};
 struct {char a; int b;} gst2[2] = {{1, 2}, {3, 4}};
+int g1 = 1;
+int *g2 = &g1;
+char g3[] = "abcdef";
+char *g4 = g3 + 3;
+char *g5 = 3 + g3;
+char g6[3] = "abcdefg";
+char g7[10] = "abcdefg";
+char *g8 = g3 + 3;
+int g11 = 1 + 1;
+int g12 = 1 ? 2 : 3;
+
+/* error
+  int g2 = g1 + 1;
+  int g13 = g1 ? 2 : 3;
+  int g13 = 1 ? g1 : 3;
+ */
 
 int main() {
-  ASSERT(0, 0);
-  ASSERT(0, ({ char a[0]; 0; }));
+  ASSERT(0, ({ int a = 0; int b = a; b; }));
   ASSERT(0, ({ int a[0] = {}; 0; }));
-  //ASSERT(0, ({ int a[] = {}; 0; })); gcc ok
   ASSERT(1, ({ int a[3][3] = {{1, 2, 3}, {4, 5, 6}, {7, 8, 9}}; a[0][0]; }));
   ASSERT(2, ({ int a[3][3] = {{1, 2, 3}, {4, 5, 6}, {7, 8, 9}}; a[0][1]; }));
   ASSERT(3, ({ int a[3][3] = {{1, 2, 3}, {4, 5, 6}, {7, 8, 9}}; a[0][2]; }));
@@ -105,6 +119,16 @@ int main() {
   ASSERT(2, gst2[0].b);
   ASSERT(3, gst2[1].a);
   ASSERT(4, gst2[1].b);
+
+  ASSERT(2, ({ int a = 1; int b = a + 1; b;}));
+
+  ASSERT(1, *g2);
+  ASSERT(0, memcmp(g3, "abcdef", 7));
+  ASSERT(0, memcmp(g4, "def", 4));
+  ASSERT(0, memcmp(g5, "def", 4));
+  ASSERT(0, memcmp(g6, "abc", 3));
+  ASSERT(0, memcmp(g7, "abcdefg\0\0", 10));
+  ASSERT(0, strcmp(g8 - 3, "abcdef"));
 
   printf("OK\n");
   return 0;

@@ -200,6 +200,10 @@ void add_type(Node *n) {
     n->ty = n->lhs->ty;
     return;
   case ND_STMT_EXPR:
+    /*
+      GNU C拡張機能のStatement Expressions
+      https://gcc.gnu.org/onlinedocs/gcc/Statement-Exprs.html#Statement-Exprs
+    */
     if (n->body) {
       /*
         bodyの最後がND_EXPR_STMTであることを確認し、そのlhsの型を割り当てる

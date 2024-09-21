@@ -64,6 +64,9 @@ int main() {
   ASSERT(0, ({ int i = 0; switch (1) break; i; }));
   ASSERT(0, ({ int i = 0; switch (1) case 0:; i; }));
 
+  ASSERT(2, ({ int i = 0; for (;i<({1; 5; 2;});i++) { if (i == 3) break; } i; }));
+
+
   /* error
   //ASSERT(0, ({ int a=0; for (;;) {a;} }));
   //ASSERT(2, ({ int i=0,j=3; (i=2, j) = 4; i;}));
@@ -77,9 +80,10 @@ int main() {
   ASSERT(2, ({return 2;}));
   ASSERT(4, ({ int i = 0; int i = 4; i; })); //compile error
 
-  //ASSERT(0, ({ int i = 0; switch (0) int j = 3; i; })); gcc error
+  //ASSERT(0, ({ int i = 0; switch (0) int j = 3; i; })); //gcc error
   //ASSERT(0, ({ int i = 0; switch (1) case 0: break; i; }));
   //ASSERT(0, ({ int i = 0; switch (1) case 0: i = 3; break; i; }));
+  ASSERT(0, ({ int i = 0; switch (1) case i: break; i; })); //gcc error
   */
 
   printf("OK\n");

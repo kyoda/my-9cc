@@ -15,8 +15,10 @@ int main() {
   ASSERT(4, ({ enum { a, b, c } x; sizeof(x); }));
   ASSERT(4, ({ enum { a, b, c } x; sizeof(a); }));
 
+
   /*
   ASSERT(-3, ({ enum { a = -4, b }; b; })); //error
+  ASSERT(0, ({ int a = 0; enum { zero = a }; zero; })); gcc error
   ASSERT(2555, ({ enum { a = 2555 } x; a; })); //gcc error
   */
   printf("OK\n");

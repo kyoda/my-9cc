@@ -39,6 +39,8 @@ static Type *declspec(Token **rest, Token *token, VarAttr *attr);
 static Node *lvar_initializer(Token **rest, Token *token, Obj *var);
 static void initializer(Token **rest, Token *token, Initializer *init);
 static int64_t eval(Node *n);
+static int64_t eval2(Node *n, char **label);
+static int64_t eval_rval(Node *n, char **label);
 static Node *declaration(Token **rest, Token *token);
 static Type *declarator(Token **rest, Token *token, Type *ty);
 static Type *type_suffix(Token **rest, Token *token, Type *ty);
@@ -764,39 +766,70 @@ static void write_buf(char *buf, uint64_t val, int size) {
   }
 }
 
-static write_gvar_data(Initializer *init, Type *ty, char *buf, int offset) {
+static Relocation *write_gvar_data(Relocation *cur, Initializer *init, Type *ty, char *buf, int offset) {
   if (ty->kind == TY_ARRAY) {
     int size = ty->base->size;
     for (int i = 0; i < ty->array_len; i++) {
-      write_gvar_data(init->children[i], ty->base, buf, offset + size * i);
+      cur = write_gvar_data(cur, init->children[i], ty->base, buf, offset + size * i);
     }
-    return;
+
+    return cur;
   }
 
   if (ty->kind == TY_STRUCT) {
     for (Member *mem = ty->members; mem; mem = mem->next) {
-      write_gvar_data(init->children[mem->idx], mem->ty, buf, offset + mem->offset);
+      cur = write_gvar_data(cur, init->children[mem->idx], mem->ty, buf, offset + mem->offset);
     }
-    return;
+
+    return cur;
   }
 
-  if (init->expr) {
+  if (!init->expr) {
+    return cur;
+  }
+
+  char *label = NULL;
+  /*
+    global変数の初期化における値はコンパイル時に確定するためeval()で計算する
+    値が確定しないものについてはerrorとする
+  */
+  uint64_t val = eval2(init->expr, &label);
+
+  if (!label) {
     /*
         eval()はint64_tを返すが、write_buf()内ではuint64_tとして扱う
         符号拡張を考えずbyte列をそのまま初期化するため
     */
-    write_buf(buf + offset, eval(init->expr), ty->size);
+    write_buf(buf + offset, val, ty->size);
+    return cur;
   }
+
+  Relocation *rel = calloc(1, sizeof(Relocation));
+  rel->offset = offset;
+  rel->label = label;
+  rel->addend = val;
+  cur->next = rel;
+
+  return cur->next;
 }
 
+/*
+  Global変数の初期化
+  int g1 = 1;
+  int g2 = g1 + 1 --> コンパイル時にg1が決まらないため不可
+  int g1[] = {1, 2};
+  int *g2 = g1 + 1 --> ポインタ計算はOK
+*/
 static void *gvar_initializer(Token **rest, Token *token, Obj *var) {
   Initializer *init = new_initializer(var->ty, true);
   initializer(rest, token, init);
   var->ty = init->ty;
 
+  Relocation head = {};
   char *buf = calloc(1, var->ty->size);
-  write_gvar_data(init, var->ty, buf, 0);
+  write_gvar_data(&head, init, var->ty, buf, 0);
   var->init_data = buf;
+  var->rel = head.next;
 }
 
 static void *global_variable (Token **rest, Token *token, Type *basety) {
@@ -1391,8 +1424,7 @@ static Type *func_params(Token **rest, Token *token, Type *ty) {
 }
 
 /*
-  stmt = expr? ";"
-       | "{" stmt* "}"
+  stmt = "{" stmt* "}"
        | typedef
        | declaration
        | "return" expr ";"
@@ -1410,12 +1442,6 @@ static Type *func_params(Token **rest, Token *token, Type *ty) {
 */
 static Node *stmt(Token **rest, Token *token) {
   Node *n;
-
-  if (consume(&token, token, ";")) {
-    n = new_node(ND_BLOCK, token);
-    *rest = token;
-    return n;
-  }
 
   if (equal(token, "{")) {
     n = new_node(ND_BLOCK, token);
@@ -1657,7 +1683,7 @@ static Node *stmt(Token **rest, Token *token) {
   return n;
 }
 
-// expr-stmt = expr ";"?
+// expr-stmt = ";" || expr ";"
 static Node *expr_stmt(Token **rest, Token *token) {
   if (consume(&token, token, ";")) {
     *rest = token;
@@ -1683,13 +1709,38 @@ static Node *expr(Token **rest, Token *token) {
 }
 
 static int64_t eval(Node *n) {
+  return eval2(n, NULL);
+}
+
+/*
+  + global変数の初期化式
+    int g1 = 1;
+    int g2 = g1 + 1; --> local変数時と違いコンパイル時にg1が決まらないといけないため、これは不可
+    char g3[] = "abc";
+    char *g4 = g3 + 1; --> ポインタ計算はOK
+
+  + local変数
+    初期化式やcase文の式など、コンパイル時に値が決まる箇所での計算
+    int a = 1; int b = a + 1; --> 実行時にaが初期化されるためOK
+    enum { two = 1+1 };
+    int a = 1; enum { two = a+1 }; --> コンパイル時にaが決まらないため不可
+    int x[3+3];
+    int a = 1; int x[a+3]; --> コンパイル時にaが決まらないため不可
+    case 1+2:
+    int a = 1; case a+2: --> コンパイル時にaが決まらないため不可
+*/
+static int64_t eval2(Node *n, char **label) {
   add_type(n);
 
   switch (n->kind) {
   case ND_ADD:
-    return eval(n->lhs) + eval(n->rhs);
+    /*
+      変数を利用した足し算はなし
+      ポインタの足し算は、new_add()により左辺がポインタになる
+    */
+    return eval2(n->lhs, label) + eval(n->rhs);
   case ND_SUB:
-    return eval(n->lhs) - eval(n->rhs);
+    return eval2(n->lhs, label) - eval(n->rhs);
   case ND_MUL:
     return eval(n->lhs) * eval(n->rhs);
   case ND_DIV:
@@ -1705,13 +1756,13 @@ static int64_t eval(Node *n) {
   case ND_NEG:
     return -eval(n->lhs);
   case ND_COND:
-    return eval(n->cond) ? eval(n->then) : eval(n->els);
+    return eval(n->cond) ? eval2(n->then, label) : eval2(n->els, label);
   case ND_LOGICALOR:
     return eval(n->lhs) || eval(n->rhs);
   case ND_LOGICALAND:
     return eval(n->lhs) && eval(n->rhs);
   case ND_COMMA:
-    return eval(n->rhs);
+    return eval2(n->rhs, label);
   case ND_NOT:
     return !eval(n->lhs);
   case ND_BITNOT:
@@ -1729,23 +1780,53 @@ static int64_t eval(Node *n) {
   case ND_LE:
     return eval(n->lhs) <= eval(n->rhs);
   case ND_CAST:
+    int64_t val = eval2(n->lhs, label);
+
     if (is_integer(n->ty)) {
       switch (n->ty->size) {
       case 1:
-        return (int8_t)eval(n->lhs);
+        return (int8_t)val;
       case 2:
-        return (int16_t)eval(n->lhs);
+        return (int16_t)val;
       case 4:
-        return (int32_t)eval(n->lhs);
+        return (int32_t)val;
       }
     }
 
-    return eval(n->lhs);
+    return val;
+  case ND_ADDR:
+    return eval_rval(n->lhs, label);
+  case ND_VAR:
+    if (!label) {
+      error_at(n->token->loc, "%s", "not a compile-time constant");
+    }
+
+    if (n->var->ty->kind != TY_ARRAY && n->var->ty->kind != TY_FUNC) {
+      error_at(n->token->loc, "%s", "invalid initializer");
+    }
+
+    *label = n->var->name;
+    return 0;
   case ND_NUM:
     return n->val;
   }
 
   error_at(n->token->loc, "%s", "not a constant expression"); 
+}
+
+static int64_t eval_rval(Node *n, char **label) {
+  switch (n->kind) {
+  case ND_VAR:
+    if (n->var->is_local) {
+      error_at(n->token->loc, "%s", "not a compile-time constant");
+    }
+    *label = n->var->name;
+    return 0;
+  case ND_DEREF:
+    return eval2(n->lhs, label);
+  }
+
+  error_at(n->token->loc, "%s", "invalid initializer");
 }
 
 /*

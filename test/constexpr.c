@@ -26,10 +26,13 @@ int main() {
   ASSERT(2, ({ char x[(int)0+2]; sizeof(x); }));
   ASSERT(3, ({ char x[(int*)16-(int*)4]; sizeof(x); }));
 
+
+
   /* error
   // ポインタの足し算, 0 + 2 * intのサイズ
   ASSERT(8, ({ char x[(int*)0+2]; sizeof(x); })); //gcc error
   ASSERT(12, ({ char x[(int*)16-1]; sizeof(x); })); //gcc error
+  ASSERT(3, ({ int a = 3; char x[a]; sizeof(x); })); //gcc ok
 
   */
 
