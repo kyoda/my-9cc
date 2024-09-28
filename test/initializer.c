@@ -19,6 +19,9 @@ char g7[10] = "abcdefg";
 char *g8 = g3 + 3;
 int g11 = 1 + 1;
 int g12 = 1 ? 2 : 3;
+int g13[3] = {1, 2, 3};
+long g14 = (long)(long)g13;
+char *g15[] = {g3 + 0, g3 + 3, g3 - 3};
 
 /* error
   int g2 = g1 + 1;
@@ -129,6 +132,10 @@ int main() {
   ASSERT(0, memcmp(g6, "abc", 3));
   ASSERT(0, memcmp(g7, "abcdefg\0\0", 10));
   ASSERT(0, strcmp(g8 - 3, "abcdef"));
+  ASSERT(1, *(int *)g14);
+  ASSERT(0, strcmp(g15[0], "abcdef"));
+  ASSERT(0, strcmp(g15[1], "def"));
+  ASSERT(0, strcmp(g15[2] + 3, "abcdef"));
 
   printf("OK\n");
   return 0;

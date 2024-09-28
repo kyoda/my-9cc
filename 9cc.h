@@ -195,7 +195,7 @@ struct Relocation {
   Relocation *next;
   int offset;
   char *label;
-  int addend;
+  long addend;
 };
 
 struct Member {
