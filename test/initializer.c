@@ -22,11 +22,20 @@ int g12 = 1 ? 2 : 3;
 int g13[3] = {1, 2, 3};
 long g14 = (long)(long)g13;
 char *g15[] = {g3 + 0, g3 + 3, g3 - 3};
+union {char a[5]; int b;} gun = {{8, 0, 0, 0, 0}, 9};
+struct { struct {int a; int b; } x; int y; } gst3 = { {1, 2}, 3 };
+union { union {char a; char b; } x; int y; } gun2 = { {1, 2}, 3 };
+char *pgst3 = &gst3.x.a;
+char *pgun2 = &gun2.x.a;
+struct { struct { int a[3]; } x; } gst4 = { { {1, 2, 3} } };
+char *g16 = gst.c + 1;
 
 /* error
   int g2 = g1 + 1;
   int g13 = g1 ? 2 : 3;
   int g13 = 1 ? g1 : 3;
+  struct { struct { char a; char b; } x; } gst5 = { {1, 2} };
+  char *p = gst5.x + 1; --> error
  */
 
 int main() {
@@ -136,6 +145,19 @@ int main() {
   ASSERT(0, strcmp(g15[0], "abcdef"));
   ASSERT(0, strcmp(g15[1], "def"));
   ASSERT(0, strcmp(g15[2] + 3, "abcdef"));
+  ASSERT(8, gun.b);
+  ASSERT(1, gst3.x.a);
+  ASSERT(1, gun2.x.a);
+  ASSERT(1, gun2.x.b);
+  ASSERT(1, gun2.y);
+  ASSERT(1, *pgst3);
+  ASSERT(1, *pgun2);
+  ASSERT(1, gst4.x.a[0]);
+  ASSERT(4, *g16);
+  
+  /* error
+    ASSERT(2, ({struct { struct { char a; char b; } x; } gst5 = { {1, 2} }; char *p = gst5.x + 1; *p;})); //gcc compile error
+  */
 
   printf("OK\n");
   return 0;

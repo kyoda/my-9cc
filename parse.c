@@ -784,6 +784,11 @@ static Relocation *write_gvar_data(Relocation *cur, Initializer *init, Type *ty,
     return cur;
   }
 
+  if (ty->kind == TY_UNION) {
+    // unionの場合は、最初の要素のみ初期化する
+    return write_gvar_data(cur, init->children[0], ty->members->ty, buf, offset);
+  }
+
   if (!init->expr) {
     return cur;
   }
@@ -1721,12 +1726,12 @@ static int64_t eval(Node *n) {
 
   + local変数
     初期化式やcase文の式など、コンパイル時に値が決まる箇所での計算
-    int a = 1; int b = a + 1; --> 実行時にaが初期化されるためOK
-    enum { two = 1+1 };
+    int a = 1; int b = a + 1; --> 実行時にaが初期化されるためOK(eval()は通らない)
+    enum { two = 1+1 }; --> 実行時に初期化されるためOK
     int a = 1; enum { two = a+1 }; --> コンパイル時にaが決まらないため不可
-    int x[3+3];
+    int x[3+3]; --> 実行時に初期化されるためOK
     int a = 1; int x[a+3]; --> コンパイル時にaが決まらないため不可
-    case 1+2:
+    case 1+2: --> 実行時に初期化されるためOK
     int a = 1; case a+2: --> コンパイル時にaが決まらないため不可
 */
 static int64_t eval2(Node *n, char **label) {
@@ -1795,7 +1800,27 @@ static int64_t eval2(Node *n, char **label) {
 
     return val;
   case ND_ADDR:
+    /*
+      global変数のアドレス取得
+      int a = 1; int *p = &a;
+      この場合の、&aの計算
+    */
     return eval_rval(n->lhs, label);
+  case ND_MEMBER:
+    if (!label) {
+      error_at(n->token->loc, "%s", "not a compile-time constant");
+    }
+
+    /*
+      struct { int a[2]; } x = {1, 2};
+      int *p = x.a + 1;
+      のような場合の初期化計算
+    */
+    if (n->member->ty->kind != TY_ARRAY) {
+      error_at(n->token->loc, "%s", "invalid initializer");
+    }
+
+    return eval_rval(n->lhs, label) + n->member->offset;
   case ND_VAR:
     if (!label) {
       error_at(n->token->loc, "%s", "not a compile-time constant");
@@ -1818,12 +1843,28 @@ static int64_t eval_rval(Node *n, char **label) {
   switch (n->kind) {
   case ND_VAR:
     if (n->var->is_local) {
+      /*
+        int a = 1;
+        int b[&a] = {1};
+      */
       error_at(n->token->loc, "%s", "not a compile-time constant");
     }
     *label = n->var->name;
     return 0;
   case ND_DEREF:
     return eval2(n->lhs, label);
+  case ND_MEMBER:
+    /*
+      union { int a; int b; } x; int *p = &x.b; 
+      ND_ADDR
+        |
+      ND_VAR
+        |
+      ND_MEMBER
+        |
+      ND_VAR
+    */
+    return eval_rval(n->lhs, label) + n->member->offset;
   }
 
   error_at(n->token->loc, "%s", "invalid initializer");
