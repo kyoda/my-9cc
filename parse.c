@@ -528,10 +528,9 @@ static void string_initializer(Token **rest, Token *token, Initializer *init) {
 }
 
 /*
-  array-initializer ::= "{" initializer ("," initializer)* "}"
-                      | assign
+  array-initializer1 ::= "{" initializer ("," initializer)* "}"
 */
-static void array_initializer(Token **rest, Token *token, Initializer *init) {
+static void array_initializer1(Token **rest, Token *token, Initializer *init) {
   expect(&token, token, "{");
 
   if (init->is_flexible) {
@@ -557,10 +556,29 @@ static void array_initializer(Token **rest, Token *token, Initializer *init) {
 }
 
 /*
-  struct-initializer ::= "{" initializer ("," initializer)* "}"
-                      | assign
+  array-initializer2 ::= initializer ("," initializer)*
 */
-static void struct_initializer(Token **rest, Token *token, Initializer *init) {
+static void array_initializer2(Token **rest, Token *token, Initializer *init) {
+  if (init->is_flexible) {
+    int len = count_array_elements(token, init->ty->base);
+    *init = *new_initializer(ty_array(init->ty->base, len), false);
+  }
+
+  for (int i = 0; i < init->ty->array_len && !equal(token, "}"); i++) {
+    if (i > 0) {
+      expect(&token, token, ",");
+    }
+
+    initializer(&token, token, init->children[i]);
+  }
+
+  *rest = token;
+}
+
+/*
+  struct-initializer1 ::= "{" initializer ("," initializer)* "}"
+*/
+static void struct_initializer1(Token **rest, Token *token, Initializer *init) {
   expect(&token, token, "{");
 
   Member *mem = init->ty->members;
@@ -579,23 +597,63 @@ static void struct_initializer(Token **rest, Token *token, Initializer *init) {
 }
 
 /*
-  union-initializer ::= "{" initializer ("," initializer)* "}"
-                      | assign
+  struct-initializer2 ::= initializer ("," initializer)*
 */
-static void union_initializer(Token **rest, Token *token, Initializer *init) {
-  expect(&token, token, "{");
-
+static void struct_initializer2(Token **rest, Token *token, Initializer *init) {
   bool first = true;
-  while (!consume(rest, token, "}")) {
+
+  for (Member *mem = init->ty->members; mem && !equal(token, "}"); mem = mem->next) {
+    if (!first) {
+      expect(&token, token, ",");
+    }
+    first = false;
+    initializer(&token, token, init->children[mem->idx]);
+  }
+
+  *rest = token;
+}
+
+/*
+  union-initializer1 ::= "{" initializer ("," initializer)* "}"
+*/
+static void union_initializer1(Token **rest, Token *token, Initializer *init) {
+  // unionの場合は、最初の要素のみ初期化する
+  bool first = true;
+  Initializer *dummy = new_initializer(init->ty, false);
+  if (consume(&token, token, "{")){
+    for (Member *mem = init->ty->members; mem && !equal(token, "}"); mem = mem->next) {
+      if (first) {
+        initializer(&token, token, init->children[0]);
+        first = false;
+      } else {
+        expect(&token, token, ",");
+        initializer(&token, token, dummy);
+      }
+    }
+    expect(&token, token, "}");
+  }
+
+  *rest = token;
+}
+
+/*
+  union-initializer2 ::= initializer ("," initializer)*
+*/
+static void union_initializer2(Token **rest, Token *token, Initializer *init) {
+  // unionの場合は、最初の要素のみ初期化する
+  bool first = true;
+  Initializer *dummy = new_initializer(init->ty, false);
+  for (Member *mem = init->ty->members; mem && !equal(token, "}"); mem = mem->next) {
     if (first) {
-      // unionの場合は、最初の要素のみ初期化する
       initializer(&token, token, init->children[0]);
       first = false;
     } else {
       expect(&token, token, ",");
-      token = skip_excess_elements(token);
+      initializer(&token, token, dummy);
     }
   }
+
+  *rest = token;
 }
 
 /*
@@ -612,37 +670,51 @@ static void initializer(Token **rest, Token *token, Initializer *init) {
   }
 
   if (init->ty->kind == TY_ARRAY) {
-    array_initializer(rest, token, init);
+    if (equal(token, "{")) {
+      array_initializer1(rest, token, init);
+    } else {
+      array_initializer2(rest, token, init);
+    }
     return;
   }
 
   if (init->ty->kind == TY_STRUCT) {
-    // type struct T; T y; T x = y;
-    if (!equal(token, "{")) {
-      Node *expr = assign(rest, token);
-      add_type(expr);
-      if (expr->ty->kind == TY_STRUCT) {
-        init->expr = expr;
-        return;
-      }
+    if (equal(token, "{")) {
+      struct_initializer1(rest, token, init);
+      return;
     }
 
-    struct_initializer(rest, token, init);
+    /*
+      type struct T; T y; T x = y;
+      yというstruct Tの変数を初期化式で代入するような場合の処理
+    */
+    Node *expr = assign(rest, token);
+    add_type(expr);
+    if (expr->ty->kind == TY_STRUCT) {
+      init->expr = expr;
+      return;
+    }
+
+    // {} で囲まれていない場合のstructの初期化
+    struct_initializer2(rest, token, init);
     return;
   }
 
   if (init->ty->kind == TY_UNION) {
-    // type union T; T y; T x = y;
-    if (!equal(token, "{")) {
-      Node *expr = assign(rest, token);
-      add_type(expr);
-      if (expr->ty->kind == TY_UNION) {
-        init->expr = expr;
-        return;
-      }
+    if (equal(token, "{")) {
+      union_initializer1(rest, token, init);
+      return;
     }
 
-    union_initializer(rest, token, init);
+    // type union T; T y; T x = y;
+    Node *expr = assign(rest, token);
+    add_type(expr);
+    if (expr->ty->kind == TY_UNION) {
+      init->expr = expr;
+      return;
+    }
+
+    union_initializer2(rest, token, init);
     return;
   }
 

@@ -66,11 +66,12 @@ int main() {
 
   ASSERT(2, ({ int i = 0; for (;i<({1; 5; 2;});i++) { if (i == 3) break; } i; }));
 
+  ASSERT(3, (1, 2, 3));
 
   /* error
+  ASSERT(2, ({ int i=0,j=3; (i=2, j) = 4; i;})); //gcc error
+  ASSERT(4, ({ int i=0,j=3; (i=2, j) = 4; j;})); //gcc error
   //ASSERT(0, ({ int a=0; for (;;) {a;} }));
-  //ASSERT(2, ({ int i=0,j=3; (i=2, j) = 4; i;}));
-  //ASSERT(4, ({ int i=0,j=3; (i=2, j) = 4; j;}));
   ASSERT(0, ({ }));
   ASSERT(0, ({ int a[3]; int *p; p = &a;}));
   ASSERT(0, ({ int a[3]; int b[3]; b = a;}));

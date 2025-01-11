@@ -27,8 +27,16 @@ struct { struct {int a; int b; } x; int y; } gst3 = { {1, 2}, 3 };
 union { union {char a; char b; } x; int y; } gun2 = { {1, 2}, 3 };
 char *pgst3 = &gst3.x.a;
 char *pgun2 = &gun2.x.a;
+union {char a[3]; int b;} gun3 = {1, 0, 0, 0};
 struct { struct { int a[3]; } x; } gst4 = { { {1, 2, 3} } };
 char *g16 = gst.c + 1;
+struct { int a[2]; } gst5[2] = { { {1, 2} }, { {3, 4} } };
+struct { int a[2]; } gst6[2] = { { {1, 2} } };
+int gint7[2][2] = {{1, 2}, 3, 4};
+struct { int a[2]; } gst7[2] = { 1, 2, {3, 4} };
+struct { char a[2]; char b[2]; } gst8 = { 1, 2, 3, 4 };
+union { int a; char b[8]; } gun4[2] = {0x01020304, 0x05060708};
+char g17[][4] = {'f', 'o', 'o', 0, 'b', 'a', 'r', 0};
 
 /* error
   int g2 = g1 + 1;
@@ -145,6 +153,11 @@ int main() {
   ASSERT(0, strcmp(g15[0], "abcdef"));
   ASSERT(0, strcmp(g15[1], "def"));
   ASSERT(0, strcmp(g15[2] + 3, "abcdef"));
+  ASSERT(8, gun.a[0]);
+  ASSERT(0, gun.a[1]);
+  ASSERT(0, gun.a[2]);
+  ASSERT(0, gun.a[3]);
+  ASSERT(0, gun.a[4]);
   ASSERT(8, gun.b);
   ASSERT(1, gst3.x.a);
   ASSERT(1, gun2.x.a);
@@ -152,9 +165,41 @@ int main() {
   ASSERT(1, gun2.y);
   ASSERT(1, *pgst3);
   ASSERT(1, *pgun2);
+  ASSERT(1, gun3.a[0]);
+  ASSERT(0, gun3.a[1]);
+  ASSERT(0, gun3.a[2]);
+  ASSERT(1, gun3.b);
   ASSERT(1, gst4.x.a[0]);
   ASSERT(4, *g16);
+  ASSERT(2, ({struct { int a[2]; } lst5[2] = { { {1, 2} }, { {3, 4 } } }; lst5[0].a[1];}));
+  ASSERT(2, gst5[0].a[1]);
+  ASSERT(0, gst6[1].a[1]);
+  ASSERT(1, gint7[0][0]);
+  ASSERT(2, gint7[0][1]);
+  ASSERT(3, gint7[1][0]);
+  ASSERT(4, gint7[1][1]);
+  ASSERT(1, gst7[0].a[0]);
+  ASSERT(2, gst7[0].a[1]);
+  ASSERT(3, gst7[1].a[0]);
+  ASSERT(4, gst7[1].a[1]);
+  ASSERT(1, gst8.a[0]);
+  ASSERT(2, gst8.a[1]);
+  ASSERT(3, gst8.b[0]);
+  ASSERT(4, gst8.b[1]);
+  ASSERT(0x01020304, gun4[0].a);
+  ASSERT(4, gun4[0].b[0]);
+  ASSERT(3, gun4[0].b[1]);
+  ASSERT(0, gun4[1].a);
+  ASSERT(0, gun4[1].b[0]);
+  ASSERT(0, gun4[1].b[1]);
+  ASSERT(0, strcmp(g17[0], "foo"));
+  ASSERT(0, strcmp(g17[1], "bar"));
+  // local and global variable have a same initializer
+  ASSERT(0x01020304, ({union { int a; char b[8]; } lun[2] = {0x01020304, 0x05060708}; lun[0].a;}));
+  ASSERT(4, ({union { int a; char b[8]; } lun[2] = {0x01020304, 0x05060708}; lun[0].b[0];}));
+  ASSERT(3, ({union { int a; char b[8]; } lun[2] = {0x01020304, 0x05060708}; lun[0].b[1];}));
   
+
   /* error
     ASSERT(2, ({struct { struct { char a; char b; } x; } gst5 = { {1, 2} }; char *p = gst5.x + 1; *p;})); //gcc compile error
   */
