@@ -38,6 +38,9 @@ struct { char a[2]; char b[2]; } gst8 = { 1, 2, 3, 4 };
 union { int a; char b[8]; } gun4[2] = {0x01020304, 0x05060708};
 char g17[][4] = {'f', 'o', 'o', 0, 'b', 'a', 'r', 0};
 
+char *g18 = {"foo"};
+int g19 = {1};
+
 /* error
   int g2 = g1 + 1;
   int g13 = g1 ? 2 : 3;
@@ -194,10 +197,14 @@ int main() {
   ASSERT(0, gun4[1].b[1]);
   ASSERT(0, strcmp(g17[0], "foo"));
   ASSERT(0, strcmp(g17[1], "bar"));
+
   // local and global variable have a same initializer
   ASSERT(0x01020304, ({union { int a; char b[8]; } lun[2] = {0x01020304, 0x05060708}; lun[0].a;}));
   ASSERT(4, ({union { int a; char b[8]; } lun[2] = {0x01020304, 0x05060708}; lun[0].b[0];}));
   ASSERT(3, ({union { int a; char b[8]; } lun[2] = {0x01020304, 0x05060708}; lun[0].b[1];}));
+
+  ASSERT(0, strcmp(g18, "foo"));
+  ASSERT(1, g19);
   
 
   /* error

@@ -718,6 +718,20 @@ static void initializer(Token **rest, Token *token, Initializer *init) {
     return;
   }
 
+
+  /*
+    {}で囲まれている場合の初期化
+    e.g. 
+      char *p = {"abc"};
+      int p = {1};
+  */
+  if (consume(&token, token, "{")) {
+    initializer(&token, token, init);
+    expect(&token, token, "}");
+    *rest = token;
+    return;
+  }
+
   /*
     上記のarray_initializer()内のforループで配列のそれぞれの要素に対して再帰的に初期化を行う
     配列でない場合でもそのままassignが成り立つ
