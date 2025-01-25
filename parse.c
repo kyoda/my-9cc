@@ -614,13 +614,16 @@ static void struct_initializer2(Token **rest, Token *token, Initializer *init) {
 }
 
 /*
-  union-initializer1 ::= "{" initializer ("," initializer)* "}"
+  union-initializer ::= "{" initializer ("," dumy-initializer)* "}"
+                     || initializer
 */
-static void union_initializer1(Token **rest, Token *token, Initializer *init) {
+static void union_initializer(Token **rest, Token *token, Initializer *init) {
   // unionの場合は、最初の要素のみ初期化する
   bool first = true;
   Initializer *dummy = new_initializer(init->ty, false);
-  if (consume(&token, token, "{")){
+
+  if (consume(&token, token, "{")) {
+    // "{"がある場合はその中はUNIONメンバーとしてみる。ただし、初期化は最初の要素のみ。
     for (Member *mem = init->ty->members; mem && !equal(token, "}"); mem = mem->next) {
       if (first) {
         initializer(&token, token, init->children[0]);
@@ -630,27 +633,28 @@ static void union_initializer1(Token **rest, Token *token, Initializer *init) {
         initializer(&token, token, dummy);
       }
     }
+
     expect(&token, token, "}");
-  }
-
-  *rest = token;
-}
-
-/*
-  union-initializer2 ::= initializer ("," initializer)*
-*/
-static void union_initializer2(Token **rest, Token *token, Initializer *init) {
-  // unionの場合は、最初の要素のみ初期化する
-  bool first = true;
-  Initializer *dummy = new_initializer(init->ty, false);
-  for (Member *mem = init->ty->members; mem && !equal(token, "}"); mem = mem->next) {
-    if (first) {
-      initializer(&token, token, init->children[0]);
-      first = false;
-    } else {
-      expect(&token, token, ",");
-      initializer(&token, token, dummy);
+  } else {
+    /*
+      type union T; T y; T x = y;
+      yというunion Tの変数を初期化式で代入するような場合の処理
+    */
+    Node *expr = assign(rest, token);
+    add_type(expr);
+    if (expr->ty->kind == TY_UNION) {
+      init->expr = expr;
+      return;
     }
+
+    /*
+      "{"がない場合も最初の要素をUNIONメンバーとみなし初期化するが、","が続いた場合の値は、UNIONメンバーとしてみない。
+      次のtoken処理を行う
+
+      e.g. union T {int a; int b;} x[2] = {1, 2};
+      この場合、x[0].a = 1, x[1].a = 2となる
+    */
+    initializer(&token, token, init->children[0]);
   }
 
   *rest = token;
@@ -701,20 +705,7 @@ static void initializer(Token **rest, Token *token, Initializer *init) {
   }
 
   if (init->ty->kind == TY_UNION) {
-    if (equal(token, "{")) {
-      union_initializer1(rest, token, init);
-      return;
-    }
-
-    // type union T; T y; T x = y;
-    Node *expr = assign(rest, token);
-    add_type(expr);
-    if (expr->ty->kind == TY_UNION) {
-      init->expr = expr;
-      return;
-    }
-
-    union_initializer2(rest, token, init);
+    union_initializer(rest, token, init);
     return;
   }
 

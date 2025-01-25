@@ -122,6 +122,8 @@ int main() {
   ASSERT(0x56, ({ union {int a; char b[5]; } x = { 0x123456, 0x12345678 }; x.b[0]; }));
   ASSERT(0x0, ({ union {int a; char b[4]; } x = { 0x123456, 0x12345678 }; x.b[3]; }));
   ASSERT(0x78563412, ({ union { struct { char a, b, c, d; } e; int f; } x = { { 0x12, 0x34, 0x56, 0x78 } }; x.f; }));
+  ASSERT(0x123456, ({ typedef union {int a; char b[5]; } T; T x = { 0x123456 }; T y = x; x.a; }));
+  ASSERT(0x123456, ({ typedef union {int a; char b[5]; } T; T x = { 0x123456 }; T y = x; y.a; }));
   ASSERT(0x56, ({ typedef union {int a; char b[5]; } T; T x = { 0x123456 }; T y = x; y.b[0]; }));
 
   ASSERT(1, gchar1);
@@ -192,9 +194,13 @@ int main() {
   ASSERT(0x01020304, gun4[0].a);
   ASSERT(4, gun4[0].b[0]);
   ASSERT(3, gun4[0].b[1]);
-  ASSERT(0, gun4[1].a);
-  ASSERT(0, gun4[1].b[0]);
-  ASSERT(0, gun4[1].b[1]);
+  ASSERT(2, gun4[0].b[2]);
+  ASSERT(1, gun4[0].b[3]);
+  ASSERT(0x05060708, gun4[1].a);
+  ASSERT(8, gun4[1].b[0]);
+  ASSERT(7, gun4[1].b[1]);
+  ASSERT(6, gun4[1].b[2]);
+  ASSERT(5, gun4[1].b[3]);
   ASSERT(0, strcmp(g17[0], "foo"));
   ASSERT(0, strcmp(g17[1], "bar"));
 
