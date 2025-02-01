@@ -1045,7 +1045,7 @@ static void struct_member(Token **rest, Token *token, Type *ty) {
     Type *basety = declspec(&token, token, NULL);
 
     int i = 0;
-    while (!equal(token, ";")) {
+    while (!consume(&token, token, ";")) {
       if (i > 0) {
         expect(&token, token, ",") ;
       }
@@ -1057,9 +1057,15 @@ static void struct_member(Token **rest, Token *token, Type *ty) {
       mem->idx = idx++;
       cur = cur->next = mem;
     }
+  }
 
-    // ";"
-    token = token->next;
+  /*
+    flexible array member
+    ヘッダー + ペイロード(可変長)のような構造体を作成する際に利用する
+    type_suffixで incommplete arrayの場合、sizeは-1としている
+  */
+  if (cur != &head && cur->ty->kind == TY_ARRAY && cur->ty->array_len < 0) {
+    cur->ty = ty_array(cur->ty->base, 0);
   }
 
   ty->members = head.next;

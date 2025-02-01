@@ -45,6 +45,8 @@ int main() {
   //ASSERT(4, ({ sizeof(3--);})); //gcc error
 
   ASSERT(8, ({ sizeof(int (*)[][3]);}));
+  
+  ASSERT(4, ({ sizeof(struct { int a, b[]; });}));
 
   /* error
     ASSERT(8, ({ sizeof(int (*)[3][]);})); //gcc error
