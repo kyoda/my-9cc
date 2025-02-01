@@ -211,10 +211,13 @@ int main() {
 
   ASSERT(0, strcmp(g18, "foo"));
   ASSERT(1, g19);
-  
+  ASSERT(1, ({char a[] = {1, 2,}; a[0];}));
+  ASSERT(1, ({struct {int a; int b;} x = {1, 2,}; x.a;}));
+  ASSERT(1, ({union {int a; int b;} x = {1,}; x.a;}));
+  ASSERT(2, ({enum {a, b, c,}; c;}));
 
   /* error
-    ASSERT(2, ({struct { struct { char a; char b; } x; } gst5 = { {1, 2} }; char *p = gst5.x + 1; *p;})); //gcc compile error
+    ASSERT(2, ({struct { struct { char a; char b; } x; } lst5 = { {1, 2} }; char *p = lst5.x; *(p+1);})); //gcc compile error
   */
 
   printf("OK\n");

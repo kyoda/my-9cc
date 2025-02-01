@@ -41,8 +41,6 @@ int main() {
   ASSERT(3, ({ struct t {int a;} x; struct t *y = &x; x.a = 3; y->a;}));
   ASSERT(3, ({ struct t {int a;} x; struct t *y = &x; y->a = 3; x.a;}));
 
-  //ASSERT(3, ({ struct t {int a;} x; int *y = x; x.a = 3; *y;})); //gcc error
-
   ASSERT(16, ({ struct {long a; char b;} x; sizeof(x);}));
   ASSERT(4, ({ struct {short a; char b;} x; sizeof(x);}));
 
@@ -55,6 +53,8 @@ int main() {
   ASSERT(4, ({ typedef struct T T; struct T { int a; }; sizeof(T);}));
 
   /* error
+    ASSERT(3, ({ struct t {int a;} x; int *y = x; x.a = 3; *y;})); //gcc error
+    ASSERT(4, ({ struct { int a; int a; } x = { 4, 3 }; x.a;})); //gcc error
     ASSERT(-1, ({ typedef struct stag val; sizeof(val);})); //gcc error
   */
 

@@ -359,6 +359,24 @@ bool at_eof(Token *token) {
   return token->kind == TK_EOF;
 }
 
+bool is_end(Token *token) {
+  return equal(token, "}") || equal(token, ",") && equal(token->next, "}");
+}
+
+bool consume_end(Token **rest, Token *token) {
+  if (equal(token, "}")) {
+    *rest = token->next;
+    return true;
+  }
+
+  if (equal(token, ",") && equal(token->next, "}")) {
+    *rest = token->next->next;
+    return true;
+  }
+
+  return false;
+}
+
 // ND_ASSIGNの左辺の準備
 static Node *init_desg_expr(InitDesignator *desg, Token *token) {
   if (desg->var) {
@@ -495,7 +513,7 @@ static int count_array_elements(Token *token, Type *ty) {
   Initializer *dummy = new_initializer(ty, false);
 
   int i = 0;
-  for (; !equal(token, "}"); i++) {
+  for (; !is_end(token); i++) {
     if (i > 0) {
       expect(&token, token, ",");
     }
@@ -538,7 +556,7 @@ static void array_initializer1(Token **rest, Token *token, Initializer *init) {
     *init = *new_initializer(ty_array(init->ty->base, len), false);
   }
 
-  for (int i = 0; !consume(&token, token, "}"); i++) {
+  for (int i = 0; !consume_end(&token, token); i++) {
     if (i > 0) {
       expect(&token, token, ",");
     }
@@ -564,7 +582,7 @@ static void array_initializer2(Token **rest, Token *token, Initializer *init) {
     *init = *new_initializer(ty_array(init->ty->base, len), false);
   }
 
-  for (int i = 0; i < init->ty->array_len && !equal(token, "}"); i++) {
+  for (int i = 0; i < init->ty->array_len && !is_end(token); i++) {
     if (i > 0) {
       expect(&token, token, ",");
     }
@@ -582,7 +600,7 @@ static void struct_initializer1(Token **rest, Token *token, Initializer *init) {
   expect(&token, token, "{");
 
   Member *mem = init->ty->members;
-  while (!consume(rest, token, "}")) {
+  while (!consume_end(rest, token)) {
     if (mem != init->ty->members) {
       expect(&token, token, ",");
     }
@@ -602,7 +620,7 @@ static void struct_initializer1(Token **rest, Token *token, Initializer *init) {
 static void struct_initializer2(Token **rest, Token *token, Initializer *init) {
   bool first = true;
 
-  for (Member *mem = init->ty->members; mem && !equal(token, "}"); mem = mem->next) {
+  for (Member *mem = init->ty->members; mem && !is_end(token); mem = mem->next) {
     if (!first) {
       expect(&token, token, ",");
     }
@@ -624,7 +642,7 @@ static void union_initializer(Token **rest, Token *token, Initializer *init) {
 
   if (consume(&token, token, "{")) {
     // "{"がある場合はその中はUNIONメンバーとしてみる。ただし、初期化は最初の要素のみ。
-    for (Member *mem = init->ty->members; mem && !equal(token, "}"); mem = mem->next) {
+    for (Member *mem = init->ty->members; mem && !is_end(token); mem = mem->next) {
       if (first) {
         initializer(&token, token, init->children[0]);
         first = false;
@@ -634,6 +652,7 @@ static void union_initializer(Token **rest, Token *token, Initializer *init) {
       }
     }
 
+    consume(&token, token, ",");
     expect(&token, token, "}");
   } else {
     /*
@@ -1192,8 +1211,9 @@ static Type *enum_specifier(Token **rest, Token *token) {
 
   //enum-list
   int i = 0;
+  // enumの初期値は0から始まる
   int64_t val = 0;
-  while (!equal(token, "}")) {
+  while (!is_end(token)) {
     if (i++ > 0) {
       expect(&token, token, ",");
     }
@@ -1211,6 +1231,7 @@ static Type *enum_specifier(Token **rest, Token *token) {
     vs->enum_val = val++;
   }
 
+  consume(&token, token, ",");
   expect(&token, token, "}");
 
   if (token_tag) {
