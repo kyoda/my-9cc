@@ -586,10 +586,11 @@ static void emit_data(Obj *prog) {
       continue;
     }
 
-    println("  .data");
     println("  .global %s", var->name);
-    println("%s:", var->name);
     if (var->init_data) {
+      println("  .data");
+      println("%s:", var->name);
+
       Relocation *rel = var->rel;
       int pos = 0;
       while (pos < var->ty->size) {
@@ -603,9 +604,16 @@ static void emit_data(Obj *prog) {
           println("  .byte %d", var->init_data[pos++]);
         }
       }
-    } else {
-      println("  .zero %d", var->ty->align);
+      continue;
     }
+
+    /*
+      初期化されていない変数は.bssに配置
+      実際の0埋めのデータが実行ファイルには含まれないため実行ファイルサイズを小さくできる
+    */
+    println("  .bss");
+    println("%s:", var->name);
+    println("  .zero %d", var->ty->align);
   }
 
 }
