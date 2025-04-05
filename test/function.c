@@ -1,6 +1,6 @@
 #include "test.h"
 
-int ret3() { return 3; }
+int ret3(void) { return 3; }
 int add2(int a, int b) { return a + b; }
 int sub2(int a, int b) { return a - b; }
 int add6(int a, int b, int c, int d, int e, int f) { return a + b + c + d + e + f; }
@@ -11,7 +11,7 @@ int cal6(int a, int b, int c, int d, int e, int f) { return f + e / b - c - a - 
 int sub_long(long a, long b, long c) { return a - b - c;}
 int sub_short(long a, long b, long c) { return a - b - c;}
 int g1;
-int *g1_ptr() { return &g1; }
+int *g1_ptr(void) { return &g1; }
 char int_to_char(int x) { return x; }
 int div_long(long a, long b) { return a / b;}
 int arg_char(char a) { return a; }
@@ -19,7 +19,7 @@ int arg_char(char a) { return a; }
 _Bool add_bool(_Bool a) { return a + 1; }
 _Bool sub_bool(_Bool a) { return a - 1; }
 
-static int static_func() { return 1; }
+static int static_func(void) { return 1; }
 
 int param_decay(int a[]) { return a[0]; }
 

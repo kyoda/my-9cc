@@ -1563,8 +1563,13 @@ static Type *type_suffix(Token **rest, Token *token, Type *ty) {
   return ty;
 }
 
-// func-params ::= "(" (declspec declarator ("," declspec declarator)*)? ")"
+// func-params ::= "(" "void" | (declspec declarator ("," declspec declarator)*)? ")"
 static Type *func_params(Token **rest, Token *token, Type *ty) {
+  if (equal(token, "void") && equal(token->next, ")")) {
+    *rest = token->next->next;
+    return ty_func(ty);
+  }
+
   Type head = {};
   Type *cur = &head;
 
