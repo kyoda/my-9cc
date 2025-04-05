@@ -35,11 +35,21 @@ struct { int a[2]; } gst6[2] = { { {1, 2} } };
 int gint7[2][2] = {{1, 2}, 3, 4};
 struct { int a[2]; } gst7[2] = { 1, 2, {3, 4} };
 struct { char a[2]; char b[2]; } gst8 = { 1, 2, 3, 4 };
+struct { char a, b[2]; } gst9 = { 1, 2, 3 };
 union { int a; char b[8]; } gun4[2] = {0x01020304, 0x05060708};
 char g17[][4] = {'f', 'o', 'o', 0, 'b', 'a', 'r', 0};
 
 char *g18 = {"foo"};
 int g19 = {1};
+
+typedef char T1[];
+T1 t1 = {1, 2, 3};
+T1 t2 = {1, 2, 3, 4, 5};
+
+typedef struct { char a, b[]; } T2;
+T2 t3 = {'f', {'o', 'o', 0}};
+T2 t4 = {'f', 'o', 'o', 0};
+
 
 /* error
   int g2 = g1 + 1;
@@ -52,6 +62,7 @@ int g19 = {1};
 int main() {
   ASSERT(0, ({ int a = 0; int b = a; b; }));
   ASSERT(0, ({ int a[0] = {}; 0; }));
+  ASSERT(0, ({ int a[0] = {}; sizeof(a); }));
   ASSERT(1, ({ int a[3][3] = {{1, 2, 3}, {4, 5, 6}, {7, 8, 9}}; a[0][0]; }));
   ASSERT(2, ({ int a[3][3] = {{1, 2, 3}, {4, 5, 6}, {7, 8, 9}}; a[0][1]; }));
   ASSERT(3, ({ int a[3][3] = {{1, 2, 3}, {4, 5, 6}, {7, 8, 9}}; a[0][2]; }));
@@ -216,8 +227,23 @@ int main() {
   ASSERT(1, ({union {int a; int b;} x = {1,}; x.a;}));
   ASSERT(2, ({enum {a, b, c,}; c;}));
 
+  ASSERT(3, sizeof(gst9));
+
+  ASSERT(3, sizeof(t1));
+  ASSERT(5, sizeof(t2));
+  ASSERT(4, sizeof(t3));
+  ASSERT(4, sizeof(t4));
+
+  ASSERT('f', t3.a);
+  ASSERT('f', t4.a);
+  ASSERT(0, strcmp(t3.b, "oo"));
+  ASSERT(0, strcmp(t4.b, "oo"));
+
+
   /* error
     ASSERT(2, ({struct { struct { char a; char b; } x; } lst5 = { {1, 2} }; char *p = lst5.x; *(p+1);})); //gcc compile error
+    //C言語でサポートしていない (初期化時にはOK)
+    ASSERT(2, ({ char a[2]; a = {'a', 'b'}; sizeof(a);}));
   */
 
   printf("OK\n");

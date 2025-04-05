@@ -63,6 +63,12 @@ Type *ty_func(Type *base) {
   return ty;
 }
 
+Type *cp_type(Type *ty) {
+  Type *new_ty = calloc(1, sizeof(Type));
+  *new_ty = *ty;
+  return new_ty;
+}
+
 static Type *get_common_type(Type *ty1, Type *ty2) {
   // ty1 is pointer
   if (ty1->base) {

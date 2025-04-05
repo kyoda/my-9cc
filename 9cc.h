@@ -153,7 +153,9 @@ struct Type {
   Type *next; //params
 
   Token *token; // declaration
-  Member *members; // struct member
+  // struct
+  Member *members;
+  bool is_flexible; // flexible array member
 };
 
 // function and variable

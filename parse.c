@@ -37,7 +37,8 @@ struct InitDesignator {
 
 static Type *declspec(Token **rest, Token *token, VarAttr *attr);
 static Node *lvar_initializer(Token **rest, Token *token, Obj *var);
-static void initializer(Token **rest, Token *token, Initializer *init);
+static Initializer *initializer(Token **rest, Token *token, Type *ty, Type **new_ty);
+static void initializer2(Token **rest, Token *token, Initializer *init);
 static int64_t eval(Node *n);
 static int64_t eval2(Node *n, char **label);
 static int64_t eval_rval(Node *n, char **label);
@@ -182,11 +183,32 @@ static VarScope *push_scope(char *name) {
   return v;
 }
 
+static Type *cp_struct_type(Type *ty) {
+  ty = cp_type(ty);
+
+  Member head = {};
+  Member *cur = &head;
+  for (Member *m = ty->members; m; m = m->next) {
+    Member *mem = calloc(1, sizeof(Member));
+    *mem = *m;
+    cur = cur->next = mem;
+  }
+
+  ty->members = head.next;
+  
+  return ty;
+}
+
 static Initializer *new_initializer(Type *ty, bool is_flexible) {
   Initializer *init = calloc(1, sizeof(Initializer));
   init->ty = ty;
 
   if (ty->kind == TY_ARRAY) {
+    //if (is_flexible && ty->size == 0) {
+    //  init->is_flexible = true;
+    //  return init;
+    //}
+
     if (is_flexible && ty->size < 0) {
       init->is_flexible = true;
       return init;
@@ -208,7 +230,20 @@ static Initializer *new_initializer(Type *ty, bool is_flexible) {
     init->children = calloc(len, sizeof(Initializer *));
 
     for (Member *mem = ty->members; mem; mem = mem->next) {
-      init->children[mem->idx] = new_initializer(mem->ty, false);
+      /*
+        flexible array member (structの最後のメンバーが配列の場合)
+        再帰的にnew_initializer()を呼び出すと通常のarray処理となりsizeが0の処理はない
+          //init->children[mem->idx] = new_initializer(mem->ty, true);
+        new_initializer()のarray側に処理を書くと、flexible array member処理固有のものとならない(最後のメンバーかどうかわからない)ためここで処理する
+      */
+      if (is_flexible && ty->is_flexible && !mem->next) {
+        Initializer *child = calloc(1, sizeof(Initializer));
+        child->ty = mem->ty;
+        child->is_flexible = true;
+        init->children[mem->idx] = child;
+      } else {
+        init->children[mem->idx] = new_initializer(mem->ty, false);
+      }
     }
 
     return init;
@@ -517,7 +552,7 @@ static int count_array_elements(Token *token, Type *ty) {
     if (i > 0) {
       expect(&token, token, ",");
     }
-    initializer(&token, token, dummy);
+    initializer2(&token, token, dummy);
   }
 
   return i;
@@ -562,7 +597,7 @@ static void array_initializer1(Token **rest, Token *token, Initializer *init) {
     }
 
     if (i < init->ty->array_len) {
-      initializer(&token, token, init->children[i]);
+      initializer2(&token, token, init->children[i]);
     } else {
       // a[1] = {1, 2, 3}のように、配列の要素数を超える初期化の場合はスキップ
       token = skip_excess_elements(token);
@@ -587,7 +622,7 @@ static void array_initializer2(Token **rest, Token *token, Initializer *init) {
       expect(&token, token, ",");
     }
 
-    initializer(&token, token, init->children[i]);
+    initializer2(&token, token, init->children[i]);
   }
 
   *rest = token;
@@ -606,7 +641,7 @@ static void struct_initializer1(Token **rest, Token *token, Initializer *init) {
     }
 
     if (mem) {
-      initializer(&token, token, init->children[mem->idx]);
+      initializer2(&token, token, init->children[mem->idx]);
       mem = mem->next;
     } else {
       token = skip_excess_elements(token);
@@ -625,7 +660,7 @@ static void struct_initializer2(Token **rest, Token *token, Initializer *init) {
       expect(&token, token, ",");
     }
     first = false;
-    initializer(&token, token, init->children[mem->idx]);
+    initializer2(&token, token, init->children[mem->idx]);
   }
 
   *rest = token;
@@ -644,11 +679,11 @@ static void union_initializer(Token **rest, Token *token, Initializer *init) {
     // "{"がある場合はその中はUNIONメンバーとしてみる。ただし、初期化は最初の要素のみ。
     for (Member *mem = init->ty->members; mem && !is_end(token); mem = mem->next) {
       if (first) {
-        initializer(&token, token, init->children[0]);
+        initializer2(&token, token, init->children[0]);
         first = false;
       } else {
         expect(&token, token, ",");
-        initializer(&token, token, dummy);
+        initializer2(&token, token, dummy);
       }
     }
 
@@ -673,7 +708,7 @@ static void union_initializer(Token **rest, Token *token, Initializer *init) {
       e.g. union T {int a; int b;} x[2] = {1, 2};
       この場合、x[0].a = 1, x[1].a = 2となる
     */
-    initializer(&token, token, init->children[0]);
+    initializer2(&token, token, init->children[0]);
   }
 
   *rest = token;
@@ -686,7 +721,7 @@ static void union_initializer(Token **rest, Token *token, Initializer *init) {
                 | union-initializer
                 | assign
 */
-static void initializer(Token **rest, Token *token, Initializer *init) {
+static void initializer2(Token **rest, Token *token, Initializer *init) {
   if (init->ty->kind == TY_ARRAY && token->kind == TK_STR) {
     string_initializer(rest, token, init);
     return;
@@ -736,7 +771,7 @@ static void initializer(Token **rest, Token *token, Initializer *init) {
       int p = {1};
   */
   if (consume(&token, token, "{")) {
-    initializer(&token, token, init);
+    initializer2(&token, token, init);
     expect(&token, token, "}");
     *rest = token;
     return;
@@ -749,11 +784,48 @@ static void initializer(Token **rest, Token *token, Initializer *init) {
   init->expr = assign(rest, token);
 }
 
-//declaration内でassign時に呼び出される
+static Initializer *initializer(Token **rest, Token *token, Type *ty, Type **new_ty) {
+  Initializer *init = new_initializer(ty, true);
+  // initializer2()で再帰処理を行う
+  initializer2(rest, token, init);
+
+  // flexible array memberの確定したsizeを更新
+  if ((ty->kind == TY_STRUCT || ty->kind == TY_UNION) && ty->is_flexible) {
+    /*
+      initializerに組み込んだtyの値を書き換えてしまう可能性があるためcpしている:w
+    */
+    ty = cp_struct_type(ty);
+    Member *mem = ty->members;
+    while (mem->next) {
+      mem = mem->next;
+    }
+
+    // 元のtypeリストはarray_lenサイズが更新されていないため、更新しているinit側のtypeを渡している
+    mem->ty = init->children[mem->idx]->ty;
+    //structのtypeサイズにflexible array sizeで確定したサイズを加算
+    ty->size += init->children[mem->idx]->ty->size;
+
+    *new_ty = ty;
+
+    return init;
+  }
+
+  *new_ty = init->ty;
+
+  return init;
+}
+
+/*
+  declaration内でassign時に呼び出される
+  e.g. int a = 1;
+             ^
+  declaration -> assign -> lvar_initializer -> new_initializer
+  new_initializerでtypeリストを処理しながらcalloc()で初期化された構造体を返す
+  new_initializer()の第2引数は、is_flexibleで初期化式として初回はtrueで呼び出される
+  initializerでtokenリストを処理しながら代入するnodeを格納する
+*/
 static Node *lvar_initializer(Token **rest, Token *token, Obj *var) {
-  Initializer *init = new_initializer(var->ty, true);
-  initializer(rest, token, init);
-  var->ty = init->ty;
+  Initializer *init = initializer(rest, token, var->ty, &var->ty);
   InitDesignator desg = {NULL, 0, NULL, var};
 
   //ユーザ指定の初期値を入れる前に、0で初期化
@@ -922,9 +994,7 @@ static Relocation *write_gvar_data(Relocation *cur, Initializer *init, Type *ty,
   int *g2 = g1 + 1 --> ポインタ計算はOK
 */
 static void *gvar_initializer(Token **rest, Token *token, Obj *var) {
-  Initializer *init = new_initializer(var->ty, true);
-  initializer(rest, token, init);
-  var->ty = init->ty;
+  Initializer *init = initializer(rest, token, var->ty, &var->ty);
 
   Relocation head = {};
   char *buf = calloc(1, var->ty->size);
@@ -1060,12 +1130,13 @@ static void struct_member(Token **rest, Token *token, Type *ty) {
   }
 
   /*
-    flexible array member
+    flexible array member (structの最後のmemberがincomplete配列の場合)
     ヘッダー + ペイロード(可変長)のような構造体を作成する際に利用する
     type_suffixで incommplete arrayの場合、sizeは-1としている
   */
   if (cur != &head && cur->ty->kind == TY_ARRAY && cur->ty->array_len < 0) {
     cur->ty = ty_array(cur->ty->base, 0);
+    ty->is_flexible = true;
   }
 
   ty->members = head.next;
