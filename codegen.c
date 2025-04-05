@@ -587,6 +587,11 @@ static void emit_data(Obj *prog) {
     }
 
     println("  .global %s", var->name);
+    /*
+      .alignディレクティブを使うことで型ごとの適切なデータ配置を行う(CPUによってはアライメントが必要)
+    */
+    println("  .align %d", var->ty->align);
+
     if (var->init_data) {
       println("  .data");
       println("%s:", var->name);
