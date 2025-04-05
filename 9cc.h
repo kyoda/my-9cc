@@ -238,6 +238,7 @@ struct Scope {
 typedef struct {
   bool is_typedef;
   bool is_static;
+  bool is_extern;
 } VarAttr;
 
 Node *new_cast(Node *lhs, Type *ty, Token *token);

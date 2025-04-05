@@ -296,6 +296,7 @@ static Obj *new_gvar(char *name, Type *ty) {
 
   Obj *gvar = new_var(name, ty);
   gvar->next = globals;
+  gvar->is_definition = true;
   globals = gvar;
 
   return gvar;
@@ -846,7 +847,7 @@ static bool is_function(Token *token) {
 
 static bool is_type(Token *token) {
   char *kw[] = {
-    "_Bool", "void", "char", "short", "int", "long", "struct", "union", "enum", "typedef", "static"
+    "_Bool", "void", "char", "short", "int", "long", "struct", "union", "enum", "typedef", "static", "extern"
   };
   for (int i = 0; i < sizeof(kw) / sizeof(*kw); i++) {
     if (equal(token, kw[i])) {
@@ -1003,7 +1004,7 @@ static void *gvar_initializer(Token **rest, Token *token, Obj *var) {
   var->rel = head.next;
 }
 
-static void *global_variable (Token **rest, Token *token, Type *basety) {
+static void *global_variable (Token **rest, Token *token, Type *basety, VarAttr *attr) {
     int i = 0;
     while (!equal(token, ";")) {
       if (i > 0) {
@@ -1014,6 +1015,11 @@ static void *global_variable (Token **rest, Token *token, Type *basety) {
       Type *ty = declarator(&token, token, basety);
 
       Obj *gvar = new_gvar(get_ident_name(ty->token), ty);
+      /*
+        gvarの作成時は、is_definitionはtrueであるが、
+        externの場合は、codegenのemit_dataで処理しないためにis_definitionをfalseにする
+      */
+      gvar->is_definition = !attr->is_extern;
 
       if (consume(&token, token, "=")) {
         gvar_initializer(&token, token, gvar);
@@ -1063,7 +1069,7 @@ Obj *parse(Token *token) {
       continue;
     }
 
-    global_variable(&token, token, basety);
+    global_variable(&token, token, basety, &attr);
   }
 
   return globals;
@@ -1322,7 +1328,7 @@ static Type *enum_specifier(Token **rest, Token *token) {
 /*
   declspec ::= ("_Bool" || "void" || "char" || "short" || "int" || "long"
             || "struct-decl" || "union-decl" || "enum-specifier"
-            || "typedef" || "static" || typedef-name)+
+            || "typedef" || "static" || "extern" || typedef-name)+
 */
 static Type *declspec(Token **rest, Token *token, VarAttr *attr) {
   enum {
@@ -1339,8 +1345,7 @@ static Type *declspec(Token **rest, Token *token, VarAttr *attr) {
   int counter = 0; 
 
   while (is_type(token)) {
-    //"typedef" or "static"
-    if (equal(token, "typedef") || equal(token, "static")) {
+    if (equal(token, "typedef") || equal(token, "static") || equal(token, "extern")) {
       if (!attr) {
         error(token->loc, "%s", "typedef or static is not allowed");
       }
@@ -1349,10 +1354,12 @@ static Type *declspec(Token **rest, Token *token, VarAttr *attr) {
         attr->is_typedef = true;
       } else if (equal(token, "static")) {
         attr->is_static = true;
+      } else {
+        attr->is_extern = true;
       }
 
-      if (attr->is_typedef && attr->is_static) {
-        error(token->loc, "%s", "typedef and static may not be used together ");
+      if (attr->is_typedef && (attr->is_static || attr->is_extern)) {
+        error(token->loc, "%s", "typedef may not be used together with static or extern");
       }
 
       token = token->next;

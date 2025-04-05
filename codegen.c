@@ -582,7 +582,7 @@ static void align_stack_size(Obj *prog) {
 
 static void emit_data(Obj *prog) {
   for (Obj *var = prog; var; var = var->next) {
-    if (var->is_function) {
+    if (var->is_function || !var->is_definition) {
       continue;
     }
 
