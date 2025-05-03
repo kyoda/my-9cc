@@ -42,10 +42,11 @@ static void initializer2(Token **rest, Token *token, Initializer *init);
 static int64_t eval(Node *n);
 static int64_t eval2(Node *n, char **label);
 static int64_t eval_rval(Node *n, char **label);
-static Node *declaration(Token **rest, Token *token);
+static Node *declaration(Token **rest, Token *token, Type *basety);
 static Type *declarator(Token **rest, Token *token, Type *ty);
 static Type *type_suffix(Token **rest, Token *token, Type *ty);
 static Type *func_params(Token **rest, Token *token, Type *ty);
+static Node *compound_stmt(Token **rest, Token *token);
 static Node *stmt(Token **rest, Token *token);
 static Node *expr_stmt(Token **rest, Token *token);
 static Node *expr(Token **rest, Token *token);
@@ -905,7 +906,7 @@ static void *function (Token **rest, Token *token, Type *basety, VarAttr *attr) 
 
   fn->params = locals;
 
-  fn->body = stmt(&token, token);
+  fn->body = compound_stmt(&token, token);
   add_type(fn->body);
   fn->locals = locals;
 
@@ -1443,20 +1444,9 @@ static Type *declspec(Token **rest, Token *token, VarAttr *attr) {
 }
 
 /*
-  declaration ::= declspec parse_typedef
-               || declspec (declarator ("=" expr)? ("," declarator ("=" expr)?)*)? ";"
+  declaration ::= (declarator ("=" expr)? ("," declarator ("=" expr)?)*)? ";"
 */
-static Node *declaration(Token **rest, Token *token) {
-    VarAttr attr = {};
-    Type *basety = declspec(&token, token, &attr);
-
-    //typedef int t;
-    if (attr.is_typedef) {
-      parse_typedef(&token, token, basety);
-      *rest = token;
-      return new_node(ND_BLOCK, token);
-    }
-
+static Node *declaration(Token **rest, Token *token, Type *basety) {
     Node head = {};
     Node *cur = &head;
     
@@ -1615,55 +1605,82 @@ static Type *func_params(Token **rest, Token *token, Type *ty) {
   return ty;
 }
 
+static Node *compound_stmt(Token **rest, Token *token) {
+  expect(&token, token, "{");
+
+  Node *n = new_node(ND_BLOCK, token);
+  
+  enter_scope();
+
+  Node head = {};
+  Node *cur = &head;
+  while (!equal(token, "}")) {
+
+    /*
+      ::= declspec parse_typedef
+       || declspec declaration
+       || declspec function
+
+      type(int, typedef, etc..)
+        exclude label ":"
+    */
+    if (is_type(token) && !equal(token->next, ":")) {
+      VarAttr attr = {};
+      Type *basety = declspec(&token, token, &attr);
+
+      //typedef int t;
+      if (attr.is_typedef) {
+        parse_typedef(&token, token, basety);
+        continue;
+      }
+
+      /*
+        function内のfunction宣言
+        例: int func(int a);
+      */
+      //if (is_function(token)) {
+      //  function(&token, token, basety, &attr);
+      //  continue;
+      //}
+
+      cur = cur->next = declaration(&token, token, basety); 
+    } else {
+      cur = cur->next = stmt(&token, token);
+    }
+  }
+  
+  add_type(cur);
+
+  expect(&token, token, "}");
+
+  leave_scope();
+
+  n->body = head.next;
+
+  *rest = token;
+  return n;
+}
+
 /*
-  stmt = "{" stmt* "}"
-       | typedef
-       | declaration
-       | "return" expr ";"
-       | "if" "(" expr ")" stmt ("else" stmt)?
-       | "while" "(" expr ")" stmt
-       | "for" "(" expr? ";" expr? ";" expr? ";"  ")" stmt
-       | "switch" "(" expr ")" stmt
-       | "case" num ":" stmt
-       | "default" ":" stmt
-       | "goto" ident ";"
-       | "break" ";"
-       | "continue" ";"
-       | ident ":" stmt
-       | expr-stmt
+  stmt ::= compound-stmt
+         | "return" expr ";"
+         | "if" "(" expr ")" stmt ("else" stmt)?
+         | "while" "(" expr ")" stmt
+         | "for" "(" expr? ";" expr? ";" expr? ";"  ")" stmt
+         | "switch" "(" expr ")" stmt
+         | "case" num ":" stmt
+         | "default" ":" stmt
+         | "goto" ident ";"
+         | "break" ";"
+         | "continue" ";"
+         | ident ":" stmt
+         | expr-stmt
 */
 static Node *stmt(Token **rest, Token *token) {
   Node *n;
 
   if (equal(token, "{")) {
-    n = new_node(ND_BLOCK, token);
-    expect(&token, token, "{");
-    
-    enter_scope();
-
-    Node head = {};
-    Node *cur = &head;
-    while (!equal(token, "}")) {
-      cur->next = stmt(&token, token);
-      cur = cur->next;
-    }
-
-    expect(&token, token, "}");
-
-    leave_scope();
-
-    n->body = head.next;
-
-    *rest = token;
-    return n;
-  }
-
-  // type (exclude label ":")
-  if (is_type(token) && !equal(token->next, ":")) {
-    n = declaration(&token, token);
-    add_type(n);
-    *rest = token;
-    return n;
+    return compound_stmt(rest, token);
   }
 
   if (equal(token, "return")) {
@@ -1728,7 +1745,8 @@ static Node *stmt(Token **rest, Token *token) {
     enter_scope();
 
     if (is_type(token)) {
-      n->init = declaration(&token, token);
+      Type *basety = declspec(&token, token, NULL);
+      n->init = declaration(&token, token, basety);
     } else {
       n->init = expr_stmt(&token, token);
     }
@@ -2661,30 +2679,15 @@ static Node *funcall(Token **rest, Token *token) {
 */
 static Node *primary(Token **rest, Token *token) {
   if (equal(token, "(") && equal(token->next, "{")) {
-    token = token->next->next;
-
-    enter_scope();
-
-    Node head = {};
-    Node *cur = &head;
+    token = token->next;
     /*
-      add_type()のND_STMT_EXPRで下記を除外
+      add_type()のND_STMT_EXPRで下記パターンを除外
 
-      + ({stmt+})のstmtの中でreturn
+      + ({compound-stmt+})のcompound-stmtの中でreturn
       + empty block
     */
-    while (!equal(token, "}")) {
-      cur->next = stmt(&token, token);
-      cur = cur->next;
-    }
-
-    expect(&token, token, "}");
-
-    leave_scope();
-
     Node *n = new_node(ND_STMT_EXPR, token);
-    n->body = head.next;
-
+    n->body = compound_stmt(&token, token)->body;
     expect(&token, token, ")");
 
     *rest = token;
