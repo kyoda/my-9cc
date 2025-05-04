@@ -839,6 +839,10 @@ static Node *lvar_initializer(Token **rest, Token *token, Obj *var) {
 }
 
 static bool is_function(Token *token) {
+  if (equal(token, ";")) {
+    return false;
+  }
+
   Type dummy = {};
   // functionかどうか先読みを行う
   Type *ty = declarator(&token, token, &dummy);
@@ -1605,6 +1609,12 @@ static Type *func_params(Token **rest, Token *token, Type *ty) {
   return ty;
 }
 
+/*
+  compound-stmt ::= declspec (parse_typedef | function | extern | global_variable)*
+
+  type(int, typedef, etc..)
+    exclude label ":"
+*/
 static Node *compound_stmt(Token **rest, Token *token) {
   expect(&token, token, "{");
 
@@ -1615,14 +1625,9 @@ static Node *compound_stmt(Token **rest, Token *token) {
   Node head = {};
   Node *cur = &head;
   while (!equal(token, "}")) {
-
     /*
-      ::= declspec parse_typedef
-       || declspec declaration
-       || declspec function
-
       type(int, typedef, etc..)
-        exclude label ":"
+      exclude label ":"
     */
     if (is_type(token) && !equal(token->next, ":")) {
       VarAttr attr = {};
@@ -1638,10 +1643,15 @@ static Node *compound_stmt(Token **rest, Token *token) {
         function内のfunction宣言
         例: int func(int a);
       */
-      //if (is_function(token)) {
-      //  function(&token, token, basety, &attr);
-      //  continue;
-      //}
+      if (is_function(token)) {
+        function(&token, token, basety, &attr);
+        continue;
+      }
+
+      if (attr.is_extern) {
+        global_variable(&token, token, basety, &attr);
+        continue;
+      }
 
       cur = cur->next = declaration(&token, token, basety); 
     } else {
