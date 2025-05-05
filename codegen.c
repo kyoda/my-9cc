@@ -3,6 +3,7 @@
 static Obj *current_fn;
 static FILE *out;
 static int depth;
+static int current_line;
 static void gen_stmt(Node *n);
 static void gen_expr(Node *n);
 static char *argreg64[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
@@ -176,7 +177,10 @@ static void cast(Type *from, Type *to) {
 }
 
 static void gen_expr(Node *n) {
-  println("  .loc 1 %d", n->token->line);
+  if (n->token->line != current_line) {
+    current_line = n->token->line;
+    println("  .loc 1 %d", n->token->line);
+  }
 
   switch (n->kind) {
   case ND_NUM:
@@ -410,9 +414,11 @@ static void gen_expr(Node *n) {
 
 }
 
-
 static void gen_stmt(Node *n) {
-  println("  .loc 1 %d", n->token->line);
+  if (n->token->line != current_line) {
+    current_line = n->token->line;
+    println("  .loc 1 %d", n->token->line);
+  }
 
   int c;
   switch (n->kind) {
