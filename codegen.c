@@ -578,7 +578,7 @@ static void align_stack_size(Obj *prog) {
         char a; int b;
         offset = 0 --> offset = 4(b->offset) --> offset = 4 + 1 --> align_to(5, 1) = 5(a->offset)
       */
-      offset = align_to(offset, var->ty->align);
+      offset = align_to(offset, var->align);
       var->offset = offset;
     }
 
@@ -596,7 +596,7 @@ static void emit_data(Obj *prog) {
     /*
       .alignディレクティブを使うことで型ごとの適切なデータ配置を行う(CPUによってはアライメントが必要)
     */
-    println("  .align %d", var->ty->align);
+    println("  .align %d", var->align);
 
     if (var->init_data) {
       println("  .data");
@@ -624,7 +624,7 @@ static void emit_data(Obj *prog) {
     */
     println("  .bss");
     println("%s:", var->name);
-    println("  .zero %d", var->ty->align);
+    println("  .zero %d", var->align);
   }
 
 }

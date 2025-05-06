@@ -74,10 +74,12 @@ Token *skip(Token *t, char *op) {
 
 static int keyword_len(char *p) {
   char *key[] = {"return", "if", "else", "for", "while", 
-                "_Bool", "void", "char", "short", "int", "long", "sizeof",
-                "struct", "union", "enum", "typedef", "static", "extern",
-                "goto", "break", "continue", "switch", "case",
-                "default"};
+                "_Bool", "void", "char", "short", "int", "long",
+                "struct", "union", "enum",
+                "sizeof", "_Alignof",
+                "typedef", "static", "extern",
+                "goto", "break", "continue", "switch", "case", "default"
+                };
   int key_len;
   for (int i = 0; i < sizeof(key) / sizeof(*key); i++) {
     key_len = strlen(key[i]);

@@ -42,7 +42,7 @@ static void initializer2(Token **rest, Token *token, Initializer *init);
 static int64_t eval(Node *n);
 static int64_t eval2(Node *n, char **label);
 static int64_t eval_rval(Node *n, char **label);
-static Node *declaration(Token **rest, Token *token, Type *basety);
+static Node *declaration(Token **rest, Token *token, Type *basety, VarAttr *attr);
 static Type *declarator(Token **rest, Token *token, Type *ty);
 static Type *type_suffix(Token **rest, Token *token, Type *ty);
 static Type *func_params(Token **rest, Token *token, Type *ty);
@@ -259,6 +259,7 @@ static Obj *new_var(char *name, Type *ty) {
   var->name = name;
   var->len = strlen(name);
   var->ty = ty;
+  var->align = ty->align;
 
   push_scope(name)->var = var;
 
@@ -670,7 +671,7 @@ static void struct_initializer2(Token **rest, Token *token, Initializer *init) {
 
 /*
   union-initializer ::= "{" initializer ("," dumy-initializer)* "}"
-                     || initializer
+                      | initializer
 */
 static void union_initializer(Token **rest, Token *token, Initializer *init) {
   // unionの場合は、最初の要素のみ初期化する
@@ -888,7 +889,9 @@ static void resolve_goto_labels() {
   }
 }
 
-// function ::= declspec declarator ( stmt? | ";")
+/*
+  function ::= declspec declarator ( stmt? | ";")
+*/
 static void *function (Token **rest, Token *token, Type *basety, VarAttr *attr) {
   Type *ty = declarator(&token, token, basety);
   Obj *fn = new_gvar(get_ident_name(ty->token), ty);
@@ -1026,6 +1029,10 @@ static void *global_variable (Token **rest, Token *token, Type *basety, VarAttr 
       */
       gvar->is_definition = !attr->is_extern;
 
+      if (attr->align) {
+        gvar->align = attr->align;
+      }
+
       if (consume(&token, token, "=")) {
         gvar_initializer(&token, token, gvar);
       }
@@ -1035,7 +1042,9 @@ static void *global_variable (Token **rest, Token *token, Type *basety, VarAttr 
     *rest = token;
 }
 
-// parse_typedef ::= declarator ";"
+/*
+  parse_typedef ::= declarator ";"
+*/
 static void parse_typedef(Token **rest, Token *token, Type *basety) {
 
   int c = 0;
@@ -1055,7 +1064,9 @@ static void parse_typedef(Token **rest, Token *token, Type *basety) {
   *rest = token;
 }
 
-// program ::= (declspec (parse_typedef | function | global_variable))*
+/*
+  program ::= (declspec (parse_typedef | function | global_variable))*
+*/
 Obj *parse(Token *token) {
   globals = NULL;
 
@@ -1116,14 +1127,17 @@ Obj *parse(Token *token) {
   +------------------------------
   
 */
-// struct-member ::= (declspec declarator ("," declarator)* ";")*
+/*
+  struct-member ::= (declspec declarator ("," declarator)* ";")*
+*/
 static void struct_member(Token **rest, Token *token, Type *ty) {
   Member head = {};
   Member *cur = &head;
 
   int idx = 0;
   while (!equal(token, "}")) {
-    Type *basety = declspec(&token, token, NULL);
+    VarAttr attr = {};
+    Type *basety = declspec(&token, token, &attr);
 
     int i = 0;
     while (!consume(&token, token, ";")) {
@@ -1136,6 +1150,7 @@ static void struct_member(Token **rest, Token *token, Type *ty) {
       mem->ty = declarator(&token, token, basety);
       mem->name = get_ident_name(mem->ty->token);
       mem->idx = idx++;
+      mem->align = attr.align ? attr.align : mem->ty->align;
       cur = cur->next = mem;
     }
   }
@@ -1154,7 +1169,9 @@ static void struct_member(Token **rest, Token *token, Type *ty) {
   *rest = token;
 }
 
-// struct-union-decl ::= "struct" ident? ("{" struct-member "}")?
+/*
+  struct-union-decl ::= "struct" ident? ("{" struct-member "}")?
+*/
 static Type *struct_union_decl(Token **rest, Token *token) {
   // "struct"
   token = token->next;
@@ -1208,7 +1225,9 @@ static Type *struct_union_decl(Token **rest, Token *token) {
   return ty;
 }
 
-// struct-decl ::= struct-union-decl
+/*
+  struct-decl ::= struct-union-decl
+*/
 static Type *struct_decl(Token **rest, Token *token) {
   Type *ty = struct_union_decl(rest, token);
   ty->kind = TY_STRUCT;
@@ -1225,8 +1244,8 @@ static Type *struct_decl(Token **rest, Token *token) {
     offset += m->ty->size;
 
     // structのtypeのalignは、memberのalignの最大値
-    if (ty->align < m->ty->align) {
-      ty->align = m->ty->align;
+    if (ty->align < m->align) {
+      ty->align = m->align;
     }
   }
 
@@ -1236,7 +1255,9 @@ static Type *struct_decl(Token **rest, Token *token) {
   return ty;
 }
 
-// union-decl ::= struct-union-decl
+/*
+  union-decl ::= struct-union-decl
+*/
 static Type *union_decl(Token **rest, Token *token) {
   Type *ty = struct_union_decl(rest, token);
   ty->kind = TY_UNION;
@@ -1248,8 +1269,8 @@ static Type *union_decl(Token **rest, Token *token) {
   int offset = 0;
   for (Member *m = ty->members; m; m = m->next) {
     // unionのtypeのalignは、memberのalignの最大値
-    if (ty->align < m->ty->align) {
-      ty->align = m->ty->align;
+    if (ty->align < m->align) {
+      ty->align = m->align;
     }
     // unionのtypeのsizeは、memberのsizeの最大値
     if (ty->size< m->ty->size) {
@@ -1264,7 +1285,7 @@ static Type *union_decl(Token **rest, Token *token) {
 
 /*
   enum-specifier ::= "enum" ident? "{" enum-list? "}"
-                  || "enum" ident ("{" enum-list? "}")?
+                   | "enum" ident ("{" enum-list? "}")?
   enmu-list ::= ident ("=" num)? ("," ident ("=" num)?)* 
 */
 static Type *enum_specifier(Token **rest, Token *token) {
@@ -1331,9 +1352,9 @@ static Type *enum_specifier(Token **rest, Token *token) {
 }
 
 /*
-  declspec ::= ("_Bool" || "void" || "char" || "short" || "int" || "long"
-            || "struct-decl" || "union-decl" || "enum-specifier"
-            || "typedef" || "static" || "extern" || typedef-name)+
+  declspec ::= ("_Bool" | "void" | "char" | "short" | "int" | "long"
+             | "struct-decl" | "union-decl" | "enum-specifier"
+             | "typedef" | "static" | "extern" | typedef-name)+
 */
 static Type *declspec(Token **rest, Token *token, VarAttr *attr) {
   enum {
@@ -1450,7 +1471,7 @@ static Type *declspec(Token **rest, Token *token, VarAttr *attr) {
 /*
   declaration ::= (declarator ("=" expr)? ("," declarator ("=" expr)?)*)? ";"
 */
-static Node *declaration(Token **rest, Token *token, Type *basety) {
+static Node *declaration(Token **rest, Token *token, Type *basety, VarAttr *attr) {
     Node head = {};
     Node *cur = &head;
     
@@ -1473,6 +1494,11 @@ static Node *declaration(Token **rest, Token *token, Type *basety) {
       }
 
       Obj *lvar = new_lvar(get_ident_name(ty->token), ty);
+
+      if (attr && attr->align) {
+        lvar->align = attr->align;
+      }
+
       locals = lvar;
       Node *lhs = new_node_var(lvar, token);
 
@@ -1496,7 +1522,9 @@ static Node *declaration(Token **rest, Token *token, Type *basety) {
     return n;
 }
 
-// declarator ::= "*"* ( "(" declarator ")" | ident ) type-suffix
+/*
+  declarator ::= "*"* ( "(" declarator ")" | ident ) type-suffix
+*/
 static Type *declarator(Token **rest, Token *token, Type *ty) {
     while (consume(&token, token, "*")) {
       ty = pointer_to(ty);
@@ -1564,7 +1592,9 @@ static Type *type_suffix(Token **rest, Token *token, Type *ty) {
   return ty;
 }
 
-// func-params ::= "(" "void" | (declspec declarator ("," declspec declarator)*)? ")"
+/*
+  func-params ::= "(" "void" | (declspec declarator ("," declspec declarator)*)? ")"
+*/
 static Type *func_params(Token **rest, Token *token, Type *ty) {
   if (equal(token, "void") && equal(token->next, ")")) {
     *rest = token->next->next;
@@ -1611,9 +1641,6 @@ static Type *func_params(Token **rest, Token *token, Type *ty) {
 
 /*
   compound-stmt ::= declspec (parse_typedef | function | extern | global_variable)*
-
-  type(int, typedef, etc..)
-    exclude label ":"
 */
 static Node *compound_stmt(Token **rest, Token *token) {
   expect(&token, token, "{");
@@ -1653,7 +1680,7 @@ static Node *compound_stmt(Token **rest, Token *token) {
         continue;
       }
 
-      cur = cur->next = declaration(&token, token, basety); 
+      cur = cur->next = declaration(&token, token, basety, &attr); 
     } else {
       cur = cur->next = stmt(&token, token);
     }
@@ -1756,7 +1783,7 @@ static Node *stmt(Token **rest, Token *token) {
 
     if (is_type(token)) {
       Type *basety = declspec(&token, token, NULL);
-      n->init = declaration(&token, token, basety);
+      n->init = declaration(&token, token, basety, NULL);
     } else {
       n->init = expr_stmt(&token, token);
     }
@@ -1903,7 +1930,9 @@ static Node *stmt(Token **rest, Token *token) {
   return n;
 }
 
-// expr-stmt = ";" || expr ";"
+/*
+  expr-stmt ::= ";" | expr ";"
+*/
 static Node *expr_stmt(Token **rest, Token *token) {
   if (consume(&token, token, ";")) {
     *rest = token;
@@ -1916,7 +1945,9 @@ static Node *expr_stmt(Token **rest, Token *token) {
   return n;
 }
 
-// expr = assign ("," expr)*
+/*
+  expr ::= assign ("," expr)*
+*/
 static Node *expr(Token **rest, Token *token) {
   Node *n = assign(&token, token);
 
@@ -2099,8 +2130,8 @@ static Node *to_assign(Node *lhs, Node *rhs, Token *token) {
 }
 
 /*
- assign = bitor (assign-op assign)?
- assign-op = "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "|=" | "^=" | "&="
+ assign ::= bitor (assign-op assign)?
+ assign-op ::= "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "|=" | "^=" | "&="
 */
 static Node *assign(Token **rest, Token *token) {
   Node *n = conditional(&token, token);
@@ -2160,7 +2191,9 @@ static Node *assign(Token **rest, Token *token) {
   return n;
 }
 
-// conditional = logicalor ("?" expr ":" conditional)?
+/*
+  conditional ::= logicalor ("?" expr ":" conditional)?
+*/
 static Node *conditional(Token **rest, Token *token) {
   Node *n = logicalor(&token, token);
 
@@ -2180,7 +2213,9 @@ static Node *conditional(Token **rest, Token *token) {
   return n;
 }
 
-// logicalor = logicaland ("||" logicaland)*
+/*
+  logicalor ::= logicaland ("||" logicaland)*
+*/
 static Node *logicalor(Token **rest, Token *token) {
   Node *n = logicaland(&token, token);
 
@@ -2193,7 +2228,9 @@ static Node *logicalor(Token **rest, Token *token) {
   return n;
 }
 
-// logicaland = bitor ("&&" bitor)*
+/*
+  logicaland ::= bitor ("&&" bitor)*
+*/
 static Node *logicaland(Token **rest, Token *token) {
   Node *n = bitor(&token, token);
 
@@ -2206,7 +2243,9 @@ static Node *logicaland(Token **rest, Token *token) {
   return n;
 }
 
-// bitor = bitxor ("|" bitxor)*
+/*
+  bitor ::= bitxor ("|" bitxor)*
+*/
 static Node *bitor(Token **rest, Token *token) {
   Node *n = bitxor(&token, token);
 
@@ -2219,7 +2258,9 @@ static Node *bitor(Token **rest, Token *token) {
   return n;
 }
 
-// bitxor = bitand ("^" bitand)*
+/*
+  bitxor ::= bitand ("^" bitand)*
+*/
 static Node *bitxor(Token **rest, Token *token) {
   Node *n = bitand(&token, token);
 
@@ -2232,7 +2273,9 @@ static Node *bitxor(Token **rest, Token *token) {
   return n;
 }
 
-// bitand = equality ("&" equality)*
+/*
+  bitand ::= equality ("&" equality)*
+*/
 static Node *bitand(Token **rest, Token *token) {
   Node *n = equality(&token, token);
 
@@ -2245,7 +2288,9 @@ static Node *bitand(Token **rest, Token *token) {
   return n;
 }
 
-// equality = relational ("==" relational | "!=" relational)*
+/*
+  equality ::= relational ("==" relational | "!=" relational)*
+*/
 static Node *equality(Token **rest, Token *token) {
   Node *n = relational(&token, token);
 
@@ -2264,7 +2309,9 @@ static Node *equality(Token **rest, Token *token) {
   return n;
 }
 
-// relational = shift ("<" shift | "<=" shift | ">" shift | ">=" shift)*
+/*
+  relational ::= shift ("<" shift | "<=" shift | ">" shift | ">=" shift)*
+*/
 static Node *relational(Token **rest, Token *token) {
   Node *n = shift(&token, token);
 
@@ -2287,7 +2334,9 @@ static Node *relational(Token **rest, Token *token) {
   return n;
 }
 
-// shift = add ("<<" add | ">>" add)*
+/*
+  shift ::= add ("<<" add | ">>" add)*
+*/
 static Node *shift(Token **rest, Token *token) {
   Node *n = add(&token, token);
 
@@ -2365,7 +2414,9 @@ static Node *new_sub(Node *lhs, Node *rhs, Token *token) {
   error_at(token->loc, "%s", "invalid operand");
 }
 
-// add = mul ("+" new_add | "-" new_sub)*
+/*
+  add ::= mul ("+" new_add | "-" new_sub)*
+*/
 static Node *add(Token **rest, Token *token) {
   Node *n = mul(&token, token);
 
@@ -2384,7 +2435,9 @@ static Node *add(Token **rest, Token *token) {
   return n;
 }
 
-// mul = cast ("*" cast | "/" cast | "%" cast)*
+/*
+  mul ::= cast ("*" cast | "/" cast | "%" cast)*
+*/
 static Node *mul(Token **rest, Token *token) {
   Node *n = cast(&token, token);
 
@@ -2405,7 +2458,10 @@ static Node *mul(Token **rest, Token *token) {
   return n;
 }
 
-// cast := "(" typename ")" cast | unary
+/*
+  cast ::= "(" typename ")" cast
+         | unary
+*/
 static Node *cast(Token **rest, Token *token) {
   if (equal(token, "(") && is_type(token->next)) {
     Token *start = token;
@@ -2423,7 +2479,9 @@ static Node *cast(Token **rest, Token *token) {
   return unary(rest, token);
 }
 
-// abstract-declarator = "*"* ("(" abstract-declarator ")")? type-suffix
+/*
+  abstract-declarator ::= "*"* ("(" abstract-declarator ")")? type-suffix
+*/
 static Type *abstract_declarator(Type **rest, Token *token, Type *ty) {
   while (consume(&token, token, "*")) {
     ty = pointer_to(ty);
@@ -2445,17 +2503,21 @@ static Type *abstract_declarator(Type **rest, Token *token, Type *ty) {
   return type_suffix(rest, token, ty);
 }
 
-// typename := declspec abstract-declarator
+/*
+  typename ::= declspec abstract-declarator
+*/
 static Type *typename(Token **rest , Token *token) {
   Type *basety = declspec(&token, token, NULL);
   return abstract_declarator(rest, token, basety);
 }
 
 /*
-  unary = "sizeof" "(" typename ")"
-        | ("sizeof" | "+" | "-" | "*" | "&" | "!") cast
-        | ("++" | "--") unary
-        | postfix
+  unary ::= "sizeof" "(" typename ")"
+          | "sizeof" cast
+          | "_Alignof" "(" typename ")"
+          | ("+" | "-" | "*" | "&" | "!") cast
+          | ("++" | "--") unary
+          | postfix
 */
 static Node *unary(Token **rest, Token *token) {
   Node *n;
@@ -2484,6 +2546,20 @@ static Node *unary(Token **rest, Token *token) {
 
     *rest = token;
     return new_node_num(n->ty->size, token);
+  }
+
+  if (equal(token, "_Alignof")) {
+    expect(&token, token->next, "(");
+    
+    if (!is_type(token)) {
+      error_at(token->loc, "%s", "not type");
+    }
+
+    Type *ty = typename(&token, token);
+    expect(&token, token, ")");
+
+    *rest = token;
+    return new_node_num(ty->align, token);
   }
 
   if (consume(&token, token, "+")) {
@@ -2563,7 +2639,9 @@ static Node *struct_ref(Token *token, Node *lhs) {
   return n;
 }
 
-// postfix = primary ("[" expr "]" | "." ident | "->" ident | "++" | "--")*
+/*
+  postfix ::= primary ("[" expr "]" | "." ident | "->" ident | "++" | "--")*
+*/
 static Node *postfix(Token **rest, Token *token) {
   Node *n = primary(&token, token);
 
@@ -2681,11 +2759,11 @@ static Node *funcall(Token **rest, Token *token) {
 }
 
 /*
-  primary = "(" "{" stmt+ "}" ")"
-          | "(" expr ")"
-          | ident ( "(" assign "," ")" )?
-          | str
-          | num
+  primary ::= "(" "{" stmt+ "}" ")"
+            | "(" expr ")"
+            | ident ( "(" assign "," ")" )?
+            | str
+            | num
 */
 static Node *primary(Token **rest, Token *token) {
   if (equal(token, "(") && equal(token->next, "{")) {

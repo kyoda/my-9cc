@@ -168,6 +168,7 @@ struct Obj {
   int len;
   int offset;
   bool is_local;
+  int align;
 
   // function or global variable
   bool is_function;
@@ -203,6 +204,7 @@ struct Relocation {
 struct Member {
   Member *next;
   char *name;
+  int align;
   int offset;
   Type *ty;
   int idx;
@@ -239,6 +241,7 @@ typedef struct {
   bool is_typedef;
   bool is_static;
   bool is_extern;
+  int align;
 } VarAttr;
 
 Node *new_cast(Node *lhs, Type *ty, Token *token);
