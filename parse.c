@@ -1510,6 +1510,18 @@ static Node *declaration(Token **rest, Token *token, Type *basety, VarAttr *attr
         error_at(token->loc, "%s", "void type variable");
       }
 
+      if (attr && attr->is_static) {
+        // static local variable
+        Obj *gvar = new_gvar(get_ident_name(ty->token), ty);
+        push_scope(get_ident_name(ty->token))->var = gvar;
+
+        if (equal(token, "=")) {
+          gvar_initializer(&token, token->next, gvar);
+        }
+
+        continue;
+      }
+
       VarScope *vs = find_var_in_current_scope(ty->token);
       if (vs) {
         error_at(ty->token->loc, "%s", "defined variable");
