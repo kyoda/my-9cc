@@ -2537,6 +2537,7 @@ static Type *typename(Token **rest , Token *token) {
   unary ::= "sizeof" "(" typename ")"
           | "sizeof" cast
           | "_Alignof" "(" typename ")"
+          | "_Alignof" cast
           | ("+" | "-" | "*" | "&" | "!") cast
           | ("++" | "--") unary
           | postfix
@@ -2570,18 +2571,22 @@ static Node *unary(Token **rest, Token *token) {
     return new_node_num(n->ty->size, token);
   }
 
-  if (equal(token, "_Alignof")) {
-    expect(&token, token->next, "(");
-    
-    if (!is_type(token)) {
-      error_at(token->loc, "%s", "not type");
-    }
-
+  if (equal(token, "_Alignof") && equal(token->next, "(") && is_type(token->next->next)) {
+    token = token->next->next;
     Type *ty = typename(&token, token);
     expect(&token, token, ")");
 
     *rest = token;
     return new_node_num(ty->align, token);
+  }
+
+  if (equal(token, "_Alignof")) {
+    token = token->next;
+    n = cast(&token, token);
+    add_type(n);
+
+    *rest = token;
+    return new_node_num(n->ty->align, token);
   }
 
   if (consume(&token, token, "+")) {

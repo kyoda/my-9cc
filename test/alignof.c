@@ -37,6 +37,19 @@ int main() {
   ASSERT(0, (long)(char *)&g4 % 4);
   ASSERT(0, (long)(char *)&g5 % 8);
 
+  ASSERT(1, ({ char a; _Alignof a;}));
+  ASSERT(2, ({ short a; _Alignof a;}));
+  ASSERT(4, ({ int a; _Alignof a;}));
+  ASSERT(8, ({ long a; _Alignof a;}));
+  ASSERT(1, ({ char a; _Alignof(a);}));
+  ASSERT(2, ({ short a; _Alignof(a);}));
+  ASSERT(4, ({ int a; _Alignof(a);}));
+  ASSERT(8, ({ long a; _Alignof(a);}));
+
+  /* error
+    ASSERT(1, _Alignof char);
+  */
+
   printf("OK\n");
   return 0;
 }
