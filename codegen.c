@@ -593,13 +593,13 @@ static void emit_data(Obj *prog) {
     }
 
     println("  .global %s", var->name);
-    /*
-      .alignディレクティブを使うことで型ごとの適切なデータ配置を行う(CPUによってはアライメントが必要)
-    */
-    println("  .align %d", var->align);
 
     if (var->init_data) {
       println("  .data");
+      /*
+        .alignディレクティブを使うことで型ごとの適切なデータ配置を行う(CPUによってはアライメントが必要)
+      */
+      println("  .align %d", var->align);
       println("%s:", var->name);
 
       Relocation *rel = var->rel;
@@ -623,8 +623,9 @@ static void emit_data(Obj *prog) {
       実際の0埋めのデータが実行ファイルには含まれないため実行ファイルサイズを小さくできる
     */
     println("  .bss");
+    println("  .align %d", var->align);
     println("%s:", var->name);
-    println("  .zero %d", var->align);
+    println("  .zero %d", var->ty->size);
   }
 
 }

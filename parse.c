@@ -853,7 +853,7 @@ static bool is_function(Token *token) {
 
 static bool is_type(Token *token) {
   char *kw[] = {
-    "_Bool", "void", "char", "short", "int", "long", "struct", "union", "enum", "typedef", "static", "extern"
+    "_Bool", "void", "char", "short", "int", "long", "struct", "union", "enum", "typedef", "static", "extern", "_Alignas"
   };
   for (int i = 0; i < sizeof(kw) / sizeof(*kw); i++) {
     if (equal(token, kw[i])) {
@@ -1238,9 +1238,13 @@ static Type *struct_decl(Token **rest, Token *token) {
 
   int offset = 0;
   for (Member *m = ty->members; m; m = m->next) {
-    m->offset = offset;
     // memberのtypeのalignに合わせてoffsetをalignした後、memberのtype->sizeをoffsetに加算
-    offset = align_to(offset, m->ty->align);
+    offset = align_to(offset, m->align);
+    /*
+      alignした後にoffsetをmemberのoffsetに格納
+      _Alignasの場合、_Alignasで指定されたalignに合わせてoffsetをalignした後にメンバーのoffsetに反映する
+    */
+    m->offset = offset;
     offset += m->ty->size;
 
     // structのtypeのalignは、memberのalignの最大値
@@ -1353,7 +1357,7 @@ static Type *enum_specifier(Token **rest, Token *token) {
 
 /*
   declspec ::= ("_Bool" | "void" | "char" | "short" | "int" | "long"
-             | "struct-decl" | "union-decl" | "enum-specifier"
+             | "struct-decl" | "union-decl" | "enum-specifier" | "_Alignas"
              | "typedef" | "static" | "extern" | typedef-name)+
 */
 static Type *declspec(Token **rest, Token *token, VarAttr *attr) {
@@ -1389,6 +1393,24 @@ static Type *declspec(Token **rest, Token *token, VarAttr *attr) {
       }
 
       token = token->next;
+      continue;
+    }
+
+    if (equal(token, "_Alignas")) {
+      if (!attr) {
+        error(token->loc, "%s", "_Alignas is not allowed");
+      }
+
+      expect(&token, token->next, "(");
+
+      if (is_type(token)) {
+        attr->align = typename(&token, token)->align;
+      } else {
+        attr->align = const_expr(&token, token);
+      }
+
+      expect(&token, token, ")");
+
       continue;
     }
     

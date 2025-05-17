@@ -75,7 +75,7 @@ Token *skip(Token *t, char *op) {
 static int keyword_len(char *p) {
   char *key[] = {"return", "if", "else", "for", "while", 
                 "_Bool", "void", "char", "short", "int", "long",
-                "struct", "union", "enum",
+                "struct", "union", "enum", "_Alignas",
                 "sizeof", "_Alignof",
                 "typedef", "static", "extern",
                 "goto", "break", "continue", "switch", "case", "default"
