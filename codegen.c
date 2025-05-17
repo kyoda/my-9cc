@@ -582,6 +582,11 @@ static void align_stack_size(Obj *prog) {
       var->offset = offset;
     }
 
+    /*
+      x86-64 ABIの要件としてfunctionのスタックフレーム境界が16byteであることを保証するために、stack_sizeを16の倍数にする
+      https://refspecs.linuxbase.org/elf/x86_64-abi-0.99.pdf
+      3.2.2 The Stack Frame
+    */
     fn->stack_size = align_to(offset, 16);
   }
 }
