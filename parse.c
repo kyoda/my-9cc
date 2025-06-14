@@ -1757,10 +1757,15 @@ static Node *stmt(Token **rest, Token *token) {
   if (equal(token, "return")) {
     n = new_node(ND_RETURN, token);
     token = token->next;
-    Node *exp = expr(&token, token);
-    expect(&token, token, ";");
 
+    if (consume(rest, token, ";")) {
+      return n;
+    }
+
+    Node *exp = expr(&token, token);
     add_type(exp);
+
+    expect(&token, token, ";");
     n->lhs = new_cast(exp, current_fn->ty->return_ty, token);
 
     *rest = token;
