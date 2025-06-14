@@ -299,6 +299,7 @@ static Obj *new_gvar(char *name, Type *ty) {
 
   Obj *gvar = new_var(name, ty);
   gvar->next = globals;
+  gvar->is_static = true;
   gvar->is_definition = true;
   globals = gvar;
 
@@ -1029,6 +1030,7 @@ static void *global_variable (Token **rest, Token *token, Type *basety, VarAttr 
         externの場合は、codegenのemit_dataで処理しないためにis_definitionをfalseにする
       */
       gvar->is_definition = !attr->is_extern;
+      gvar->is_static = attr->is_static;
 
       if (attr->align) {
         gvar->align = attr->align;

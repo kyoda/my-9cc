@@ -4,6 +4,7 @@ int x;
 int y;
 int z;
 char *str;
+static int g1 = 1;
 
 int main() {
   //local

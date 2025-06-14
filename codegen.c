@@ -599,7 +599,11 @@ static void emit_data(Obj *prog) {
       continue;
     }
 
-    println("  .global %s", var->name);
+    if (var->is_static) {
+      println("  .local %s", var->name);
+    } else {
+      println("  .global %s", var->name);
+    }
 
     if (var->init_data) {
       println("  .data");
