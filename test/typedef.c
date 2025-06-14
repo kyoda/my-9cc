@@ -15,6 +15,7 @@ int main() {
 
   ASSERT(12, ({ typedef struct x { int a, b; char c; } t; struct x p; sizeof(p);}));
   ASSERT(4, ({ typedef struct x { int a, b; char c; } t; struct x p; p.a = 4; p.a;}));
+  ASSERT(4, ({ typedef struct x { int a, b; char c; } t; t p; p.a = 4; p.a;}));
 
   ASSERT(3, ({ myint2 a = 3; a;}));
   ASSERT(4, ({ typedef myint myint3; myint3 a; sizeof(a);}));

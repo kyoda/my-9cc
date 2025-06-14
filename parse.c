@@ -286,6 +286,7 @@ static Obj *new_lvar(char *name, Type *ty) {
   Obj *lvar = new_var(name, ty);
   lvar->is_local = true;
   lvar->next = locals;
+  locals = lvar;
 
   return lvar;
 }
@@ -867,7 +868,7 @@ static bool is_type(Token *token) {
 static void create_params(Type *param) {
   if (param) {
     create_params(param->next);
-    locals = new_lvar(get_ident_name(param->token), param);
+    new_lvar(get_ident_name(param->token), param);
   }
 }
 
@@ -1533,7 +1534,6 @@ static Node *declaration(Token **rest, Token *token, Type *basety, VarAttr *attr
         lvar->align = attr->align;
       }
 
-      locals = lvar;
       Node *lhs = new_node_var(lvar, token);
 
       if (equal(token, "=")) {
@@ -2504,6 +2504,12 @@ static Node *cast(Token **rest, Token *token) {
     Type *ty = typename(&token, token);
     expect(&token, token, ")");
 
+    // compound literal
+    if (equal(token, "{")) {
+      // 上記parseは無視して次に行く
+      return unary(rest, start);
+    }
+
     Node *nc = cast(&token, token);
 
     *rest = token;
@@ -2679,9 +2685,34 @@ static Node *struct_ref(Token *token, Node *lhs) {
 }
 
 /*
-  postfix ::= primary ("[" expr "]" | "." ident | "->" ident | "++" | "--")*
+  postfix ::= "(" type-name ")" "{" initializer-list "}"
+            | primary ("[" expr "]" | "." ident | "->" ident | "++" | "--")*
 */
 static Node *postfix(Token **rest, Token *token) {
+  // compound literal
+  if (equal(token, "(") && is_type(token->next)) {
+    Token *start = token;
+    token = token->next;
+
+    Type *ty = typename(&token, token);
+    expect(&token, token, ")");
+    
+    // global variable
+    if (scope->next == NULL) {
+      Obj *gvar = new_gvar(new_unique_name(), ty);
+      gvar_initializer(&token, token, gvar);
+      *rest = token;
+      return new_node_var(gvar, start);
+    }
+
+    // local variable
+    Obj *lvar = new_lvar("", ty);
+    Node *lhs = lvar_initializer(&token, token, lvar);
+    Node *rhs = new_node_var(lvar, token);
+    *rest = token;
+    return new_node_binary(ND_COMMA, lhs, rhs, start);
+  }
+
   Node *n = primary(&token, token);
 
   //array
