@@ -1739,6 +1739,7 @@ static Node *compound_stmt(Token **rest, Token *token) {
          | "return" expr? ";"
          | "if" "(" expr ")" stmt ("else" stmt)?
          | "while" "(" expr ")" stmt
+         | "do" stmt "while" "(" expr ")" ";"
          | "for" "(" expr? ";" expr? ";" expr? ";"  ")" stmt
          | "switch" "(" expr ")" stmt
          | "case" num ":" stmt
@@ -1810,6 +1811,32 @@ static Node *stmt(Token **rest, Token *token) {
     //1個前のbreak, continueのlabelを復元
     break_label = tmp_break;
     continue_label = tmp_continue;
+
+    *rest = token;
+    return n;
+  }
+
+  if (equal(token, "do")) {
+    n = new_node(ND_DO, token);
+    token = token->next;
+
+    //1個前のbreak, continueのlabelを保持
+    char *tmp_break = break_label;
+    char *tmp_continue = continue_label;
+    //n->then内でbreak, continueがあった場合のlabelを設定する
+    break_label = n->break_label = new_unique_name();
+    continue_label = n->continue_label = new_unique_name();
+
+    n->then = stmt(&token, token);
+
+    //1個前のbreak, continueのlabelを復元
+    break_label = tmp_break;
+    continue_label = tmp_continue;
+    
+    token = skip(token, "while");
+    expect(&token, token, "(");
+    n->cond = expr(&token, token);
+    expect(&token, token, ")");
 
     *rest = token;
     return n;

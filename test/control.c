@@ -68,6 +68,11 @@ int main() {
 
   ASSERT(3, (1, 2, 3));
 
+  ASSERT(3, ({ int i = 0; do { i = i + 3; } while (0); i; }));
+  ASSERT(7, ({ int i = 0; int j = 0; do { j++; } while (i++ < 6); j; }));
+  ASSERT(4, ({ int i = 0; int j = 0; int k = 0; do { if (++j > 3) break; continue; k++; } while (1); j; }));
+
+
   /* error
   ASSERT(2, ({ int i=0,j=3; (i=2, j) = 4; i;})); //gcc error
   ASSERT(4, ({ int i=0,j=3; (i=2, j) = 4; j;})); //gcc error

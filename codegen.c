@@ -484,6 +484,19 @@ static void gen_stmt(Node *n) {
     println("%s:", n->break_label);
 
     return;
+  case ND_DO:
+    c = count();
+
+    println(".Lbegin%03d:", c);
+    gen_stmt(n->then);
+    println("%s:", n->continue_label);
+
+    gen_expr(n->cond);
+    println("  cmp rax, 0");
+    println("  jne .Lbegin%03d", c);
+    println("%s:", n->break_label);
+
+    return;
   case ND_SWITCH:
     gen_expr(n->cond);
 
