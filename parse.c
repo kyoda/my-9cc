@@ -1736,7 +1736,7 @@ static Node *compound_stmt(Token **rest, Token *token) {
 
 /*
   stmt ::= compound-stmt
-         | "return" expr ";"
+         | "return" expr? ";"
          | "if" "(" expr ")" stmt ("else" stmt)?
          | "while" "(" expr ")" stmt
          | "for" "(" expr? ";" expr? ";" expr? ";"  ")" stmt
