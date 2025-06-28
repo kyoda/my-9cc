@@ -222,7 +222,14 @@ static void gen_expr(Node *n) {
     }
 
     println("  mov rax, 0");
-    println("  call %s", n->funcname);
+
+    if (depth % 2 == 0) {
+      println("  call %s", n->funcname);
+    } else {
+      println("  sub rsp, 8");
+      println("  call %s", n->funcname);
+      println("  add rsp, 8");
+    }
 
     return;
   }
