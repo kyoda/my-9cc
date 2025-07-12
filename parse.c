@@ -2198,8 +2198,8 @@ static Node *to_assign(Node *lhs, Node *rhs, Token *token) {
 }
 
 /*
- assign ::= bitor (assign-op assign)?
- assign-op ::= "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "|=" | "^=" | "&="
+  assign ::= bitor (assign-op assign)?
+  assign-op ::= "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "|=" | "^=" | "&="
 */
 static Node *assign(Token **rest, Token *token) {
   Node *n = conditional(&token, token);
