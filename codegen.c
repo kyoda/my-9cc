@@ -231,6 +231,25 @@ static void gen_expr(Node *n) {
       println("  add rsp, 8");
     }
 
+    /*
+      関数の戻り値はraxに入るが下記のタイプでは上位32bitにゴミが残っている可能性があるため適宜処理する。
+      TY_BOOLは符号なしのため残りビットは0で初期化
+      TY_CHARは符号拡張
+      TY_SHORTは符号拡張
+      また、eaxにmovすることで、raxの上位32ビットは0で初期化される
+    */
+    switch(n->ty->size) {
+    case TY_BOOL:
+      println("  movzx eax, al");
+      return;
+    case TY_CHAR:
+      println("  movsx eax, al");
+      return;
+    case TY_SHORT:
+      println("  movsx eax, ax");
+      return;
+    }
+
     return;
   }
   case ND_CAST:
