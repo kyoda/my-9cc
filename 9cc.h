@@ -151,6 +151,7 @@ struct Type {
   // function
   Type *return_ty;
   Type *params;
+  bool is_variadic; // variadic function
   Type *next; //params
 
   Token *token; // declaration

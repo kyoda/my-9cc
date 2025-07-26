@@ -1629,7 +1629,7 @@ static Type *type_suffix(Token **rest, Token *token, Type *ty) {
 }
 
 /*
-  func-params ::= "(" "void" | (declspec declarator ("," declspec declarator)*)? ")"
+  func-params ::= "(" "void" | (declspec declarator ("," declspec declarator)* ("," "...")?)? ")"
 */
 static Type *func_params(Token **rest, Token *token, Type *ty) {
   if (equal(token, "void") && equal(token->next, ")")) {
@@ -1639,6 +1639,7 @@ static Type *func_params(Token **rest, Token *token, Type *ty) {
 
   Type head = {};
   Type *cur = &head;
+  bool is_variadic = false;
 
   int i = 0;
   while (!equal(token, ")")) {
@@ -1646,6 +1647,12 @@ static Type *func_params(Token **rest, Token *token, Type *ty) {
       expect(&token, token, ",");
     }
     i++;
+
+    if (equal(token, "...")) {
+      is_variadic = true;
+      token = token->next;
+      break;
+    }
 
     Type *basety = declspec(&token, token, NULL);
     Type *ty2 = declarator(&token, token, basety);
@@ -1669,6 +1676,7 @@ static Type *func_params(Token **rest, Token *token, Type *ty) {
 
   ty = ty_func(ty);
   ty->params = head.next;
+  ty->is_variadic = is_variadic;
   expect(&token, token, ")");
   *rest = token;
 

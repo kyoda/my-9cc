@@ -33,6 +33,8 @@ void ret_none(void) {
   return;
 }
 
+int add_all(int n, ...);
+
 int main() {
   ASSERT(8, add2(5, 3));
   ASSERT(3, ret3());
@@ -66,6 +68,10 @@ int main() {
   ASSERT(2, counter());
   ASSERT(4, counter());
   ASSERT(6, counter());
+
+  ASSERT(15, add_all(5, 1, 2, 3, 4, 5));
+  ASSERT(8, add_all(5, 1, 2, 3, 4, -2));
+  ASSERT(0, ({ char buf[100]; sprintf(buf, "%d, %d, %s", 1, 2, "hello"); strcmp(buf, "1, 2, hello"); }));
 
   ret_none();
 
