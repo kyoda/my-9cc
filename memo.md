@@ -22,7 +22,7 @@ x86-64 ABI、アセンブリ記法、型の変換命令など。
 + デリファレンス演算子（dereference operator）
 + ニーモニック（mnemonic）
 + ストレージクラス指定子 -> static, extern
-
++ 自己参照構造体（Self-referential Structure）
 
 ## 生成文法
 

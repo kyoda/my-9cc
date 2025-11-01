@@ -3,6 +3,8 @@
 typedef int myint, myint2;
 
 int main() {
+  ASSERT(0, ({ typedef int; 0;}));
+  ASSERT(0, ({ typedef t; 0;}));
   ASSERT(0, ({ typedef int t; 0;}));
   ASSERT(0, ({ typedef int t, u; 0;}));
   ASSERT(4, ({ typedef int t; t a; sizeof(a);}));
@@ -19,6 +21,7 @@ int main() {
 
   ASSERT(3, ({ myint2 a = 3; a;}));
   ASSERT(4, ({ typedef myint myint3; myint3 a; sizeof(a);}));
+  ASSERT(4, ({ myint typedef myint3; myint3 a; sizeof(a);}));
 
   /* error
   ASSERT(0, ({ typedef int myint; long long myint a; 0;}));

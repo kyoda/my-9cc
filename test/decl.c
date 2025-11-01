@@ -25,6 +25,7 @@ int main() {
   ASSERT(1, ({ (_Bool)256; }));
   ASSERT(1, ({ (_Bool)-1; }));
   ASSERT(0, ({ (_Bool)(char)256; }));
+  ASSERT(0, ({ (_Bool)(256*256*256*256); })); //defalt int is 4 bytes
 
   /* error
   ASSERT(4, ({ int int a; sizeof(a); }));

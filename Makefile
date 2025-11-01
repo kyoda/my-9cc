@@ -1,4 +1,4 @@
-CFLAGS=-std=c99 -g -fno-common -Wall
+CFLAGS=-std=c99 -g -fno-common -Wall -static
 # wildcard関数で、testディレクトリの.cを取得
 SRCS=$(wildcard *.c)
 OBJS=$(SRCS:.c=.o)
@@ -37,6 +37,24 @@ cctest: $(CCTEST_OBJS)
 
 clean:
 	rm -f 9cc *.o *~ tmp* $(CCTEST_OBJS) $(TEST_OBJS) $(TEST_AS)
+
+
+# -----------------------------
+# セルフコンパイルテスト
+# -----------------------------
+self: 9cc
+# 1. gcc で前処理だけする (-E)
+	$(CC) -E -P $(SRCS) > 9cc_pre.i
+
+# 2. 自作コンパイラでアセンブリ生成
+	./9cc -o tmp.s 9cc_pre.i
+	$(CC) -o 9cc-self tmp.s
+
+# 3. 出来た 9cc-self でもう一度セルフビルド
+	./9cc-self -o tmp2.s 9cc_pre.i
+	$(CC) -o 9cc-self2 tmp2.s
+
+	@echo "セルフコンパイル完了: my-9cc-self2 が生成されました"
 
 .PHONY: test clean
 
