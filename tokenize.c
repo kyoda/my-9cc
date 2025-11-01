@@ -32,7 +32,7 @@ void error_at(char *loc, char *fmt, ...) {
   va_start(ap, fmt);
 
   int indent = fprintf(stderr, "%s:%d: ", infile, line_num);
-  fprintf(stderr, "%.*s\n", end - start, start);
+  fprintf(stderr, "%.*s\n", (int)(end - start), start);
 
   int pos = loc - start + indent;
   fprintf(stderr, "%*s", pos, " ");
@@ -121,6 +121,8 @@ static int from_hex(char *p) {
   }
 
   error_at(p, "invalid hex escape sequence");
+
+  return 0;
 }
 
 static int read_escaped_char(char **new_pos, char *p) {

@@ -21,7 +21,9 @@ x86-64 ABI、アセンブリ記法、型の変換命令など。
 + 被演算子 (Operand)  
 + デリファレンス演算子（dereference operator）
 + ニーモニック（mnemonic）
-+ ストレージクラス指定子 -> static, extern
++ 型指定子（type specifier）-> int, unsigned, etc..
++ 型修飾子（type qualifier）-> const, restrict, etc..
++ ストレージクラス指定子（storage-class specifier） -> static, extern, typedef, etc..
 + 自己参照構造体（Self-referential Structure）
 
 ## 生成文法

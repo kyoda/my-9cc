@@ -1,4 +1,4 @@
-CFLAGS=-std=c99 -g -fno-common -Wall -static
+CFLAGS=-std=gnu99 -g -fno-common -Wall -Wno-switch -static
 # wildcard関数で、testディレクトリの.cを取得
 SRCS=$(wildcard *.c)
 OBJS=$(SRCS:.c=.o)

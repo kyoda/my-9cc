@@ -8,7 +8,7 @@ static void usage(int exit_code) {
   exit(exit_code);
 }
 
-static parse_args(int argc, char **argv) {
+static void parse_args(int argc, char **argv) {
   for(int i = 1; i < argc; i++) {
     if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
       usage(0);

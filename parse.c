@@ -136,6 +136,8 @@ static void *push_new_tag(Token *token, Type *ty) {
   tag->ty = ty;
   tag->next = scope->tags;
   scope->tags = tag;
+
+  return NULL;
 }
 
 static VarScope *find_var(Token *t) {
@@ -164,7 +166,7 @@ static VarScope *find_var_in_current_scope(Token *t) {
 }
 
 //search only global variable
-static VarScope *find_var_by_name(char *name) {
+static Obj *find_var_by_name(char *name) {
   for (Obj *var = globals; var; var = var->next) {
     if (strlen(name) == strlen(var->name)
       && strncmp(name, var->name, strlen(name)) == 0) {
@@ -292,8 +294,8 @@ static Obj *new_lvar(char *name, Type *ty) {
 }
 
 static Obj *new_gvar(char *name, Type *ty) {
-  VarScope *vs = find_var_by_name(name);
-  if (vs) {
+  Obj *var = find_var_by_name(name);
+  if (var) {
     error("%s: defined variable", name);
   }
 
@@ -307,7 +309,7 @@ static Obj *new_gvar(char *name, Type *ty) {
 }
 
 static char *new_unique_name() {
-  static id = 0;
+  static int id = 0;
   char *buf = calloc(1, 20);
   sprintf(buf, ".L..%d", id++);
   return buf;
@@ -359,6 +361,8 @@ static Member *find_member(Type *ty, Token *token) {
   }
 
   error_at(token->loc, "no member: %.*s", token->len, token->loc);
+
+  return NULL; // never reach here
 }
 
 static char *get_ident_name(Token *t) {
@@ -385,6 +389,8 @@ bool expect(Token **rest, Token *token, char *op) {
     error_at(token->loc, "no op: %s", op);
     exit(1);
   }
+
+  return false; // never reach here
 }
 
 bool expect_ident(Token **rest, Token *token) {
@@ -393,6 +399,8 @@ bool expect_ident(Token **rest, Token *token) {
   } else {
     error_at(token->loc, "%s", "expect TK_IDENT");
   }
+
+  return false; // never reach here
 }
 
 bool at_eof(Token *token) {
@@ -400,7 +408,7 @@ bool at_eof(Token *token) {
 }
 
 bool is_end(Token *token) {
-  return equal(token, "}") || equal(token, ",") && equal(token->next, "}");
+  return equal(token, "}") || (equal(token, ",") && equal(token->next, "}"));
 }
 
 bool consume_end(Token **rest, Token *token) {
@@ -855,7 +863,8 @@ static bool is_function(Token *token) {
 
 static bool is_type(Token *token) {
   char *kw[] = {
-    "_Bool", "void", "char", "short", "int", "long", "struct", "union", "enum", "typedef", "static", "extern", "_Alignas"
+    "_Bool", "void", "char", "short", "int", "long", "struct", "union", "enum",
+    "typedef", "static", "extern", "_Alignas"
   };
   for (int i = 0; i < sizeof(kw) / sizeof(*kw); i++) {
     if (equal(token, kw[i])) {
@@ -903,7 +912,7 @@ static void *function (Token **rest, Token *token, Type *basety, VarAttr *attr) 
 
   if (!fn->is_definition) {
     *rest = token;
-    return;
+    return NULL;
   }
 
   current_fn = fn;
@@ -912,7 +921,6 @@ static void *function (Token **rest, Token *token, Type *basety, VarAttr *attr) 
   locals = NULL;
   //このタイミングでparamsをlvarにする
   create_params(ty->params);
-
   fn->params = locals;
 
   fn->body = compound_stmt(&token, token);
@@ -924,6 +932,8 @@ static void *function (Token **rest, Token *token, Type *basety, VarAttr *attr) 
   resolve_goto_labels();
 
   *rest = token;
+
+  return NULL;
 }
 
 static void write_buf(char *buf, uint64_t val, int size) {
@@ -1012,6 +1022,8 @@ static void *gvar_initializer(Token **rest, Token *token, Obj *var) {
   write_gvar_data(&head, init, var->ty, buf, 0);
   var->init_data = buf;
   var->rel = head.next;
+
+  return NULL;
 }
 
 static void *global_variable (Token **rest, Token *token, Type *basety, VarAttr *attr) {
@@ -1043,6 +1055,8 @@ static void *global_variable (Token **rest, Token *token, Type *basety, VarAttr 
   
     expect(&token, token, ";");
     *rest = token;
+
+    return NULL;
 }
 
 /*
@@ -1273,7 +1287,6 @@ static Type *union_decl(Token **rest, Token *token) {
     return ty;
   }
 
-  int offset = 0;
   for (Member *m = ty->members; m; m = m->next) {
     // unionのtypeのalignは、memberのalignの最大値
     if (ty->align < m->align) {
@@ -2159,6 +2172,8 @@ static int64_t eval2(Node *n, char **label) {
   }
 
   error_at(n->token->loc, "%s", "not a constant expression"); 
+
+  return 0; // never reach here
 }
 
 static int64_t eval_rval(Node *n, char **label) {
@@ -2190,6 +2205,8 @@ static int64_t eval_rval(Node *n, char **label) {
   }
 
   error_at(n->token->loc, "%s", "invalid initializer");
+
+  return 0; // never reach here
 }
 
 /*
@@ -2488,6 +2505,8 @@ static Node *new_sub(Node *lhs, Node *rhs, Token *token) {
   }
 
   error_at(token->loc, "%s", "invalid operand");
+
+  return NULL; // never reach here
 }
 
 /*
@@ -2564,7 +2583,7 @@ static Node *cast(Token **rest, Token *token) {
 /*
   abstract-declarator ::= "*"* ("(" abstract-declarator ")")? type-suffix
 */
-static Type *abstract_declarator(Type **rest, Token *token, Type *ty) {
+static Type *abstract_declarator(Token **rest, Token *token, Type *ty) {
   while (consume(&token, token, "*")) {
     ty = pointer_to(ty);
   }
@@ -2941,4 +2960,5 @@ static Node *primary(Token **rest, Token *token) {
 
   error_at(token->loc, "%s", "expect ({}), (), ident, funcall, str and num");
 
+  return NULL; // never reach here
 }

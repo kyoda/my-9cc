@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <ctype.h>
 #include <string.h>
+#include <strings.h>
 #include <stdarg.h>
 #include <errno.h>
 #include <assert.h>
@@ -246,5 +247,35 @@ typedef struct {
   int align;
 } VarAttr;
 
-Node *new_cast(Node *lhs, Type *ty, Token *token);
+
+//type.c
+Type *ty_void();
+Type *ty_bool();
+Type *ty_enum();
+Type *ty_char();
+Type *ty_short();
+Type *ty_int();
+Type *ty_long();
+Type *ty_struct();
+Type *pointer_to(Type *base);
+Type *ty_array(Type *base, int len);
+Type *ty_func(Type *base);
+Type *ty_builtin_va_list(void);
+Type *cp_type(Type *ty);
 bool is_integer(Type *ty);
+void add_type(Node *n);
+
+// tokenize.c
+Token *tokenize(char *p, char *file);
+void error(char *fmt, ...);
+void error_at(char *loc, char *fmt, ...);
+int equal(Token *t, char *key);
+Token *skip(Token *t, char *op);
+
+//parse.c
+Obj *parse(Token *token);
+Node *new_cast(Node *lhs, Type *ty, Token *token);
+
+//codegen.c
+void codegen(Obj *prog, FILE *outfile);
+int align_to(int n, int align);

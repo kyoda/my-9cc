@@ -2,6 +2,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+/*
+    external variable and function declarations for `extern` tests
+*/
 int ext1 = 5;
 int *ext2 = &ext1;
 int ext3 = 3;
@@ -18,6 +21,10 @@ void assert(int expected, int actual, char *code) {
     }
 }
 
+/*
+    A sample variadic function used for `va_list` tests.
+    This function is compiled with GCC because my compiler does not yet fully support `va_start` and `va_arg`.
+*/
 int add_all(int n, ...) {
     va_list ap;
     va_start(ap, n);
