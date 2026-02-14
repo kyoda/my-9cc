@@ -35,6 +35,12 @@ void ret_none(void) {
 
 int add_all(int n, ...);
 
+# include <stdarg.h>
+int sum(int a, int b, ...) {
+  va_list ap;
+  va_start(ap, b);
+}
+
 int main() {
   ASSERT(8, add2(5, 3));
   ASSERT(3, ret3());
@@ -74,6 +80,9 @@ int main() {
   ASSERT(0, ({ char buf[100]; sprintf(buf, "%d, %d, %s", 1, 2, "hello"); strcmp(buf, "1, 2, hello"); }));
 
   ret_none();
+
+  //ASSERT(0, fmt(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
+  //ASSERT(0, ({fmt(1, 2, 3, 4, 5, 6); 0;}));
 
   printf("OK\n");
   return 0;

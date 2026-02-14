@@ -12,6 +12,12 @@
 #define MAX(x, y) ((x) > (y) ? (x) : (y))
 #define MIN(x, y) ((x) < (y) ? (x) : (y))
 
+/*
+  stdarg.h
+
+    typedef __builtin_va_list __gnuc_va_list;
+*/
+
 typedef struct Type Type;
 typedef struct Token Token;
 typedef struct Node Node;
@@ -186,6 +192,7 @@ struct Obj {
   Obj *params;
   Node *body;
   Obj *locals;
+  Obj *va_area;
   int stack_size;
 
 };
@@ -249,6 +256,7 @@ typedef struct {
 
 
 //type.c
+Type *new_type(TypeKind kind, int size, int align);
 Type *ty_void();
 Type *ty_bool();
 Type *ty_enum();

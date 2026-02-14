@@ -5,6 +5,7 @@ typedef int myint, myint2;
 int main() {
   ASSERT(0, ({ typedef int; 0;}));
   ASSERT(0, ({ typedef t; 0;}));
+  ASSERT(4, ({ typedef t; sizeof(t);}));
   ASSERT(0, ({ typedef int t; 0;}));
   ASSERT(0, ({ typedef int t, u; 0;}));
   ASSERT(4, ({ typedef int t; t a; sizeof(a);}));

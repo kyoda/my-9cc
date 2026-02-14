@@ -922,6 +922,25 @@ static void *function (Token **rest, Token *token, Type *basety, VarAttr *attr) 
   //このタイミングでparamsをlvarにする
   create_params(ty->params);
   fn->params = locals;
+  if (ty->is_variadic) {
+    /*
+      可変長引数の管理用の変数を作成: va_list
+      アセンブリ側で下記の構成の値を設定する領域となる
+      
+      va_listは、ユーザ側のソースコード内で下記を明示して作らずに済むようにコンパイル側であらかじめ変数を用意するという方法を取っている
+      struct {
+        int gp_offset;
+        int fp_offset;
+        void *overflow_arg_area;
+        void *reg_save_area;
+      } __va_elem;
+      typedef struct __va_elem __builtin_va_list[1];
+
+      200 -> va_listのサイズ(24) + reg_save_areaのサイズ(6 x 8 + 8 x 16 = 200)
+
+    */
+    fn->va_area = new_lvar("__builtin_va_list", new_type(TY_STRUCT, 200, 1));
+  }
 
   fn->body = compound_stmt(&token, token);
   add_type(fn->body);
@@ -1060,6 +1079,16 @@ static void *global_variable (Token **rest, Token *token, Type *basety, VarAttr 
 }
 
 /*
+  __builtin_の初期化
+*/
+void init_builtin(void) {
+  // Add a dummy entry for __builtin_va_list to skip typedef processing
+  push_scope("__builtin_va_list")->type_def = ty_struct();
+  new_gvar("__builtin_va_start", new_type(TY_FUNC, 0, 1));
+  new_gvar("__builtin_va_arg", new_type(TY_FUNC, 0, 1));
+}
+
+/*
   parse_typedef ::= declarator ";"
 */
 static void parse_typedef(Token **rest, Token *token, Type *basety) {
@@ -1086,6 +1115,7 @@ static void parse_typedef(Token **rest, Token *token, Type *basety) {
 */
 Obj *parse(Token *token) {
   globals = NULL;
+  init_builtin();
 
   while (token->kind != TK_EOF) {
     VarAttr attr = {};
@@ -1678,6 +1708,11 @@ static Type *func_params(Token **rest, Token *token, Type *ty) {
       ty2->token = ty2_token;
     }
 
+    /*
+      paramsのリストは引数指定順
+      func(a, b, c, d, e, f)
+      a -> b -> c -> d -> e -> f
+    */
     cur = cur->next = ty2;
   }
 

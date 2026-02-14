@@ -118,6 +118,16 @@ static void gen_addr(Node *n) {
   error("expected a variable");
 }
 
+// 引数をstackに逆順にpushする(right to leftでpushするための再帰関数)
+static void push_stacked(Node *n) {
+  if (!n) {
+    return;
+  }
+  push_stacked(n->next);
+  gen_expr(n);
+  push();
+}
+
 enum {I8, I16, I32, I64};
 static int getTypeId(Type *ty) {
   switch (ty->kind) {
@@ -209,15 +219,98 @@ static void gen_expr(Node *n) {
     return;
   }
   case ND_FUNC: {
-    int nargs = 0;
 
+    /*
+      通常であれば、引数をセットしてcall命令を実行するが、組み込み関数の場合はそのまま処理する
+    */
+    if (strcmp(n->funcname, "__builtin_va_start") == 0) {
+      /*
+        void __builtin_va_start(va_list ap, last);
+        last: 可変長引数の直前の引数
+        ap: va_list構造体へのポインタ
+
+        struct {
+          unsigned int gp_offset; // 汎用レジスタをどこまで読んだかを指す。最大6 * 8byte , つまり可変長引数として最初どこを読むかを指している
+          unsigned int fp_offset; // 浮動小数点レジスタをどこまで読んだかを指す
+          void *overflow_arg_area; //レジスタに入りきらなかった「7番目以降の引数」が置かれているスタック上の位置を指すポインタ
+          void *reg_save_area; //関数の最初(プロローグ)で、引数レジスタ*rdi, rsi, rdx, …, xmm0…xmm7)の内容を一時的にメモリにコピーしておく領域のアドレス。
+        } va_elem;
+      */
+
+      // apのアドレスをrdiにセット
+      gen_addr(n->args);
+      println("mov rdi, rax");
+      println("  # __builtin_va_start");
+      // rsiにva_areaのアドレスをセット
+      println("  lea rsi, [rbp - %d]", current_fn->va_area->offset);
+      // gp_offsetとfp_offset
+      println("  mov rax, QWORD PTR [rsi + 0]"); // va_area->gp_offset, va_area->fp_offsetの値をraxに取得
+      println("  mov QWORD PTR [rdi + 0], rax"); // va_area->gp_offset, va_area->fp_offsetの値をap->gp_offset, ap->fp_offsetにコピー
+      // overflow_arg_area
+      println("  mov rax, QWORD PTR [rsi + 8]"); // va_area->overflow_arg_areaの値をraxに取得
+      println("  mov QWORD PTR [rdi + 8], rax"); // va_area->overflow_arg_areaの値をap->overflow_arg_areaにコピー
+      // reg_save_area
+      println("  mov rax, QWORD PTR [rsi + 16]"); // va_area->reg_save_areaの値をraxに取得
+      println("  mov QWORD PTR [rdi + 16], rax"); // va_area->reg_save_areaの値をap->reg_save_areaにコピー
+
+      return;
+    }
+
+    if (strcmp(n->funcname, "__builtin_va_arg") == 0) {
+      /*
+        type __builtin_va_arg(va_list ap, type);
+        ap: va_list構造体へのポインタ
+        type: 取得する引数の型
+      */
+      // apのアドレスをraxにセット
+      gen_addr(n->args);
+      println("  # __builtin_va_arg");
+
+      return;
+    }
+
+
+    /*
+      sum(a1, a2, a3, a4, a5, a6, a7, a8);
+      引数の順番(n->args)は、a1->a2->a3->...->a8
+      a7, a8は, stackに残るがその際にright-to-leftでpushする必要がある
+
+      stack
+      +------------------------------
+      | ~~~
+      +------------------------------
+      | a8
+      | 7fff ffff ffff ffff 
+      +------------------------------
+      | a7
+      | 6fff ffff ffff ffff
+      +------------------------------
+      | rsp
+      +------------------------------
+      | ~~~
+      +------------------------------
+      | 0x 0000 0000 0000 0000
+      +------------------------------
+
+      ND_FUNC終了時にgp(general-purpose register)に引数をセットする必要がある
+      gen_expr();はgpを利用するため、引数をひとつずつGPRにセットすることができない
+      そのため、すべてのgen_expr();結果をstackにpushししておき最後にgpにpopする必要がある
+    */
+
+    // Push arguments onto stack in reverse order
+    push_stacked(n->args);
+
+    // Count number of arguments
+    int nargs = 0;
     for (Node *arg = n->args; arg; arg = arg->next) {
-      gen_expr(arg);
-      push();
       nargs++;
     }
 
-    for (int i = nargs - 1; i >= 0; i--) {
+    // Load up to max 6 arguments into registers
+    int num_reg_args = nargs > 6 ? 6 : nargs;
+
+    // Load arguments from stack into registers
+    for (int i = 0; i < num_reg_args; i++) {
       pop(argreg64[i]);
     }
 
@@ -703,6 +796,118 @@ static void emit_text(Obj *prog) {
     println("  mov rbp, rsp");
     println("  sub rsp, %d", fn->stack_size);
 
+    /*
+      va_areaはlocalsに含まれており、align_stack_size()でoffsetが設定されている
+      fn->paramsは関数の引数リストでlocals全体を含んでいないため、`...`の前の引数の個数を数えることができる
+
+      paramsのリストは引数指定順としている
+      func(a, b, c, d, e, f)
+      a -> b -> c -> d -> e -> f
+
+      スタック例：
+
+      sum(1, 2, 3, 4, 5, 6, 7, 8);
+
+      int sum(int a, int b, ...) {
+        va_list ap;
+        va_start(ap, b);            --> 可変引数の直前の引数の場所を指定
+        int p3 = va_arg(ap, int);   --> apが指している次の引数を取得
+        int p4 = va_arg(ap, int);
+        int p5 = va_arg(ap, int);
+        int p6 = va_arg(ap, int);
+        int p7 = va_arg(ap, int);
+        int p8 = va_arg(ap, int);
+
+        return a + b + p3 + p4 + p5 + p6 + p7 + p8;
+      }
+
+     [stack by 8 byte align]
+
+      | caller function
+      +------------------------------
+      | p8 (= 8)                      ; [rbp + 24]
+      +------------------------------
+      | p7 (= 7)                      ; [rbp + 16]
+      +------------------------------ 
+      | return address <--- caller rsp
+      +------------------------------
+      | old RBP <--- caller rbp       ; [rbp' + 0]
+      +------------------------------ <-- ★ ここから下は callee が sub rsp で確保した領域
+
+      | local vars (例: spill/padding/c等)
+      +------------------------------  calleeが作る退避領域 (va_elem + reg_save_area, parseにて200byte確保)
+      | ...  xmm registers save area
+      | +48  saved R9  (p6=6)
+      | +40  saved R8  (p5=5)
+      | +32  saved RCX (p4=4)
+      | +16  saved RDX (p3=3)
+      | +8   saved RSI (b=2)
+      | +0   saved RDI (a=1)
+      +------------------------------ <-- reg_save_areaの先頭アドレス
+      | va_elem (va_list本体, 24Byte)
+      |  - reg_save_area
+      |  - overflow_arg_area
+      |  - gp_offset, fp_offset
+      +------------------------------ <-- va_elem->offset
+      | (padding / align)
+      +------------------------------
+      | xxx <--- rsp
+      +------------------------------
+      | ~~~
+      +------------------------------
+    */
+
+
+    if (fn->va_area) {
+      int gp = 0;
+      for (Obj *var = fn->params; var; var = var->next) {
+        gp++;
+      }
+      gp = MIN(gp, 6); // 最大6個までレジスタ渡し可能
+
+      int offset = fn->va_area->offset;
+
+      /*
+        gp(general-purpose register) -> 汎用レジスタ
+        fp(floating-point register) -> 浮動小数点レジスタ
+
+        va_elemの定義
+        可変長引数の関数が作成された際にva_list用の領域を設定してある
+        その領域に、アセンブリ側で値をセットする
+        struct {
+          unsigned int gp_offset; // 汎用レジスタをどこまで読んだかを指す。最大6 * 8byte , つまり可変長引数として最初どこを読むかを指している
+          unsigned int fp_offset; // 浮動小数点レジスタをどこまで読んだかを指す
+          void *overflow_arg_area; //レジスタに入りきらなかった「7番目以降の引数」が置かれているスタック上の位置を指すポインタ
+          void *reg_save_area; //関数の最初(プロローグ)で、引数レジスタ*rdi, rsi, rdx, …, xmm0…xmm7)の内容を一時的にメモリにコピーしておく領域のアドレス。
+        } va_elem;
+      */
+      // gp_offset
+      println("  mov DWORD PTR [rbp - %d], %d", offset, gp * 8);
+      // fp_offset
+      println("  mov DWORD PTR [rbp - %d + 4], 48", offset);
+      // overflow_arg_area
+      println("  lea rax, [rbp + 16]");
+      println("  mov QWORD PTR [rbp - %d + 8], rax", offset);
+      // reg_save_area
+      println("  lea rax, [rbp - %d + 24]", offset); // reg_save_areaの先頭アドレス, 24byteはva_elemのサイズ
+      println("  mov QWORD PTR [rbp - %d + 16], rax", offset);
+
+      /*
+       reg_save_areaにレジスタの値を保存
+       reg_save_area は reg_save_area 領域のベース（最小アドレス）を指し、そこから +offset で上（高アドレス）方向に並べる。va_elem の直後に配置している。
+      */
+      println("  mov QWORD PTR [rax + 0], rdi"); // RDI
+      println("  mov QWORD PTR [rax + 8], rsi"); // RSI
+      println("  mov QWORD PTR [rax + 16], rdx"); // RDX
+      println("  mov QWORD PTR [rax + 24], rcx"); // RCX
+      println("  mov QWORD PTR [rax + 32], r8"); // R8
+      println("  mov QWORD PTR [rax + 40], r9"); // R9
+
+
+
+    }
+
+    // レジスタに渡された関数の引数をスタックに保存
     /*
       paramsのリストは引数指定順
       func(a, b, c, d, e, f)

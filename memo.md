@@ -25,6 +25,8 @@ x86-64 ABI、アセンブリ記法、型の変換命令など。
 + 型修飾子（type qualifier）-> const, restrict, etc..
 + ストレージクラス指定子（storage-class specifier） -> static, extern, typedef, etc..
 + 自己参照構造体（Self-referential Structure）
++ 汎用レジスタ（General-Purpose Registers, GPR）
+
 
 ## 生成文法
 
@@ -279,6 +281,20 @@ push rax 実行 rsp = 0x7fffffffdff8
 | `w` | word (16bit) |
 | `l` | long (32bit) |
 | `q` | quad (64bit) |
+
+## サイズ一覧（Intel記法）
+
+メモリアクセスの際にサイズがわからないため指定する
+
+| 指定子         | サイズ   | C型の対応（x86_64）  |
+| ----------- | ----- | -------------- |
+| `byte ptr`  | 8bit  | char           |
+| `word ptr`  | 16bit | short          |
+| `dword ptr` | 32bit | int            |
+| `qword ptr` | 64bit | long / pointer |
+
+例: mov rdi, QWORD PTR [rax + 0]
+
 
 ## 操作例
 
