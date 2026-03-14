@@ -271,6 +271,7 @@ Type *ty_array(Type *base, int len);
 Type *ty_func(Type *base);
 Type *ty_builtin_va_list(void);
 Type *cp_type(Type *ty);
+char *get_type_name(Type *ty);
 bool is_integer(Type *ty);
 void add_type(Node *n);
 

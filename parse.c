@@ -2925,11 +2925,28 @@ static Node *funcall(Token **rest, Token *token) {
     // 2つ目の引数: type
     Type *ty = typename(&token, token);
 
+    /*
+      va_arg(ap, type)のtypeにおいて4byte未満の整数型は、intに昇格(default argument promotions)するが、
+      指定するtype名は、charやshortなどの4byte未満の整数型は指定できない。
+    */
+    switch (ty->kind) {
+    case TY_CHAR:
+    case TY_SHORT:
+      error("%s: invalid type for va_arg", get_type_name(ty));
+    case TY_INT:
+    case TY_LONG:
+      break;
+    default:
+      error("%s: invalid type for va_arg", get_type_name(ty));
+    }
+
     expect(&token, token, ")");
 
 
     Node *n = new_node(ND_FUNC, token);
-    // 返り値のtypeは、va_start(ap, type)のtype
+    /*
+      返り値のtypeは、va_start(ap, type)のtype
+    */
     ty->return_ty = ty;
     n->func_ty = ty_func(ty);
     n->ty = ty;
@@ -2972,6 +2989,19 @@ static Node *funcall(Token **rest, Token *token) {
 
       arg = new_cast(arg, param_ty, token);
       param_ty = param_ty->next;
+    } else {
+      if (ty->is_variadic) {
+        if (arg->ty->kind == TY_STRUCT || arg->ty->kind == TY_UNION) {
+          error_at(token->loc, "%s", "struct or union is not permitted");
+        }
+
+        // default argument promotions
+        if (is_integer(arg->ty) && arg->ty->size < 4) {
+          arg = new_cast(arg, ty_int(), token);
+        }
+      } else {
+        error_at(token->loc, "%s", "too many arguments");
+      }
     }
 
     cur = cur->next = arg;

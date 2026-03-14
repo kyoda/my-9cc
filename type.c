@@ -93,6 +93,21 @@ static void usual_arith_conv(Node **lhs, Node **rhs) {
   *rhs = new_cast(*rhs, ty, (*rhs)->token);
 }
 
+char *get_type_name(Type *ty) {
+  switch (ty->kind) {
+  case TY_VOID: return "void";
+  case TY_BOOL: return "_Bool";
+  case TY_CHAR: return "char";
+  case TY_SHORT: return "short";
+  case TY_INT: return "int";
+  case TY_LONG: return "long";
+  case TY_ENUM: return "enum";
+  case TY_STRUCT: return "struct";
+  case TY_UNION: return "union";
+  default: error("%s", "invalid type");
+  }
+}
+
 bool is_integer(Type *ty) {
   TypeKind kind = ty->kind;
   return kind == TY_BOOL || 
