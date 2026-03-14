@@ -35,6 +35,59 @@ void ret_none(void) {
 
 int add_all(int n, ...);
 
+# include <stdarg.h>
+int sum6(int a, int b, ...) {
+  va_list ap;
+  va_start(ap, b);
+  int c = va_arg(ap, int);
+  int d = va_arg(ap, int);
+  int e = va_arg(ap, int);
+  int f = va_arg(ap, int);
+
+  return  a + b + c + d + e + f;
+}
+
+int sum7(int a, int b, ...) {
+  va_list ap;
+  va_start(ap, b);
+  int c = va_arg(ap, int);
+  int d = va_arg(ap, int);
+  int e = va_arg(ap, int);
+  int f = va_arg(ap, int);
+  int g = va_arg(ap, int);
+
+  return  a + b + c + d + e + f + g;
+}
+
+int sum8(int a, int b, ...) {
+  va_list ap;
+  va_start(ap, b);
+  int c = va_arg(ap, int);
+  int d = va_arg(ap, int);
+  int e = va_arg(ap, int);
+  int f = va_arg(ap, int);
+  int g = va_arg(ap, int);
+  int h = va_arg(ap, int);
+
+
+  return  a + b + c + d + e + f + g + h;
+}
+
+int sum10(int a, int b, ...) {
+  va_list ap;
+  va_start(ap, b);
+  int c = va_arg(ap, int);
+  int d = va_arg(ap, int);
+  int e = va_arg(ap, int);
+  int f = va_arg(ap, int);
+  int g = va_arg(ap, int);
+  int h = va_arg(ap, int);
+  int i = va_arg(ap, int);
+  int j = va_arg(ap, int);
+
+  return  a + b + c + d + e + f + g + h + i + j;
+}
+
 int main() {
   ASSERT(8, add2(5, 3));
   ASSERT(3, ret3());
@@ -74,6 +127,11 @@ int main() {
   ASSERT(0, ({ char buf[100]; sprintf(buf, "%d, %d, %s", 1, 2, "hello"); strcmp(buf, "1, 2, hello"); }));
 
   ret_none();
+
+  ASSERT(21, sum6(1, 2, 3, 4, 5, 6));
+  ASSERT(28, sum7(1, 2, 3, 4, 5, 6, 7));
+  ASSERT(36, sum8(1, 2, 3, 4, 5, 6, 7, 8));
+  ASSERT(55, sum10(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
 
   printf("OK\n");
   return 0;
