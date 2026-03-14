@@ -226,7 +226,7 @@ static void gen_expr(Node *n) {
     if (strcmp(n->funcname, "__builtin_va_start") == 0) {
       /*
         void __builtin_va_start(va_list ap, last);
-        last: 可変長引数の直前の引数
+        last: 可変長引数の直前の引数, 32bit時代の名残であり利用しない
         ap: va_list構造体へのポインタ
 
         struct {
@@ -237,10 +237,11 @@ static void gen_expr(Node *n) {
         } va_elem;
       */
 
+      println("  # __builtin_va_start");
+
       // apのアドレスをrdiにセット
       gen_addr(n->args);
-      println("mov rdi, rax");
-      println("  # __builtin_va_start");
+      println("  mov rdi, rax");
       // rsiにva_areaのアドレスをセット
       println("  lea rsi, [rbp - %d]", current_fn->va_area->offset);
       // gp_offsetとfp_offset
@@ -262,9 +263,69 @@ static void gen_expr(Node *n) {
         ap: va_list構造体へのポインタ
         type: 取得する引数の型
       */
-      // apのアドレスをraxにセット
-      gen_addr(n->args);
+
+      int c = count();
       println("  # __builtin_va_arg");
+      // apのアドレスをrdiにセット
+      gen_addr(n->args);
+      println("  mov rdi, rax");
+      // gp_offsetの値をrsiに取得
+      println("  mov esi, DWORD PTR [rdi + 0]"); // ap->gp_offsetの値をrsiに取得
+
+      /*
+        ap->gp_offsetの値が48未満であれば、reg_save_areaから引数を取得する
+        そうでなければ、overflow_arg_areaから引数を取得する
+      */
+      // cmp命令でgp_offsetの値が48未満かを判定
+      println("  cmp rsi, 48");
+      println("  jl .Luse_reg%03d", c);
+
+      // 48以上であれば、overflow_arg_areaから引数を取得する
+      println("  mov rdx, QWORD PTR [rdi + 8]");
+
+      switch (n->ty->size) {
+      case 1:
+        println("  movzx eax, BYTE PTR [rdx]");
+        break;
+      case 2:
+        println("  movzx eax, WORD PTR [rdx]");
+        break;
+      case 4: 
+        println("  mov eax, DWORD PTR [rdx]");
+        break;
+      default:
+        println("  mov rax, [rdx]");
+        break;
+      }
+      // overflow_arg_areaを更新する
+      println("  add QWORD PTR [rdi + 8], 8");
+      println("  jmp .Luse_reg_end%03d", c);
+
+      // gp_offset < 48であれば、reg_save_areaから引数を取得する
+      println(".Luse_reg%03d:", c);
+      println("  mov rdx, QWORD PTR [rdi + 16]"); // ap->reg_save_areaの値をrdxに取得
+      println("  add rdx, rsi"); // reg_save_areaの先頭からgp_offsetの値だけ進める
+
+      switch (n->ty->size) {
+      case 1:
+        println("  movzx eax, BYTE PTR [rdx]");
+        break;
+      case 2:
+        println("  movzx eax, WORD PTR [rdx]");
+        break;
+      case 4: 
+        println("  mov eax, DWORD PTR [rdx]");
+        break;
+      default:
+        println("  mov rax, [rdx]");
+        break;
+      }
+
+      // gp_offsetを更新する
+      println("  add DWORD PTR [rdi], 8");
+
+      // overflow_arg_areaから引数を取得した後はここに飛ぶ
+      println(".Luse_reg_end%03d:", c);
 
       return;
     }
@@ -297,9 +358,6 @@ static void gen_expr(Node *n) {
       そのため、すべてのgen_expr();結果をstackにpushししておき最後にgpにpopする必要がある
     */
 
-    // Push arguments onto stack in reverse order
-    push_stacked(n->args);
-
     // Count number of arguments
     int nargs = 0;
     for (Node *arg = n->args; arg; arg = arg->next) {
@@ -308,6 +366,17 @@ static void gen_expr(Node *n) {
 
     // Load up to max 6 arguments into registers
     int num_reg_args = nargs > 6 ? 6 : nargs;
+    int num_stack_args = nargs > 6 ? nargs - 6 : 0;
+
+    // 7以上の引数がある場合連続して次のcalleeをstackに積まないといけないためこのタイミングでalignmentを考慮してrspを調整する必要がある
+    bool is_padding = (depth + num_stack_args) % 2 == 0 ? false : true;
+    if (is_padding) {
+      // call命令の前に、スタックのalignmentを16byteにするために8byte分rspを減らす必要がある
+      println("  sub rsp, 8");
+    }
+
+    // Push arguments onto stack in reverse order
+    push_stacked(n->args);
 
     // Load arguments from stack into registers
     for (int i = 0; i < num_reg_args; i++) {
@@ -315,14 +384,18 @@ static void gen_expr(Node *n) {
     }
 
     println("  mov rax, 0");
+    println("  call %s", n->funcname);
 
-    if (depth % 2 == 0) {
-      println("  call %s", n->funcname);
-    } else {
-      println("  sub rsp, 8");
-      println("  call %s", n->funcname);
+    // 呼び出し前のalignmentをcall後に元に戻す
+    if (is_padding) {
       println("  add rsp, 8");
     }
+
+    // スタックにpushした引数の分だけrspが増えているため、呼び出し後にrspを元に戻す必要がある
+    println("  add rsp, %d", num_stack_args * 8);
+
+    // スタックにpushした引数の分だけdepthが増えているため全体で調整する
+    depth -= num_stack_args;
 
     /*
       関数の戻り値はraxに入るが下記のタイプでは上位32bitにゴミが残っている可能性があるため適宜処理する。
@@ -810,7 +883,7 @@ static void emit_text(Obj *prog) {
 
       int sum(int a, int b, ...) {
         va_list ap;
-        va_start(ap, b);            --> 可変引数の直前の引数の場所を指定
+        va_start(ap, b);            --> 可変引数の直前の引数の場所を指定(32bit時代の名残であり利用しない)
         int p3 = va_arg(ap, int);   --> apが指している次の引数を取得
         int p4 = va_arg(ap, int);
         int p5 = va_arg(ap, int);
@@ -835,7 +908,7 @@ static void emit_text(Obj *prog) {
       +------------------------------ <-- ★ ここから下は callee が sub rsp で確保した領域
 
       | local vars (例: spill/padding/c等)
-      +------------------------------  calleeが作る退避領域 (va_elem + reg_save_area, parseにて200byte確保)
+      +------------------------------  calleeが作る退避領域 (va_area(24byte), reg_save_area(176byte)の GP, FP合わせて確保)
       | ...  xmm registers save area
       | +48  saved R9  (p6=6)
       | +40  saved R8  (p5=5)
@@ -843,6 +916,7 @@ static void emit_text(Obj *prog) {
       | +16  saved RDX (p3=3)
       | +8   saved RSI (b=2)
       | +0   saved RDI (a=1)
+      ...
       +------------------------------ <-- reg_save_areaの先頭アドレス
       | va_elem (va_list本体, 24Byte)
       |  - reg_save_area
@@ -889,7 +963,8 @@ static void emit_text(Obj *prog) {
       println("  lea rax, [rbp + 16]");
       println("  mov QWORD PTR [rbp - %d + 8], rax", offset);
       // reg_save_area
-      println("  lea rax, [rbp - %d + 24]", offset); // reg_save_areaの先頭アドレス, 24byteはva_elemのサイズ
+      //println("  lea rax, [rbp - %d + 24]", offset); // reg_save_areaの先頭アドレス, 24byteはva_elemのサイズ
+      println("  lea rax, [rbp - %d]", fn->reg_save_area->offset); // reg_save_areaの先頭アドレス
       println("  mov QWORD PTR [rbp - %d + 16], rax", offset);
 
       /*

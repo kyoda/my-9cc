@@ -63,6 +63,10 @@ Type *ty_func(Type *base) {
   return ty;
 }
 
+Type *ty_va_list(void) {
+  return new_type(TY_STRUCT, 24, 8);
+}
+
 Type *cp_type(Type *ty) {
   Type *new_ty = calloc(1, sizeof(Type));
   *new_ty = *ty;

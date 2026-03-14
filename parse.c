@@ -936,10 +936,13 @@ static void *function (Token **rest, Token *token, Type *basety, VarAttr *attr) 
       } __va_elem;
       typedef struct __va_elem __builtin_va_list[1];
 
-      200 -> va_listのサイズ(24) + reg_save_areaのサイズ(6 x 8 + 8 x 16 = 200)
+      va_listのサイズ(24) 
+      reg_save_areaのサイズ(176)(GP: 6 x 8 = 48 + FP: 8 x 16 = 128)
 
     */
-    fn->va_area = new_lvar("__builtin_va_list", new_type(TY_STRUCT, 200, 1));
+    fn->va_area = new_lvar("__va_area", ty_va_list());
+    fn->reg_save_area = new_lvar("__reg_save_area", ty_array(ty_char(), 176));
+    fn->reg_save_area->align = 16;
   }
 
   fn->body = compound_stmt(&token, token);
@@ -1083,9 +1086,7 @@ static void *global_variable (Token **rest, Token *token, Type *basety, VarAttr 
 */
 void init_builtin(void) {
   // Add a dummy entry for __builtin_va_list to skip typedef processing
-  push_scope("__builtin_va_list")->type_def = ty_struct();
-  new_gvar("__builtin_va_start", new_type(TY_FUNC, 0, 1));
-  new_gvar("__builtin_va_arg", new_type(TY_FUNC, 0, 1));
+  push_scope("__builtin_va_list")->type_def = ty_va_list();
 }
 
 /*
@@ -2875,6 +2876,70 @@ static Node *postfix(Token **rest, Token *token) {
 static Node *funcall(Token **rest, Token *token) {
   Token *start = token;
 
+  if (equal(token, "__builtin_va_start")) {
+    token = token->next;
+    expect(&token, token, "(");
+
+    Node head = {};
+    Node *cur = &head;
+    // 1つ目の引数: ap
+    Node *arg = assign(&token, token);
+    add_type(arg);
+
+    cur = cur->next = arg;
+    expect(&token, token, ",");
+
+    // 2つ目の引数: last
+    arg = assign(&token, token);
+    add_type(arg);
+    cur = cur->next = arg;
+
+    expect(&token, token, ")");
+
+
+    Type *ty = ty_void();
+    Node *n = new_node(ND_FUNC, token);
+    n->func_ty = ty_func(ty);
+    n->ty = ty;
+    n->funcname = strndup(start->loc, start->len);
+    n->args = head.next;
+
+    *rest = token;
+    return n;
+  }
+
+  if (equal(token, "__builtin_va_arg")) {
+    // __builtin_va_argは、引数の型をコンパイル時に決める必要があるため、特殊に処理する
+    token = token->next;
+    expect(&token, token, "(");
+
+    Node head = {};
+    Node *cur = &head;
+    // 1つ目の引数: ap
+    Node *arg = assign(&token, token);
+    add_type(arg);
+
+    cur = cur->next = arg;
+    expect(&token, token, ",");
+
+    // 2つ目の引数: type
+    Type *ty = typename(&token, token);
+
+    expect(&token, token, ")");
+
+
+    Node *n = new_node(ND_FUNC, token);
+    // 返り値のtypeは、va_start(ap, type)のtype
+    ty->return_ty = ty;
+    n->func_ty = ty_func(ty);
+    n->ty = ty;
+    n->funcname = strndup(start->loc, start->len);
+    n->args = head.next;
+
+    *rest = token;
+    return n;
+  }
+
   VarScope *vs = find_var(token);
   if (!vs) {
     error_at(token->loc, "%s", "this function not definded");
@@ -2889,7 +2954,7 @@ static Node *funcall(Token **rest, Token *token) {
   Node head = {};
   Node *cur = &head;
   
-  // funtionname (arg, ...);
+  // functionname (arg, ...);
   token = token->next;
   expect(&token, token, "(");
 

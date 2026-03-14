@@ -193,6 +193,7 @@ struct Obj {
   Node *body;
   Obj *locals;
   Obj *va_area;
+  Obj *reg_save_area;
   int stack_size;
 
 };
