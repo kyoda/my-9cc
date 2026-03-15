@@ -330,6 +330,12 @@ static void gen_expr(Node *n) {
       return;
     }
 
+    if (strcmp(n->funcname, "__builtin_va_end") == 0) {
+      println("  # __builtin_va_end");
+      println("  # no operation is needed for __builtin_va_end");
+      return;
+    }
+
 
     /*
       sum(a1, a2, a3, a4, a5, a6, a7, a8);

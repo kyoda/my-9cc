@@ -7,6 +7,7 @@ void error(char *fmt, ...) {
   va_start(ap, fmt);
   vfprintf(stderr, fmt, ap);
   fprintf(stderr, "\n");
+  va_end(ap);
   exit(1);
 }
 
@@ -39,6 +40,7 @@ void error_at(char *loc, char *fmt, ...) {
   fprintf(stderr, "^ ");
   vfprintf(stderr, fmt, ap);
   fprintf(stderr, "\n");
+  va_end(ap);
   exit(1);
 }
 

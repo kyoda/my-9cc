@@ -2957,6 +2957,34 @@ static Node *funcall(Token **rest, Token *token) {
     return n;
   }
 
+  /*
+    va_end(): va_startで初期化したva_listの使用終了を示す。
+    多くの環境では何も処理しないが、実装依存で必要な後処理を行うために存在する。
+  */
+  if (equal(token, "__builtin_va_end")) {
+    token = token->next;
+    expect(&token, token, "(");
+    Node head = {};
+    Node *cur = &head;
+    // 引数: ap
+    Node *arg = assign(&token, token);
+    add_type(arg);
+
+    cur = cur->next = arg;
+
+    expect(&token, token, ")");
+
+    Type *ty = ty_void();
+    Node *n = new_node(ND_FUNC, token);
+    n->func_ty = ty_func(ty);
+    n->ty = ty;
+    n->funcname = strndup(start->loc, start->len);
+    n->args = head.next;
+
+    *rest = token;
+    return n;
+  }
+
   VarScope *vs = find_var(token);
   if (!vs) {
     error_at(token->loc, "%s", "this function not definded");

@@ -42,6 +42,7 @@ int add_all(int n, ...) {
     for (int i = 0; i < n; i++) {
         sum += va_arg(ap, int);
     }
+    va_end(ap);
     return sum;
 }
 
