@@ -296,7 +296,7 @@ static Obj *new_lvar(char *name, Type *ty) {
 static Obj *new_gvar(char *name, Type *ty) {
   Obj *var = find_var_by_name(name);
   if (var) {
-    error("%s: defined variable", name);
+    error_at("%s: defined variable", name);
   }
 
   Obj *gvar = new_var(name, ty);
@@ -864,7 +864,7 @@ static bool is_function(Token *token) {
 static bool is_type(Token *token) {
   char *kw[] = {
     "_Bool", "void", "char", "short", "int", "long", "struct", "union", "enum",
-    "typedef", "static", "extern", "_Alignas"
+    "typedef", "static", "extern", "_Alignas", "signed"
   };
   for (int i = 0; i < sizeof(kw) / sizeof(*kw); i++) {
     if (equal(token, kw[i])) {
@@ -1404,7 +1404,7 @@ static Type *enum_specifier(Token **rest, Token *token) {
 
 /*
   declspec ::= ("_Bool" | "void" | "char" | "short" | "int" | "long"
-             | "struct-decl" | "union-decl" | "enum-specifier" | "_Alignas"
+             | "struct-decl" | "union-decl" | "enum-specifier" | "_Alignas" | "signed"
              | "typedef" | "static" | "extern" | typedef-name)+
 */
 static Type *declspec(Token **rest, Token *token, VarAttr *attr) {
@@ -1415,7 +1415,8 @@ static Type *declspec(Token **rest, Token *token, VarAttr *attr) {
     SHORT = 1 << 6,
     INT = 1 << 8,
     LONG = 1 << 10,
-    OTHER = 1 << 12
+    OTHER = 1 << 12,
+    SIGNED = 1 << 13
   };
 
   Type *ty = ty_int();
@@ -1424,7 +1425,7 @@ static Type *declspec(Token **rest, Token *token, VarAttr *attr) {
   while (is_type(token)) {
     if (equal(token, "typedef") || equal(token, "static") || equal(token, "extern")) {
       if (!attr) {
-        error(token->loc, "%s", "typedef or static is not allowed");
+        error_at(token->loc, "%s", "typedef or static is not allowed");
       }
 
       if (equal(token, "typedef")) {
@@ -1436,7 +1437,7 @@ static Type *declspec(Token **rest, Token *token, VarAttr *attr) {
       }
 
       if (attr->is_typedef && (attr->is_static || attr->is_extern)) {
-        error(token->loc, "%s", "typedef may not be used together with static or extern");
+        error_at(token->loc, "%s", "typedef may not be used together with static or extern");
       }
 
       token = token->next;
@@ -1445,7 +1446,7 @@ static Type *declspec(Token **rest, Token *token, VarAttr *attr) {
 
     if (equal(token, "_Alignas")) {
       if (!attr) {
-        error(token->loc, "%s", "_Alignas is not allowed");
+        error_at(token->loc, "%s", "_Alignas is not allowed");
       }
 
       expect(&token, token->next, "(");
@@ -1498,8 +1499,11 @@ static Type *declspec(Token **rest, Token *token, VarAttr *attr) {
       counter += INT;
     } else if (equal(token, "long")) {
       counter += LONG;
+    } else if (equal(token, "signed")) {
+      //signedは、複数回指定不可
+      counter += SIGNED;
     } else {
-      error(token->loc, "%s", "none of type defined");
+      error_at(token->loc, "%s", "invalid type specifier");
     }
 
     switch(counter) {
@@ -1510,23 +1514,32 @@ static Type *declspec(Token **rest, Token *token, VarAttr *attr) {
       ty = ty_bool();
       break;
     case CHAR:
+    case SIGNED + CHAR:
       ty = ty_char();
       break;
     case SHORT:
     case SHORT + INT:
+    case SIGNED + SHORT:
+    case SIGNED + SHORT + INT:
       ty = ty_short();
       break;
     case INT:
+    case SIGNED:
+    case SIGNED + INT:
       ty = ty_int();
       break;
     case LONG:
     case LONG + INT:
     case LONG + LONG:
     case LONG + LONG + INT:
+    case SIGNED + LONG:
+    case SIGNED + LONG + INT:
+    case SIGNED + LONG + LONG:
+    case SIGNED + LONG + LONG + INT:
       ty = ty_long();
       break;
     default:
-      error(token->loc, "%s", "none of type defined");
+      error_at(token->loc, "%s", "invalid type specifier");
     }
 
     token = token->next;

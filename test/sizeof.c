@@ -48,9 +48,19 @@ int main() {
   
   ASSERT(4, ({ sizeof(struct { int a, b[]; });}));
 
+  ASSERT(1, sizeof(signed char));
+  ASSERT(2, sizeof(signed short));
+  ASSERT(4, sizeof(signed));
+  ASSERT(4, sizeof(signed int));
+  ASSERT(8, sizeof(signed long));
+  ASSERT(8, sizeof(signed long int));
+  ASSERT(8, sizeof(signed long long));
+  ASSERT(8, sizeof(signed long long int));
+
   /* error
     ASSERT(8, ({ sizeof(int (*)[3][]);})); //gcc error
     ASSERT(8, ({ sizeof(int [][3]);}));
+    ASSERT(4, sizeof(signed signed));
   */
 
   printf("OK\n");

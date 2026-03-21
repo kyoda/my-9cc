@@ -27,6 +27,14 @@ x86-64 ABI、アセンブリ記法、型の変換命令など。
 + 自己参照構造体（Self-referential Structure）
 + 汎用レジスタ（General-Purpose Registers, GPR）
 
+| 分類                                        | キーワード                                                                                                                                     | 役割               | 備考                                |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ---------------- | --------------------------------- |
+| **型指定子 (type specifier)**                 | `void`, `char`, `short`, `int`, `long`, `float`, `double`, `_Bool`, `_Complex`, `signed`, `unsigned`, `struct`, `union`, `enum`, typedef名 | **型そのものを決める**    | 複数組み合わせ可能（例: `unsigned long int`） |
+| **型修飾子 (type qualifier)**                 | `const`, `restrict`, `volatile`, `_Atomic`                                                                                                | **型の性質を修飾する**    | 型に付随する制約や最適化ヒント                   |
+| **ストレージクラス指定子 (storage-class specifier)** | `typedef`, `extern`, `static`, `_Thread_local`, `auto`, `register`                                                                        | **記憶域やリンケージを指定** | `typedef`だけ意味が特殊                  |
+
+
+
 
 ## 生成文法
 

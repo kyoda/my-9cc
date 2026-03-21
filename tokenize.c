@@ -2,6 +2,7 @@
 char *user_input;
 char *infile;
 
+// errorは、エラーを報告するための関数。printfと同じ引数を取る
 void error(char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
@@ -11,6 +12,7 @@ void error(char *fmt, ...) {
   exit(1);
 }
 
+// error_atは、エラー箇所を指し示すための関数
 void error_at(char *loc, char *fmt, ...) {
   char *start = loc;
   while (user_input < start && start[-1] != '\n') {
@@ -77,7 +79,7 @@ Token *skip(Token *t, char *op) {
 static int keyword_len(char *p) {
   char *key[] = {"return", "if", "else", "for", "while", "do",
                 "_Bool", "void", "char", "short", "int", "long",
-                "struct", "union", "enum", "_Alignas",
+                "struct", "union", "enum", "_Alignas","signed",
                 "sizeof", "_Alignof",
                 "typedef", "static", "extern",
                 "goto", "break", "continue", "switch", "case", "default"
