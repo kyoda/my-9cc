@@ -79,7 +79,7 @@ Token *skip(Token *t, char *op) {
 static int keyword_len(char *p) {
   char *key[] = {"return", "if", "else", "for", "while", "do",
                 "_Bool", "void", "char", "short", "int", "long",
-                "struct", "union", "enum", "_Alignas","signed",
+                "struct", "union", "enum", "_Alignas","signed","unsigned",
                 "sizeof", "_Alignof",
                 "typedef", "static", "extern",
                 "goto", "break", "continue", "switch", "case", "default"
@@ -210,18 +210,18 @@ static Token *read_char_literal(char *p) {
 static Token *read_int_literal(char *p) {
   char *start = p;
 
-  long val;
+  uint64_t val;
   if (strncasecmp(p, "0x", 2) == 0 && isalnum(p[2])) {
     p += 2;
-    val = strtoul(p, &p, 16);
+    val = strtoull(p, &p, 16);
   } else if (strncasecmp(p, "0b", 2) == 0 && isdigit(p[2])) {
     p += 2;
-    val = strtoul(p, &p, 2);
+    val = strtoull(p, &p, 2);
   } else if (*p == '0' && isdigit(p[1])) {
     p += 1;
-    val = strtoul(p, &p, 8);
+    val = strtoull(p, &p, 8);
   } else {
-    val = strtol(p, &p, 10);
+    val = strtoull(p, &p, 10);
   }
 
   Token *t = new_token(TK_NUM, start, p);
@@ -249,7 +249,7 @@ static Token *read_string_literal(char *start) {
   }
 
   Token *t = new_token(TK_STR, start, end + 1);
-  t->ty = ty_array(ty_char(), len + 1);
+  t->ty = ty_array(cp_type(ty_char), len + 1);
   t->str = buf;
 
   return t;

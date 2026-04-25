@@ -49,13 +49,21 @@ int main() {
   ASSERT(4, ({ sizeof(struct { int a, b[]; });}));
 
   ASSERT(1, sizeof(signed char));
+  ASSERT(1, sizeof(unsigned char));
   ASSERT(2, sizeof(signed short));
+  ASSERT(2, sizeof(unsigned short));
   ASSERT(4, sizeof(signed));
+  ASSERT(4, sizeof(unsigned));
   ASSERT(4, sizeof(signed int));
+  ASSERT(4, sizeof(unsigned int));
   ASSERT(8, sizeof(signed long));
+  ASSERT(8, sizeof(unsigned long));
   ASSERT(8, sizeof(signed long int));
+  ASSERT(8, sizeof(unsigned long int));
   ASSERT(8, sizeof(signed long long));
+  ASSERT(8, sizeof(unsigned long long));
   ASSERT(8, sizeof(signed long long int));
+  ASSERT(8, sizeof(unsigned long long int));
 
   /* error
     ASSERT(8, ({ sizeof(int (*)[3][]);})); //gcc error

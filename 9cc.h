@@ -12,12 +12,6 @@
 #define MAX(x, y) ((x) > (y) ? (x) : (y))
 #define MIN(x, y) ((x) < (y) ? (x) : (y))
 
-/*
-  stdarg.h
-
-    typedef __builtin_va_list __gnuc_va_list;
-*/
-
 typedef struct Type Type;
 typedef struct Token Token;
 typedef struct Node Node;
@@ -37,7 +31,7 @@ typedef enum {
 struct Token {
   TokenKind kind;
   Token *next;
-  int64_t val;
+  uint64_t val;
   char *loc;
   int len; //not array_len but length of token
   int line; //for .loc directive
@@ -124,7 +118,7 @@ struct Node {
   Type *func_ty;
   Node *args;
 
-  int64_t val;
+  uint64_t val;
   Obj *var; // ND_VAR
 
   Token *token; // for error message
@@ -152,6 +146,8 @@ struct Type {
   TypeKind kind;
   int size; //sizeof
   int align; //stacksize
+  bool is_unsigned; // for integer
+
   Type *base; // pointer, array
   int array_len; // array length
 
@@ -162,6 +158,7 @@ struct Type {
   Type *next; //params
 
   Token *token; // declaration
+
   // struct
   Member *members;
   bool is_flexible; // flexible array member
@@ -258,18 +255,22 @@ typedef struct {
 
 //type.c
 Type *new_type(TypeKind kind, int size, int align);
-Type *ty_void();
-Type *ty_bool();
-Type *ty_enum();
-Type *ty_char();
-Type *ty_short();
-Type *ty_int();
-Type *ty_long();
-Type *ty_struct();
+extern Type *ty_void;
+extern Type *ty_bool;
+extern Type *ty_enum;
+extern Type *ty_char;
+extern Type *ty_uchar;
+extern Type *ty_short;
+extern Type *ty_ushort;
+extern Type *ty_int;
+extern Type *ty_uint;
+extern Type *ty_long;
+extern Type *ty_ulong;
+extern Type *ty_struct;
+extern Type *ty_va_list;
 Type *pointer_to(Type *base);
 Type *ty_array(Type *base, int len);
 Type *ty_func(Type *base);
-Type *ty_builtin_va_list(void);
 Type *cp_type(Type *ty);
 char *get_type_name(Type *ty);
 bool is_integer(Type *ty);

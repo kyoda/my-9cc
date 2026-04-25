@@ -52,6 +52,49 @@ int main() {
 
   (void)1;
 
+  ASSERT(-1, (char)255);
+  ASSERT(-1, (signed char)255);
+  ASSERT(255, (unsigned char)255);
+  ASSERT(-1, (short)65535);
+  ASSERT(-1, (signed short)65535);
+  ASSERT(65535, (unsigned short)65535);
+  ASSERT(-1, (int)0xffffffff);
+  ASSERT(-1, (signed int)0xffffffff);
+  ASSERT(0xffffffff, (unsigned int)0xffffffff);
+
+  ASSERT(-30, (unsigned int)(-30));  // ??
+  ASSERT(1, -1<1);
+  ASSERT(0, -1<(unsigned)1);
+  ASSERT(254, (char)127 + (char)127);
+  ASSERT(-128, (char)128); // 10000000bは、符号ありcharの最小値-128に変換され、signed intの-128(integer promotion)になる
+  ASSERT(-128, (int)(char)128);
+  ASSERT(-128, (signed int)(char)128);
+  ASSERT(-128, (unsigned int)(signed int)(char)128);
+  ASSERT(-1, (char)128 + (char)127);
+  ASSERT(-1, (char)128 + (unsigned char)127); //integer promotionでcharはintに昇格するため、符号なしcharも符号ありcharもintに昇格する
+  ASSERT(255, (int)128 + (unsigned int)127);
+  ASSERT(-1, (char)128 + (unsigned int)127); //4294967295uになるが、printfの%dは符号ありintとして出力するため-1になる
+  ASSERT(1, ({ (char)128 + (unsigned int)127 == (unsigned int)4294967295; })); //上記の式の確認
+  ASSERT(1, ({ (unsigned int)4294967295 == -1; })); //-1は、符号なしintの最大値4294967295に変換されるため等しい
+  ASSERT(65534, (short)32767+(short)32767);
+  ASSERT(-1, -1>>1);
+  ASSERT(1, (unsigned long)-1 == -1);
+  ASSERT(1, ((unsigned)-1)>>1 == 2147483647);
+  ASSERT(-50, (-100)/2);
+  ASSERT(1, ((unsigned)-100)/2 == 2147483598);
+  ASSERT(1, ((unsigned long)-100)/2 == 9223372036854775758);
+  ASSERT(0, ((long)-1)/(unsigned)100);
+  ASSERT(-2, (-100)%7);
+  ASSERT(2, ((unsigned)-100)%7);
+  ASSERT(6, ((unsigned long)-100)%9);
+
+  ASSERT(65535, (int)(unsigned short)65535);
+  ASSERT(65535, ({ unsigned short x = 65535; x; }));
+  ASSERT(65535, ({ unsigned short x = 65535; (int)x; }));
+
+  ASSERT(-1, ({ typedef short T; T x = 65535; (int)x; }));
+  ASSERT(65535, ({ typedef unsigned short T; T x = 65535; (int)x; }));
+
   printf("OK\n");
   return 0;
 }

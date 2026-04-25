@@ -39,9 +39,9 @@ static Type *declspec(Token **rest, Token *token, VarAttr *attr);
 static Node *lvar_initializer(Token **rest, Token *token, Obj *var);
 static Initializer *initializer(Token **rest, Token *token, Type *ty, Type **new_ty);
 static void initializer2(Token **rest, Token *token, Initializer *init);
-static int64_t eval(Node *n);
-static int64_t eval2(Node *n, char **label);
-static int64_t eval_rval(Node *n, char **label);
+static uint64_t eval(Node *n);
+static uint64_t eval2(Node *n, char **label);
+static uint64_t eval_rval(Node *n, char **label);
 static Node *declaration(Token **rest, Token *token, Type *basety, VarAttr *attr);
 static Type *declarator(Token **rest, Token *token, Type *ty);
 static Type *type_suffix(Token **rest, Token *token, Type *ty);
@@ -51,7 +51,7 @@ static Node *stmt(Token **rest, Token *token);
 static Node *expr_stmt(Token **rest, Token *token);
 static Node *expr(Token **rest, Token *token);
 static Node *assign(Token **rest, Token *token);
-static int64_t const_expr(Token **rest, Token *token);
+static uint64_t const_expr(Token **rest, Token *token);
 static Node *to_assign(Node *lhs, Node *rhs, Token *token);
 static Node *conditional(Token **rest, Token *token);
 static Node *logicalor(Token **rest, Token *token);
@@ -92,14 +92,14 @@ static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs, Token *token) 
   return n;
 }
 
-static Node *new_long(int64_t val, Token *token) {
+static Node *new_long(uint64_t val, Token *token) {
   Node *n = new_node(ND_NUM, token);
   n->val = val;
-  n->ty = ty_long();
+  n->ty = cp_type(ty_long);
   return n;
 }
 
-static Node *new_node_num(int64_t val, Token *token) {
+static Node *new_node_num(uint64_t val, Token *token) {
   Node *n = new_node(ND_NUM, token);
   n->val = val;
   return n;
@@ -864,7 +864,7 @@ static bool is_function(Token *token) {
 static bool is_type(Token *token) {
   char *kw[] = {
     "_Bool", "void", "char", "short", "int", "long", "struct", "union", "enum",
-    "typedef", "static", "extern", "_Alignas", "signed"
+    "typedef", "static", "extern", "_Alignas", "signed", "unsigned"
   };
   for (int i = 0; i < sizeof(kw) / sizeof(*kw); i++) {
     if (equal(token, kw[i])) {
@@ -940,8 +940,8 @@ static void *function (Token **rest, Token *token, Type *basety, VarAttr *attr) 
       reg_save_areaのサイズ(176)(GP: 6 x 8 = 48 + FP: 8 x 16 = 128)
 
     */
-    fn->va_area = new_lvar("__va_area", ty_va_list());
-    fn->reg_save_area = new_lvar("__reg_save_area", ty_array(ty_char(), 176));
+    fn->va_area = new_lvar("__va_area", cp_type(ty_va_list));
+    fn->reg_save_area = new_lvar("__reg_save_area", ty_array(cp_type(ty_char), 176));
     fn->reg_save_area->align = 16;
   }
 
@@ -1086,7 +1086,7 @@ static void *global_variable (Token **rest, Token *token, Type *basety, VarAttr 
 */
 void init_builtin(void) {
   // Add a dummy entry for __builtin_va_list to skip typedef processing
-  push_scope("__builtin_va_list")->type_def = ty_va_list();
+  push_scope("__builtin_va_list")->type_def = cp_type(ty_va_list);
 }
 
 /*
@@ -1244,7 +1244,7 @@ static Type *struct_union_decl(Token **rest, Token *token) {
     }
 
     // incomplete struct type for sizeof()
-    ty = ty_struct();
+    ty = cp_type(ty_struct);
     ty->size = -1;
     push_new_tag(token_tag, ty);
 
@@ -1253,7 +1253,7 @@ static Type *struct_union_decl(Token **rest, Token *token) {
 
   expect(&token, token, "{");
 
-  Type *ty = ty_struct();
+  Type *ty = cp_type(ty_struct);
   struct_member(&token, token, ty);
   expect(rest, token, "}");
 
@@ -1340,7 +1340,7 @@ static Type *union_decl(Token **rest, Token *token) {
   enmu-list ::= ident ("=" num)? ("," ident ("=" num)?)* 
 */
 static Type *enum_specifier(Token **rest, Token *token) {
-  Type *ty = ty_enum();
+  Type *ty = cp_type(ty_enum);
   // enum
   token = token->next;
 
@@ -1372,7 +1372,7 @@ static Type *enum_specifier(Token **rest, Token *token) {
   //enum-list
   int i = 0;
   // enumの初期値は0から始まる
-  int64_t val = 0;
+  uint64_t val = 0;
   while (!is_end(token)) {
     if (i++ > 0) {
       expect(&token, token, ",");
@@ -1404,7 +1404,7 @@ static Type *enum_specifier(Token **rest, Token *token) {
 
 /*
   declspec ::= ("_Bool" | "void" | "char" | "short" | "int" | "long"
-             | "struct-decl" | "union-decl" | "enum-specifier" | "_Alignas" | "signed"
+             | "struct-decl" | "union-decl" | "enum-specifier" | "_Alignas" | "signed" | "unsigned"
              | "typedef" | "static" | "extern" | typedef-name)+
 */
 static Type *declspec(Token **rest, Token *token, VarAttr *attr) {
@@ -1416,10 +1416,11 @@ static Type *declspec(Token **rest, Token *token, VarAttr *attr) {
     INT = 1 << 8,
     LONG = 1 << 10,
     OTHER = 1 << 12,
-    SIGNED = 1 << 13
+    SIGNED = 1 << 13,
+    UNSIGNED = 1 << 14
   };
 
-  Type *ty = ty_int();
+  Type *ty = cp_type(ty_int);
   int counter = 0; 
 
   while (is_type(token)) {
@@ -1502,31 +1503,45 @@ static Type *declspec(Token **rest, Token *token, VarAttr *attr) {
     } else if (equal(token, "signed")) {
       //signedは、複数回指定不可
       counter += SIGNED;
+    } else if (equal(token, "unsigned")) {
+      //unsignedは、複数回指定不可
+      counter += UNSIGNED;
     } else {
       error_at(token->loc, "%s", "invalid type specifier");
     }
 
     switch(counter) {
     case VOID:
-      ty = ty_void();
+      ty = cp_type(ty_void);
       break;
     case BOOL:
-      ty = ty_bool();
+      ty = cp_type(ty_bool);
       break;
     case CHAR:
     case SIGNED + CHAR:
-      ty = ty_char();
+      ty = cp_type(ty_char);
+      break;
+    case UNSIGNED + CHAR:
+      ty = cp_type(ty_uchar);
       break;
     case SHORT:
     case SHORT + INT:
     case SIGNED + SHORT:
     case SIGNED + SHORT + INT:
-      ty = ty_short();
+      ty = cp_type(ty_short);
+      break;
+    case UNSIGNED + SHORT:
+    case UNSIGNED + SHORT + INT:
+      ty = cp_type(ty_ushort);
       break;
     case INT:
     case SIGNED:
     case SIGNED + INT:
-      ty = ty_int();
+      ty = cp_type(ty_int);
+      break;
+    case UNSIGNED:
+    case UNSIGNED + INT:
+      ty = cp_type(ty_uint);
       break;
     case LONG:
     case LONG + INT:
@@ -1536,7 +1551,13 @@ static Type *declspec(Token **rest, Token *token, VarAttr *attr) {
     case SIGNED + LONG + INT:
     case SIGNED + LONG + LONG:
     case SIGNED + LONG + LONG + INT:
-      ty = ty_long();
+      ty = cp_type(ty_long);
+      break;
+    case UNSIGNED + LONG:
+    case UNSIGNED + LONG + INT:
+    case UNSIGNED + LONG + LONG:
+    case UNSIGNED + LONG + LONG + INT:
+      ty = cp_type(ty_ulong);
       break;
     default:
       error_at(token->loc, "%s", "invalid type specifier");
@@ -1674,7 +1695,7 @@ static Type *type_suffix(Token **rest, Token *token, Type *ty) {
       return ty_array(ty, -1);
     }
 
-    int64_t size = const_expr(&token, token);
+    uint64_t size = const_expr(&token, token);
     expect(&token, token, "]");
     ty = type_suffix(&token, token, ty);
     *rest = token;
@@ -1727,7 +1748,8 @@ static Type *func_params(Token **rest, Token *token, Type *ty) {
       func(a, b, c, d, e, f)
       a -> b -> c -> d -> e -> f
     */
-    cur = cur->next = ty2;
+    ty2->next = NULL;
+    cur = cur->next = cp_type(ty2);
   }
 
   /*
@@ -1984,7 +2006,7 @@ static Node *stmt(Token **rest, Token *token) {
 
     n = new_node(ND_CASE, token);
     token = token->next;
-    int64_t val = const_expr(&token, token);
+    uint64_t val = const_expr(&token, token);
     expect(&token, token, ":");
 
     n->unique_label = new_unique_name();
@@ -2097,7 +2119,7 @@ static Node *expr(Token **rest, Token *token) {
   return n;
 }
 
-static int64_t eval(Node *n) {
+static uint64_t eval(Node *n) {
   return eval2(n, NULL);
 }
 
@@ -2118,7 +2140,7 @@ static int64_t eval(Node *n) {
     case 1+2: --> 実行時に初期化されるためOK
     int a = 1; case a+2: --> コンパイル時にaが決まらないため不可
 */
-static int64_t eval2(Node *n, char **label) {
+static uint64_t eval2(Node *n, char **label) {
   add_type(n);
 
   switch (n->kind) {
@@ -2169,7 +2191,7 @@ static int64_t eval2(Node *n, char **label) {
   case ND_LE:
     return eval(n->lhs) <= eval(n->rhs);
   case ND_CAST:
-    int64_t val = eval2(n->lhs, label);
+    uint64_t val = eval2(n->lhs, label);
 
     if (is_integer(n->ty)) {
       switch (n->ty->size) {
@@ -2225,7 +2247,7 @@ static int64_t eval2(Node *n, char **label) {
   return 0; // never reach here
 }
 
-static int64_t eval_rval(Node *n, char **label) {
+static uint64_t eval_rval(Node *n, char **label) {
   switch (n->kind) {
   case ND_VAR:
     if (n->var->is_local) {
@@ -2262,7 +2284,7 @@ static int64_t eval_rval(Node *n, char **label) {
   値が決まる箇所の計算
   enum { two = 1+1 };, x[3+3], case 1+2: など
 */
-static int64_t const_expr(Token **rest, Token *token) {
+static uint64_t const_expr(Token **rest, Token *token) {
   Node *n = conditional(rest, token);
   return eval(n);
 }
@@ -2910,7 +2932,7 @@ static Node *funcall(Token **rest, Token *token) {
     expect(&token, token, ")");
 
 
-    Type *ty = ty_void();
+    Type *ty = cp_type(ty_void);
     Node *n = new_node(ND_FUNC, token);
     n->func_ty = ty_func(ty);
     n->ty = ty;
@@ -2987,7 +3009,7 @@ static Node *funcall(Token **rest, Token *token) {
 
     expect(&token, token, ")");
 
-    Type *ty = ty_void();
+    Type *ty = cp_type(ty_void);
     Node *n = new_node(ND_FUNC, token);
     n->func_ty = ty_func(ty);
     n->ty = ty;
@@ -3038,7 +3060,7 @@ static Node *funcall(Token **rest, Token *token) {
 
         // default argument promotions
         if (is_integer(arg->ty) && arg->ty->size < 4) {
-          arg = new_cast(arg, ty_int(), token);
+          arg = new_cast(arg, cp_type(ty_int), token);
         }
       } else {
         error_at(token->loc, "%s", "too many arguments");
@@ -3122,7 +3144,7 @@ static Node *primary(Token **rest, Token *token) {
   }
 
   if (token->kind == TK_NUM) {
-    int v = token->val;
+    uint64_t v = token->val;
     token = token->next;
 
     *rest = token;

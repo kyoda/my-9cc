@@ -39,15 +39,17 @@ static void load(Type *ty) {
     return;
   }
 
+  char *mov = ty->is_unsigned ? "movzx" : "movsx";
+
   switch(ty->size) {
   case 1:
-    println("  movsx eax, BYTE PTR [rax]");
+    println("  %s eax, BYTE PTR [rax]", mov);
     break;
   case 2:
-    println("  movsx eax, WORD PTR [rax]");
+    println("  %s eax, WORD PTR [rax]", mov);
     break;
   case 4:
-    println("  movsxd rax, DWORD PTR [rax]");
+    println("  %s rax, DWORD PTR [rax]", mov);
     break;
   default:
     println("  mov rax, [rax]");
@@ -128,38 +130,72 @@ static void push_stacked(Node *n) {
   push();
 }
 
-enum {I8, I16, I32, I64};
+enum {I8, I16, I32, I64, U8, U16, U32, U64};
 static int getTypeId(Type *ty) {
   switch (ty->kind) {
   case TY_CHAR:
-    return I8;
+    return ty->is_unsigned ? U8 : I8;
   case TY_SHORT:
-    return I16;
+    return ty->is_unsigned ? U16 : I16;
   case TY_INT:
-    return I32;
+    return ty->is_unsigned ? U32 : I32;
   default:
-    return I64;
+    return ty->is_unsigned ? U64 : I64;
   }
 }
 
-static char i32i8[] = "movsbl eax, al";
-static char i32i16[] = "movswl eax, ax";
-static char i64i32[] = "movsxd rax, eax";
-
 /*
-  + 同じbit数同士は、cast不要
-  + 下位bitから64bitに拡張する場合は32bitレジスタを直接64bitへ
-    - movsxdで符号拡張
-    - 自動で上位bitは0埋めされる
-  + 上記以外の下位bitから64bitに拡張する場合は、何もしない
-  + 上位bitから下位bitに縮小する場合は、32bitレジスタへ
-  + 64bitから32bitへは、何もしない
+  拡張は3種類しかない。また、fromがsignedかunsignedかでmovsxかmovzxを選択する。
+  
+  1. sign extend
+  2. zero extend
+  3. truncate(何もしない)
+
+  [sign-extend]
+    + 同じbit数同士は、cast不要
+    + 32bit未満の値は、演算や比較の前に必要に応じて32bitへ拡張する。
+      - signedならmovsx、unsignedならmovzxを使う。
+      - 32bit値を64bit unsignedへ拡張する場合は、eaxへ書き込むことでrax上位32bitがゼロクリアされる。
+    + 下位bitから64bitに拡張する場合は32bitレジスタを直接64bitへ
+      - movsxで符号拡張
+      - 自動で上位bitは0埋めされる
+    + 上記以外の下位bitから64bitに拡張する場合は、上記の内容の通り32bit以下はeaxのため、32bit to 64bitと同じ
+  [zero-extend]
+  [truncate]
+    + 64bitから32bitへは、何もしない
+    + 上位bitから下位bitに縮小する場合は、32bitレジスタへ
+    + truncate時にmovsx/movzxするのではなく、truncate後の値を再び32bit以上として使うときにmovsx/movzxする
+  
+   [tips]
+      movzx は 8bit/16bit → 32bit/64bit のゼロ拡張に使う
+
+        movzx r32, r8/r16
+        movzx r64, r8/r16
+
+      ※ 32bit → 64bit の movzx は存在しない
+        movzx r64, r32  // 不可
+
+      ※ 32bit → 64bit のゼロ拡張は、
+         r32 に書き込むことで r64 の上位32bitが自動で0になる
 */
-static char *cast_table[4][4] = {
-  {NULL, NULL, NULL, i64i32}, //from I8
-  {i32i8, NULL, NULL, i64i32}, //from I16
-  {i32i8, i32i16, NULL, i64i32}, //from I32
-  {i32i8, i32i16, NULL, NULL}    //from I64
+
+static char i8to32[] = "movsx eax, al";
+static char u8to32[] = "movzx eax, al";
+static char i16to32[] = "movsx eax, ax";
+static char u16to32[] = "movzx eax, ax";
+static char i32to64[] = "movsxd rax, eax";
+static char u32to64[] = "mov eax, eax"; // eax書けば上位は0埋めされる
+
+static char *cast_table[][8] = {
+  // to I8, I16, I32, I64, U8, U16, U32, U64
+  {i8to32, i8to32, i8to32, i32to64, i8to32, i8to32, i8to32, i32to64},     //from I8
+  {i8to32, i16to32, i16to32, i32to64, i8to32, i16to32, i16to32, i32to64}, //from I16
+  {i8to32, i16to32, NULL, i32to64, i8to32, i16to32, NULL, i32to64},       //from I32
+  {i8to32, i16to32, NULL, NULL, i8to32, i16to32, NULL, NULL},             //from I64
+  {u8to32, u8to32, u8to32, u32to64, u8to32, u8to32, u8to32, u32to64},     //from U8
+  {u8to32, u16to32, u16to32, u32to64, u8to32, u16to32, u16to32, u32to64}, //from U16
+  {u8to32, u16to32, NULL, u32to64, u8to32, u16to32, NULL, u32to64},       //from U32
+  {u8to32, u16to32, NULL, NULL, u8to32, u16to32, NULL, NULL}              //from U64
 };
 
 static void cast(Type *from, Type *to) {
@@ -199,7 +235,11 @@ static void gen_expr(Node *n) {
     return;
   case ND_NEG:
     gen_expr(n->lhs);
-    println("  neg rax");
+    if (n->ty->size == 8) {
+      println("  neg rax");
+    } else {
+      println("  neg eax");
+    }
 
     return;
   case ND_VAR:
@@ -415,10 +455,18 @@ static void gen_expr(Node *n) {
       println("  movzx eax, al");
       return;
     case TY_CHAR:
-      println("  movsx eax, al");
+      if (n->ty->is_unsigned) {
+        println("  movzx eax, al");
+      } else {
+        println("  movsx eax, al");
+      }
       return;
     case TY_SHORT:
-      println("  movsx eax, ax");
+      if (n->ty->is_unsigned) {
+        println("  movzx eax, ax");
+      } else {
+        println("  movsx eax, ax");
+      }
       return;
     }
 
@@ -534,14 +582,21 @@ static void gen_expr(Node *n) {
   pop("rdi");
   pop("rax");
 
-  // パフォーマンスの最適化？？32bit計算時の一貫性？？
-  char *ax, *di;
+  /*
+    [32bit除算]
+    edx:eax / r/m32 → eax = 商, edx = 余り
+    [64bit除算]
+    rdx:rax / r/m64 → rax = 商, rdx = 余り
+  */
+  char *ax, *di, *dx;
   if (n->lhs->ty->kind == TY_LONG || n->lhs->ty->base) {
     ax = "rax";
     di = "rdi";
+    dx = "rdx";
   } else {
     ax = "eax";
     di = "edi";
+    dx = "edx";
   }
 
   switch(n->kind) {
@@ -553,7 +608,11 @@ static void gen_expr(Node *n) {
     break;
   case ND_SHR:
     println("  mov rcx, rdi");
-    println("  sar %s, cl", ax);
+    if (n->lhs->ty->is_unsigned) {
+      println("  shr %s, cl", ax);
+    } else {
+      println("  sar %s, cl", ax);
+    }
     break;
   case ND_ADD:
     println("  add %s, %s", ax, di);
@@ -566,16 +625,21 @@ static void gen_expr(Node *n) {
     break;
   case ND_DIV:
   case ND_MOD:
-    if (n->lhs->ty->size == 8) {
-      println("  cqo");
+    if (n->ty->is_unsigned) {
+      println("  mov %s, 0", dx);
+      println("  div %s", di);
     } else {
-      println("  cdq");
+      if (n->lhs->ty->size == 8) {
+        println("  cqo");
+      } else {
+        println("  cdq");
+      }
+
+      println("  idiv %s", di);
     }
 
-    println("  idiv %s", di);
-
     if (n->kind == ND_MOD) {
-      println("  mov rax, rdx");
+      println("  mov %s, %s", ax, dx);
     }
 
     break;
@@ -599,9 +663,17 @@ static void gen_expr(Node *n) {
     } else if (n->kind == ND_NEQ) {
       println("  setne al");
     } else if (n->kind == ND_LT) {
-      println("  setl al");
+      if (n->lhs->ty->is_unsigned) {
+        println("  setb al");
+      } else {
+        println("  setl al");
+      }
     } else if (n->kind == ND_LE) {
-      println("  setle al");
+      if (n->lhs->ty->is_unsigned) {
+        println("  setbe al");
+      } else {
+        println("  setle al");
+      }
     }
 
     println("  movzb %s, al", ax);
