@@ -99,6 +99,13 @@ static Node *new_long(uint64_t val, Token *token) {
   return n;
 }
 
+static Node *new_ulong(uint64_t val, Token *token) {
+  Node *n = new_node(ND_NUM, token);
+  n->val = val;
+  n->ty = cp_type(ty_ulong);
+  return n;
+}
+
 static Node *new_node_num(uint64_t val, Token *token) {
   Node *n = new_node(ND_NUM, token);
   n->val = val;
@@ -2705,7 +2712,7 @@ static Node *unary(Token **rest, Token *token) {
       error_at(token->loc, "%s", "incomplete array type");
     }
 
-    n = new_node_num(ty->size, start);
+    n = new_ulong(ty->size, start);
     expect(&token, token, ")");
 
     *rest = token;
@@ -2718,7 +2725,7 @@ static Node *unary(Token **rest, Token *token) {
     add_type(n);
 
     *rest = token;
-    return new_node_num(n->ty->size, token);
+    return new_ulong(n->ty->size, token);
   }
 
   if (equal(token, "_Alignof") && equal(token->next, "(") && is_type(token->next->next)) {
@@ -2727,7 +2734,7 @@ static Node *unary(Token **rest, Token *token) {
     expect(&token, token, ")");
 
     *rest = token;
-    return new_node_num(ty->align, token);
+    return new_ulong(ty->align, token);
   }
 
   if (equal(token, "_Alignof")) {
@@ -2736,7 +2743,7 @@ static Node *unary(Token **rest, Token *token) {
     add_type(n);
 
     *rest = token;
-    return new_node_num(n->ty->align, token);
+    return new_ulong(n->ty->align, token);
   }
 
   if (consume(&token, token, "+")) {

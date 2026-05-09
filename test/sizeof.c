@@ -65,6 +65,9 @@ int main() {
   ASSERT(8, sizeof(signed long long int));
   ASSERT(8, sizeof(unsigned long long int));
 
+  ASSERT(1, sizeof(char) << 31 >> 31);
+  ASSERT(1, sizeof(char) << 63 >> 63);
+
   /* error
     ASSERT(8, ({ sizeof(int (*)[3][]);})); //gcc error
     ASSERT(8, ({ sizeof(int [][3]);}));
