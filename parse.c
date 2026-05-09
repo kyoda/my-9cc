@@ -2578,8 +2578,9 @@ static Node *new_sub(Node *lhs, Node *rhs, Token *token) {
 
   // pointer - pointer, return int elements between pointer and pointer
   if (lhs->ty->base && rhs->ty->base) {
-    n = new_node_binary(ND_DIV, new_node_binary(ND_SUB, lhs, rhs, token), new_node_num(lhs->ty->base->size, token), token);
-    return n;
+    n = new_node_binary(ND_SUB, lhs, rhs, token);
+    n->ty = cp_type(ty_long);
+    return new_node_binary(ND_DIV, n, new_node_num(lhs->ty->base->size, token), token);
   }
 
   error_at(token->loc, "%s", "invalid operand");
