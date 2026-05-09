@@ -203,6 +203,7 @@ static Token *read_char_literal(char *p) {
 
   Token *t = new_token(TK_NUM, start, end + 1);
   t->val = c;
+  t->ty = cp_type(ty_int);
   
   return t;
 }
@@ -210,23 +211,134 @@ static Token *read_char_literal(char *p) {
 static Token *read_int_literal(char *p) {
   char *start = p;
 
-  uint64_t val;
+  // Read a binary, octal, decimal or hexadecimal integer literal and return a token.
+  int base = 10;
   if (strncasecmp(p, "0x", 2) == 0 && isalnum(p[2])) {
     p += 2;
-    val = strtoull(p, &p, 16);
-  } else if (strncasecmp(p, "0b", 2) == 0 && isdigit(p[2])) {
+    base = 16;
+  } else if (strncasecmp(p, "0b", 2) == 0 && (p[2] == '0' || p[2] == '1')) {
     p += 2;
-    val = strtoull(p, &p, 2);
+    base = 2;
   } else if (*p == '0' && isdigit(p[1])) {
     p += 1;
-    val = strtoull(p, &p, 8);
+    base = 8;
   } else {
-    val = strtoull(p, &p, 10);
+    base = 10;
+  }
+
+  uint64_t val = strtoull(p, &p, base);
+
+
+  /*
+    Read U, L or LL suffixes.
+
+    u/U -> unsigned
+    l/L -> long
+    ll/LL -> long long
+  */
+
+  bool u = false;
+  bool l = false;
+  bool ll = false;
+
+
+  if (strncmp(p, "ull", 3) == 0 || strncmp(p, "llu", 3) == 0
+      || strncmp(p, "ULL", 3) == 0 || strncmp(p, "LLU", 3) == 0
+      || strncmp(p, "uLL", 3) == 0 || strncmp(p, "LLu", 3) == 0
+      || strncmp(p, "Ull", 3) == 0 || strncmp(p, "llU", 3) == 0) {
+    u = true;
+    l = true;
+    p += 3;
+  } else if (strncmp(p, "ll", 2) == 0 || strncmp(p, "LL", 2) == 0) {
+    l = true;
+    p += 2;
+  } else if (strncasecmp(p, "ul", 2) == 0 || strncasecmp(p, "lu", 2) == 0) {
+    u = true;
+    l = true;
+    p += 2;
+  } else if (strncasecmp(p, "u", 1) == 0) {
+    u = true;
+    p += 1;
+  } else if (strncasecmp(p, "l", 1) == 0) {
+    l = true;
+    p += 1;
+  }
+
+  if (isalnum(*p)) {
+    error_at(p, "invalid digit");
+  }
+
+  /*
+  * Infer the type of an integer literal based on its value and suffixes.
+  *
+  * [Decimal (base 10) without suffix]
+  *   - int -> long -> long long
+  *   - only signed types are considered
+  *
+  * [Non-decimal (base 2/8/16) without suffix]
+  *   - int -> unsigned int -> long -> unsigned long
+  *     -> long long -> unsigned long long
+  *   - both signed and unsigned types are considered
+  *
+  * Note:
+  *   - Integer literals are parsed as numeric values, not as signed bit patterns.
+  *     (e.g., 0xffffffff represents 4294967295, not -1)
+  *   - The first type that can represent the value is chosen.
+  *   - Suffixes (U, L, LL) restrict the candidate types.
+  */
+  Type *ty;
+  if (base == 10) {
+    // In this compiler, long long is treated as long.
+    // If the value does not fit in signed long, use unsigned long.
+    /*
+      10進整数リテラル
+
+                    u なし (signed only)     u あり
+                   ┌──────────────────┬──────────────────┐
+      L/LL なし     │  123             │  123u            │
+                   │  int             │  unsigned int    │
+                   │   → long         │   → unsigned long│
+                   │   → long long    │                  │
+                   ├──────────────────┼──────────────────┤
+      L/LL あり     │  123L / 123LL    │  123UL / 123ULL  │
+                   │  long            │  unsigned long   │
+                   │   → long long    │                  │
+                   └──────────────────┴──────────────────┘
+    */
+    if ((l || ll) && u) {
+      ty = cp_type(ty_ulong);
+    } else if (l || ll) {
+      ty = cp_type(ty_long);
+    } else if (u) {
+        ty = val > 0xffffffff ? cp_type(ty_ulong) : cp_type(ty_uint);
+    } else {
+        ty = val > 0x7fffffff ? cp_type(ty_long) : cp_type(ty_int);
+    }
+  } else {
+    if ((l || ll) && u) {
+      ty = cp_type(ty_ulong);
+    } else if (l || ll) {
+      ty = val > 0x7fffffffffffffff ? cp_type(ty_ulong) : cp_type(ty_long);
+    } else if (u) {
+        ty = val > 0xffffffff ? cp_type(ty_ulong) : cp_type(ty_uint);
+    } else if (val <= 0x7fffffff) {
+      ty = cp_type(ty_int);
+    } else {
+      if (val > 0x7ffffffffffffff) {
+        ty = cp_type(ty_ulong);
+      } else if (val > 0xffffffff) {
+        ty = cp_type(ty_long);
+      } else if (val > 0x7fffffff) {
+        ty = cp_type(ty_uint);
+      } else {
+        ty = cp_type(ty_int);
+      }
+    }
   }
 
   Token *t = new_token(TK_NUM, start, p);
   t->val = val;
-
+  t->ty = ty;
   return t;
 }
 

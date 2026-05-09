@@ -3144,11 +3144,11 @@ static Node *primary(Token **rest, Token *token) {
   }
 
   if (token->kind == TK_NUM) {
-    uint64_t v = token->val;
-    token = token->next;
+    Node *n = new_node_num(token->val, token);
+    n->ty = token->ty;
 
-    *rest = token;
-    return new_node_num(v, token);
+    *rest = token->next;
+    return n;
   }
 
   error_at(token->loc, "%s", "expect ({}), (), ident, funcall, str and num");

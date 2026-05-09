@@ -33,10 +33,10 @@ struct Token {
   Token *next;
   uint64_t val;
   char *loc;
-  int len; //not array_len but length of token
-  int line; //for .loc directive
+  int len; // not array_len but length of token
+  int line; // for .loc directive
   // str
-  Type *ty;
+  Type *ty; // Used if TK_NUM or TK_STR
   char *str;
 };
 

@@ -148,7 +148,7 @@ void add_type(Node *n) {
 
   switch(n->kind) {
   case ND_NUM:
-    n->ty = (n->val == (int)n->val) ? cp_type(ty_int) : cp_type(ty_long);
+    n->ty = cp_type(ty_int);
     return;
   case ND_ADD:
   case ND_SUB:
