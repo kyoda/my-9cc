@@ -39,9 +39,9 @@ static Type *declspec(Token **rest, Token *token, VarAttr *attr);
 static Node *lvar_initializer(Token **rest, Token *token, Obj *var);
 static Initializer *initializer(Token **rest, Token *token, Type *ty, Type **new_ty);
 static void initializer2(Token **rest, Token *token, Initializer *init);
-static uint64_t eval(Node *n);
-static uint64_t eval2(Node *n, char **label);
-static uint64_t eval_rval(Node *n, char **label);
+static int64_t eval(Node *n);
+static int64_t eval2(Node *n, char **label);
+static int64_t eval_rval(Node *n, char **label);
 static Node *declaration(Token **rest, Token *token, Type *basety, VarAttr *attr);
 static Type *declarator(Token **rest, Token *token, Type *ty);
 static Type *type_suffix(Token **rest, Token *token, Type *ty);
@@ -51,7 +51,7 @@ static Node *stmt(Token **rest, Token *token);
 static Node *expr_stmt(Token **rest, Token *token);
 static Node *expr(Token **rest, Token *token);
 static Node *assign(Token **rest, Token *token);
-static uint64_t const_expr(Token **rest, Token *token);
+static int64_t const_expr(Token **rest, Token *token);
 static Node *to_assign(Node *lhs, Node *rhs, Token *token);
 static Node *conditional(Token **rest, Token *token);
 static Node *logicalor(Token **rest, Token *token);
@@ -1016,7 +1016,7 @@ static Relocation *write_gvar_data(Relocation *cur, Initializer *init, Type *ty,
     global変数の初期化における値はコンパイル時に確定するためeval()で計算する
     値が確定しないものについてはerrorとする
   */
-  uint64_t val = eval2(init->expr, &label);
+  int64_t val = eval2(init->expr, &label);
 
   if (!label) {
     /*
@@ -1702,7 +1702,7 @@ static Type *type_suffix(Token **rest, Token *token, Type *ty) {
       return ty_array(ty, -1);
     }
 
-    uint64_t size = const_expr(&token, token);
+    int64_t size = const_expr(&token, token);
     expect(&token, token, "]");
     ty = type_suffix(&token, token, ty);
     *rest = token;
@@ -2013,7 +2013,7 @@ static Node *stmt(Token **rest, Token *token) {
 
     n = new_node(ND_CASE, token);
     token = token->next;
-    uint64_t val = const_expr(&token, token);
+    int64_t val = const_expr(&token, token);
     expect(&token, token, ":");
 
     n->unique_label = new_unique_name();
@@ -2126,7 +2126,7 @@ static Node *expr(Token **rest, Token *token) {
   return n;
 }
 
-static uint64_t eval(Node *n) {
+static int64_t eval(Node *n) {
   return eval2(n, NULL);
 }
 
@@ -2147,7 +2147,7 @@ static uint64_t eval(Node *n) {
     case 1+2: --> 実行時に初期化されるためOK
     int a = 1; case a+2: --> コンパイル時にaが決まらないため不可
 */
-static uint64_t eval2(Node *n, char **label) {
+static int64_t eval2(Node *n, char **label) {
   add_type(n);
 
   switch (n->kind) {
@@ -2162,8 +2162,14 @@ static uint64_t eval2(Node *n, char **label) {
   case ND_MUL:
     return eval(n->lhs) * eval(n->rhs);
   case ND_DIV:
+    if (n->ty->is_unsigned) {
+      return (uint64_t)eval(n->lhs) / eval(n->rhs);
+    }
     return eval(n->lhs) / eval(n->rhs);
   case ND_MOD:
+    if (n->ty->is_unsigned) {
+      return (uint64_t)eval(n->lhs) % eval(n->rhs);
+    }
     return eval(n->lhs) % eval(n->rhs);
   case ND_OR:
     return eval(n->lhs) | eval(n->rhs);
@@ -2188,26 +2194,35 @@ static uint64_t eval2(Node *n, char **label) {
   case ND_SHL:
     return eval(n->lhs) << eval(n->rhs);
   case ND_SHR:
+    if (n->ty->is_unsigned && n->ty->size == 8) {
+      return (uint64_t)eval(n->lhs) >> eval(n->rhs);
+    }
     return eval(n->lhs) >> eval(n->rhs);
   case ND_EQ:
     return eval(n->lhs) == eval(n->rhs);
   case ND_NEQ:
     return eval(n->lhs) != eval(n->rhs);
   case ND_LT:
+    if (n->ty->is_unsigned) {
+      return (uint64_t)eval(n->lhs) < eval(n->rhs);
+    }
     return eval(n->lhs) < eval(n->rhs);
   case ND_LE:
+    if (n->ty->is_unsigned) {
+      return (uint64_t)eval(n->lhs) <= eval(n->rhs);
+    }
     return eval(n->lhs) <= eval(n->rhs);
   case ND_CAST:
-    uint64_t val = eval2(n->lhs, label);
+    int64_t val = eval2(n->lhs, label);
 
     if (is_integer(n->ty)) {
       switch (n->ty->size) {
       case 1:
-        return (int8_t)val;
+        return n->ty->is_unsigned ? (uint8_t)val : (int8_t)val;
       case 2:
-        return (int16_t)val;
+        return n->ty->is_unsigned ? (uint16_t)val : (int16_t)val;
       case 4:
-        return (int32_t)val;
+        return n->ty->is_unsigned ? (uint32_t)val : (int32_t)val;
       }
     }
 
@@ -2254,7 +2269,7 @@ static uint64_t eval2(Node *n, char **label) {
   return 0; // never reach here
 }
 
-static uint64_t eval_rval(Node *n, char **label) {
+static int64_t eval_rval(Node *n, char **label) {
   switch (n->kind) {
   case ND_VAR:
     if (n->var->is_local) {
@@ -2291,7 +2306,7 @@ static uint64_t eval_rval(Node *n, char **label) {
   値が決まる箇所の計算
   enum { two = 1+1 };, x[3+3], case 1+2: など
 */
-static uint64_t const_expr(Token **rest, Token *token) {
+static int64_t const_expr(Token **rest, Token *token) {
   Node *n = conditional(rest, token);
   return eval(n);
 }
