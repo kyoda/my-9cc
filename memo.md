@@ -5,6 +5,8 @@ x86-64 ABI、アセンブリ記法、型の変換命令など。
 
 | 分類 | 用語 | 意味 / 役割 | 例（単語が指す記号・対応物） | 備考 |
 |------|------|------------|----------------------------|------|
+| ABI / OS | System V (System Five) | UNIX系OSおよびその系統の標準仕様群 | System V ABI, System V IPC | V はローマ数字の5（Five） |
+| ABI / 呼び出し規約 | ABI (Application Binary Interface) | バイナリレベルでの関数呼び出し・レジスタ使用・データ配置などの取り決め | x86-64 System V ABI: rdi,rsi,rdx,rcx,r8,r9 に引数を渡す | コンパイラ・OS・ライブラリ間の互換性を保証 |
 | データ構造 | 自己参照構造体 (Self-referential Structure) | 自分自身の型へのポインタを持つ構造体 | `struct Node { struct Node *next; };` | 連結リスト・木で使用 |
 | 字句解析 | トークナイザ (Tokenizer) | ソースコード文字列をトークン列に分解 | `"a + 3"` → `IDENT(a), '+', NUM(3)` | lexer |
 | 構文解析 | 構文木 (Syntax Tree) | プログラム構造を木で表現したもの | `(1 + 2) * 3` の木 | 広義（CST/AST含む） |

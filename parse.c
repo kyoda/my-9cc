@@ -2150,6 +2150,20 @@ static int64_t eval(Node *n) {
 static int64_t eval2(Node *n, char **label) {
   add_type(n);
 
+  /*
+   * These operators need unsigned handling because their semantics
+   * differ between signed and unsigned integers:
+   *   /  %  >>  <  <=  >  >=
+   * Examples:
+   *   -1 / 2                   => 0
+   *   (uint64_t)-1 / 2         => 9223372036854775807
+   *
+   *   -1 >> 1                  => -1
+   *   (uint64_t)-1 >> 1        => 9223372036854775807
+   * 
+   * Other operators can usually be evaluated as signed values because
+   * they produce the same result on the underlying bit patterns.
+   */
   switch (n->kind) {
   case ND_ADD:
     /*
@@ -2194,6 +2208,19 @@ static int64_t eval2(Node *n, char **label) {
   case ND_SHL:
     return eval(n->lhs) << eval(n->rhs);
   case ND_SHR:
+    /*
+     * Only 64-bit unsigned values need an explicit cast here.
+     * Smaller types are promoted to signed int before evaluation,
+     * so their right shift already follows the host C compiler rules.
+     * 
+     * Unsigned right shift must be a logical shift (zero-fill).
+     *
+     * Example:
+     *   (uint64_t)-1 >> 1 => 0x7fffffffffffffff
+     *
+     * Signed right shift is typically arithmetic (sign-fill):
+     *   -1 >> 1 => -1
+     */
     if (n->ty->is_unsigned && n->ty->size == 8) {
       return (uint64_t)eval(n->lhs) >> eval(n->rhs);
     }
